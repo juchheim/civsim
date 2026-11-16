@@ -45,6 +45,23 @@ def percentile(sorted_values: list[float], probability: float) -> float:
     return sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction
 
 
+def validate_cohort_protocol(metadata: dict[str, object], seed_count: int) -> bool:
+    if seed_count < 20:
+        raise ValueError(f"F-T6/F-T7 cohort requires at least 20 frozen seeds, found {seed_count}")
+    required_flags = {
+        "--fief-health-trace", "--fief-institution-trace", "--fief-wp7-paired",
+        "--fief-sea10-trace", "--fief-territory-trace", "--fief-siege-trace",
+        "--fief-siege-strategist-trace", "--fief-power-ledger",
+    }
+    combined = metadata.get("combinedNaturalTraceCohort") is True
+    if combined:
+        if not required_flags.issubset(set(metadata.get("traceFlags", []))):
+            raise ValueError("combined natural-trace cohort is missing a required trace flag")
+    elif seed_count != 20:
+        raise ValueError(f"F-T6/F-T7 cohort requires exactly 20 seeds unless using the pinned combined protocol; found {seed_count}")
+    return combined
+
+
 def seeded_bootstrap_ratio(seed_totals: dict[int, tuple[float, float]], replicates: int, bootstrap_seed: int) -> tuple[float, float] | None:
     eligible = [(epi, total) for epi, total in seed_totals.values() if total > 0]
     if not eligible:
@@ -72,8 +89,31 @@ def analyze(raw_dir: Path, manifest_path: Path, template_path: Path, output_path
         raise ValueError("frozen seed manifest hash does not match the recorded cohort")
     if metadata.get("manifestSha256") != manifest_hash or metadata.get("seeds") != seeds:
         raise ValueError("raw run metadata does not match the frozen manifest")
-    if len(seeds) != 20:
-        raise ValueError(f"F-T6/F-T7 cohort requires exactly 20 frozen seeds, found {len(seeds)}")
+    combined_cohort = validate_cohort_protocol(metadata, len(seeds))
+    if metadata.get("combinedNaturalTraceCohort"):
+        freeze_path = raw_dir / "run-freeze.json"
+        if not freeze_path.is_file():
+            raise ValueError("combined natural-trace cohort is missing run-freeze.json")
+        freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+        if (freeze.get("cohort_role") != "held_out" or freeze.get("seeds") != seeds or
+                freeze.get("seed_file_sha256") != manifest_hash or freeze.get("traces") != metadata.get("traceFlags")):
+            raise ValueError("combined run freeze does not match the held-out manifest or trace metadata")
+        calibration_path = Path(freeze.get("calibration_seed_file", ""))
+        if (not calibration_path.is_file() or sha256(calibration_path) != freeze.get("calibration_seed_file_sha256") or
+                set(seeds) & set(freeze.get("calibration_seeds", []))):
+            raise ValueError("combined held-out cohort has a missing, changed, or overlapping calibration manifest")
+        expected_runner_sha = freeze.get("expected_runner_sha256")
+        runner_path = Path(freeze.get("runner", ""))
+        if not runner_path.is_file() or sha256(runner_path) != expected_runner_sha or freeze.get("runner_sha256") != expected_runner_sha:
+            raise ValueError("combined runner path or SHA-256 does not match the frozen pin")
+        test_path = Path(freeze.get("test_assembly", ""))
+        if not test_path.is_file() or sha256(test_path) != freeze.get("test_assembly_sha256") or metadata.get("testAssemblySha256") != freeze.get("test_assembly_sha256"):
+            raise ValueError("combined test-assembly path or SHA-256 does not match the frozen pin")
+        for path_key, hash_key in (("packPath", "packSha256"), ("harnessDllPath", "harnessDllSha256"),
+                                   ("simDllPath", "simDllSha256")):
+            artifact = Path(metadata.get(path_key, ""))
+            if not artifact.is_file() or sha256(artifact) != metadata.get(hash_key):
+                raise ValueError(f"combined {path_key} does not match its frozen SHA-256")
     run_rows = metadata.get("runs", [])
     by_seed_runs = {int(row["seed"]): row for row in run_rows}
     if len(by_seed_runs) != len(run_rows):

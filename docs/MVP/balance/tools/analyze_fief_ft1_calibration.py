@@ -41,7 +41,7 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def load_manifest(path: Path) -> list[int]:
+def load_manifest(path: Path, expected_count: int = 20) -> list[int]:
     seeds: list[int] = []
     for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.strip()
@@ -51,8 +51,8 @@ def load_manifest(path: Path) -> list[int]:
             seeds.append(int(line))
         except ValueError as exc:
             raise ValueError(f"{path}:{line_number}: expected integer seed, got {line!r}") from exc
-    if len(seeds) != 20 or len(set(seeds)) != 20:
-        raise ValueError(f"F-T1 calibration manifest must contain 20 unique seeds; found {len(seeds)}")
+    if len(seeds) != expected_count or len(set(seeds)) != expected_count:
+        raise ValueError(f"F-T1 manifest must contain {expected_count} unique seeds; found {len(seeds)}")
     return seeds
 
 
@@ -186,8 +186,10 @@ def validate_run(raw_dir: Path, manifest_path: Path) -> tuple[list[int], dict[st
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     if metadata.get("status") != "complete":
         raise ValueError(f"runner metadata status must be 'complete', got {metadata.get('status')!r}")
-    if metadata.get("minutes") != 130 or metadata.get("cohortRole") != "calibration_only_not_acceptance":
-        raise ValueError("runner metadata does not identify the pinned 130-minute calibration cohort")
+    combined_cohort = metadata.get("combinedNaturalTraceCohort") is True
+    expected_role = "held_out" if combined_cohort else "calibration_only_not_acceptance"
+    if metadata.get("minutes") != 130 or metadata.get("cohortRole") != expected_role:
+        raise ValueError("runner metadata does not identify the pinned 130-minute calibration or combined held-out cohort")
     provenance_before = metadata.get("provenanceBefore")
     provenance_after = metadata.get("provenanceAfter")
     if not isinstance(provenance_before, dict) or not isinstance(provenance_after, dict):
@@ -286,13 +288,17 @@ def write_analysis(seeds: list[int], matches: list[dict[str, Any]], metadata: di
     }
     source_base_cost = metadata.get("e5BaseCost", pinned.EXPECTED_BASE_COST)
     pack_base_cost = metadata.get("packE5BaseCost", metadata.get("fiefEraBaseCost", source_base_cost))
-    source_record_hash = metadata.get("e5BaseCostRecordSha256", BASE_COST_RECORDS[source_base_cost])
-    pack_record_hash = metadata.get("packE5BaseCostRecordSha256", BASE_COST_RECORDS[pack_base_cost])
+    source_record_hash = metadata.get("e5BaseCostRecordSha256") or BASE_COST_RECORDS.get(source_base_cost)
+    pack_record_hash = metadata.get("packE5BaseCostRecordSha256") or BASE_COST_RECORDS.get(pack_base_cost)
+    if not source_record_hash or not pack_record_hash:
+        raise ValueError("base-cost record hashes are required for this candidate")
     eras_hash = metadata["erasSha256"]
     lines = [
-        "# F-T1 calibration cohort analysis",
+        "# F-T1 acceptance holdout analysis" if metadata.get("cohortRole") == "held_out" else "# F-T1 calibration cohort analysis",
         "",
-        "> Calibration only; not the frozen acceptance holdout and not F-T1 closure. Incomplete KEY-6 intervals are not imputed.",
+        ("> Frozen acceptance holdout measurements; apply the preregistered D21 gate without tuning the candidate. Incomplete KEY-6 intervals are not imputed."
+         if metadata.get("cohortRole") == "held_out" else
+         "> Calibration only; not the frozen acceptance holdout and not F-T1 closure. Incomplete KEY-6 intervals are not imputed."),
         "",
         "## Provenance",
         "",
@@ -336,10 +342,11 @@ def validate_combined_run(raw_path: Path, metadata_path: Path,
         if not path.is_file():
             raise FileNotFoundError(f"{label} does not exist: {path}")
     manifest_hash = sha256(manifest_path)
-    if manifest_hash != pinned.EXPECTED_MANIFEST_SHA256:
-        raise ValueError(f"frozen manifest hash mismatch: expected {pinned.EXPECTED_MANIFEST_SHA256}, got {manifest_hash}")
-    seeds = load_manifest(manifest_path)
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    combined_cohort = metadata.get("combinedNaturalTraceCohort") is True
+    seeds = load_manifest(manifest_path, 80 if combined_cohort else 20)
+    if not combined_cohort and manifest_hash != pinned.EXPECTED_MANIFEST_SHA256:
+        raise ValueError(f"frozen manifest hash mismatch: expected {pinned.EXPECTED_MANIFEST_SHA256}, got {manifest_hash}")
     if metadata.get("status") != "complete":
         raise ValueError(f"runner metadata status must be 'complete', got {metadata.get('status')!r}")
     if metadata.get("minutes") != 130 or metadata.get("grantE5") is not False:
@@ -348,6 +355,45 @@ def validate_combined_run(raw_path: Path, metadata_path: Path,
         raise ValueError("metadata seed coverage/order does not match the frozen manifest")
     if metadata.get("sourceManifestSha256") != manifest_hash:
         raise ValueError("metadata source-manifest hash does not match the frozen manifest")
+    if combined_cohort:
+        required_flags = {"--fief-power-ledger", "--fief-health-trace", "--fief-institution-trace",
+                          "--fief-wp7-paired", "--fief-sea10-trace", "--fief-territory-trace",
+                          "--fief-siege-trace", "--fief-siege-strategist-trace"}
+        if (metadata.get("cohortRole") != "held_out" or
+                not required_flags.issubset(set(metadata.get("traceFlags", []))) or
+                metadata.get("seedCount") != 80 or metadata.get("grantE5") is not False):
+            raise ValueError("combined F-T1 analyzer input must be the complete 80-seed natural held-out trace cohort")
+        if metadata.get("expectedManifestSha256") != manifest_hash:
+            raise ValueError("combined F-T1 held-out manifest pin mismatch")
+        freeze_path = Path(metadata.get("runFreezePath", raw_path.parent / "run-freeze.json"))
+        if not freeze_path.is_file():
+            raise ValueError("combined F-T1 run freeze is missing")
+        freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+        if freeze.get("seeds") != seeds or freeze.get("seed_file_sha256") != manifest_hash or freeze.get("cohort_role") != "held_out":
+            raise ValueError("combined F-T1 freeze does not match the held-out manifest")
+        calibration_path = Path(freeze.get("calibration_seed_file", ""))
+        calibration_seeds = load_manifest(calibration_path, len(freeze.get("calibration_seeds", []))) if calibration_path.is_file() else []
+        if (not calibration_seeds or sha256(calibration_path) != freeze.get("calibration_seed_file_sha256") or
+                calibration_seeds != freeze.get("calibration_seeds") or set(seeds) & set(calibration_seeds)):
+            raise ValueError("combined F-T1 held-out cohort has a missing, changed, or overlapping calibration manifest")
+        for key, path_key, hash_key in (("testAssemblySha256", "testAssemblyPath", "testAssemblySha256"),
+                                        ("packSha256", "packPath", "packSha256"),
+                                        ("harnessDllSha256", "harnessDllPath", "harnessDllSha256"),
+                                        ("simDllSha256", "simDllPath", "simDllSha256")):
+            artifact = Path(metadata.get(path_key, ""))
+            if not artifact.is_file() or sha256(artifact) != metadata.get(hash_key):
+                raise ValueError(f"combined F-T1 {key} path or SHA-256 mismatch")
+        runner_path = Path(freeze.get("runner", ""))
+        if (not runner_path.is_file() or sha256(runner_path) != freeze.get("expected_runner_sha256") or
+                freeze.get("runner_sha256") != freeze.get("expected_runner_sha256")):
+            raise ValueError("combined F-T1 runner path or SHA-256 mismatch")
+        if metadata.get("provenancePath") and metadata.get("sourceRoot"):
+            sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
+            from fief_trace_runner import validate as validate_combined_pins
+            validate_combined_pins(Path(metadata["provenancePath"]), Path(metadata["sourceRoot"]),
+                                   Path(metadata["packPath"]), Path(metadata["harnessDllPath"]),
+                                   Path(metadata["simDllPath"]), Path(metadata["testAssemblyPath"]),
+                                   metadata["testAssemblySha256"])
     try:
         base_cost = int(metadata["fiefEraBaseCost"])
         pack_hash = metadata["packSha256"]
@@ -356,14 +402,21 @@ def validate_combined_run(raw_path: Path, metadata_path: Path,
         workspace_hash = metadata["workspaceAggregateSha256"]
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("metadata is missing expected pack/harness/base-cost provenance") from exc
-    if EXPECTED_PACKS.get(base_cost) != pack_hash:
+    if not combined_cohort and EXPECTED_PACKS.get(base_cost) != pack_hash:
         raise ValueError(f"unexpected pack/base-cost pair: base_cost={base_cost}, packSha256={pack_hash}")
-    if harness_hash != pinned.EXPECTED_HARNESS_SHA256:
+    if not combined_cohort and harness_hash != pinned.EXPECTED_HARNESS_SHA256:
         raise ValueError(f"harness hash mismatch: expected {pinned.EXPECTED_HARNESS_SHA256}, got {harness_hash}")
-    if sim_hash != EXPECTED_SIM_DLL_SHA256:
+    if not combined_cohort and sim_hash != EXPECTED_SIM_DLL_SHA256:
         raise ValueError(f"simulation DLL hash mismatch: expected {EXPECTED_SIM_DLL_SHA256}, got {sim_hash}")
-    if workspace_hash != EXPECTED_WORKSPACE_SHA256:
+    if not combined_cohort and workspace_hash != EXPECTED_WORKSPACE_SHA256:
         raise ValueError(f"workspace aggregate hash mismatch: expected {EXPECTED_WORKSPACE_SHA256}, got {workspace_hash}")
+    if combined_cohort:
+        before, after = metadata.get("provenanceBefore", {}), metadata.get("provenanceAfter", {})
+        if before != after or before.get("sourceAggregateSha256") != workspace_hash or \
+                before.get("packSha256") != pack_hash or before.get("harnessDllSha256") != harness_hash or \
+                before.get("simDllSha256") != sim_hash or before.get("e5BaseCost") != base_cost or \
+                metadata.get("packE5BaseCost") != base_cost:
+            raise ValueError("combined F-T1 source/pack/binary/base-cost tuple is inconsistent")
     if metadata.get("rawOutput") and Path(metadata["rawOutput"]).resolve() != raw_path:
         raise ValueError("metadata rawOutput path does not match the combined output path")
     for path_key, hash_key in (("packPath", "packSha256"), ("harnessDllPath", "harnessDllSha256"),

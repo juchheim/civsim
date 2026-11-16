@@ -19,6 +19,16 @@ import run_fief_t6_t7_cohort as runner  # noqa: E402
 
 
 class FrozenCohortScriptTests(unittest.TestCase):
+    def test_combined_heldout_accepts_eighty_only_with_full_flag_set(self) -> None:
+        flags = ["--fief-power-ledger", "--fief-health-trace", "--fief-institution-trace",
+                 "--fief-wp7-paired", "--fief-sea10-trace", "--fief-territory-trace",
+                 "--fief-siege-trace", "--fief-siege-strategist-trace"]
+        metadata = {"combinedNaturalTraceCohort": True, "traceFlags": flags}
+        self.assertTrue(analysis.validate_cohort_protocol(metadata, 80))
+        metadata["traceFlags"] = flags[:-1]
+        with self.assertRaisesRegex(ValueError, "missing a required trace flag"):
+            analysis.validate_cohort_protocol(metadata, 80)
+
     def test_manifest_is_the_frozen_twenty_seed_list(self) -> None:
         manifest = runner.DEFAULT_MANIFEST
         self.assertEqual(runner.EXPECTED_MANIFEST_SHA256, runner.sha256(manifest))

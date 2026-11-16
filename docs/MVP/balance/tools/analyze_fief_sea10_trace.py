@@ -140,6 +140,26 @@ def validate_frozen_run(run_dir: Path, seeds_path: Path, provenance_path: Path) 
     )
     if freeze.get("minutes") != 130 or not has_sea10:
         raise ValueError("run freeze must be the 130-minute --fief-sea10-trace protocol")
+    if freeze.get("cohort_role") == "held_out":
+        required_combined = {
+            "--fief-power-ledger", "--fief-health-trace", "--fief-institution-trace",
+            "--fief-wp7-paired", "--fief-sea10-trace", "--fief-territory-trace", "--fief-siege-trace",
+            "--fief-siege-strategist-trace",
+        }
+        if not required_combined.issubset(set(traces or [])):
+            raise ValueError("combined held-out run is missing one or more frozen trace flags")
+        test_assembly = Path(freeze.get("test_assembly", ""))
+        if not test_assembly.is_file() or sha256(test_assembly) != freeze.get("test_assembly_sha256"):
+            raise ValueError("combined held-out test assembly is missing or has a hash mismatch")
+        if freeze.get("expected_manifest_sha256") != sha256(seeds_path):
+            raise ValueError("combined held-out seed manifest does not match its expected SHA-256")
+        calibration_path = Path(freeze.get("calibration_seed_file", ""))
+        calibration_seeds = read_seeds(calibration_path) if calibration_path.is_file() else []
+        if (not calibration_seeds or sha256(calibration_path) != freeze.get("calibration_seed_file_sha256") or
+                set(seeds) & set(calibration_seeds)):
+            raise ValueError("combined held-out run has a missing, changed, or overlapping calibration manifest")
+        if freeze.get("expected_runner_sha256") != freeze.get("runner_sha256"):
+            raise ValueError("combined held-out runner pin does not match the run freeze")
     if freeze.get("seeds") != seeds or freeze.get("seed_file_sha256") != sha256(seeds_path):
         raise ValueError("run freeze seed list or seed-manifest SHA does not match the supplied manifest")
     if Path(freeze.get("output", "")).resolve() != run_dir:
