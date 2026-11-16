@@ -58,6 +58,67 @@ public sealed class FiefWholeMatchFogFairnessTests
         Assert.Contains(diffs, diff => diff.StartsWith("own fleet:", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Hidden_deposit_is_inert_before_advance_while_visible_fleet_is_observed()
+    {
+        CivControl[] controls = FogFairnessHarness.DefaultControls();
+        const ulong seed = 20261117;
+        MatchModel baseline = FogFairnessHarness.NewMatch(controls, seed, fief: true);
+
+        // Take exact copies before the first observation pass. The hidden-deposit and visible-fleet
+        // changes are applied before either copy runs that pass; no SimRunner advances, so later
+        // politics/economy propagation cannot explain a diff.
+        MatchModel hidden = FogFairnessHarness.Clone(baseline, controls, seed, fief: true, independentWorld: true);
+        MatchModel visibleFleet = FogFairnessHarness.Clone(baseline, controls, seed, fief: true, independentWorld: true);
+        Assert.Equal(baseline.ComputeChecksum(), hidden.ComputeChecksum());
+        Assert.Equal(baseline.ComputeChecksum(), visibleFleet.ComputeChecksum());
+
+        int hiddenTile = FindStrictlyUnseenTile(baseline, observer: 0);
+        WorldTile originalHiddenTile = baseline.Ai!.World.Generated.TileAt(hiddenTile);
+        SetHiddenDeposit(hidden, hiddenTile);
+        WorldTile changedHiddenTile = hidden.Ai!.World.Generated.TileAt(hiddenTile);
+        Assert.NotEqual((originalHiddenTile.Deposit, originalHiddenTile.DepositAmount, originalHiddenTile.DepositDepth),
+            (changedHiddenTile.Deposit, changedHiddenTile.DepositAmount, changedHiddenTile.DepositDepth));
+        Assert.Null(ApplyVisibleFleetControl(visibleFleet, observer: 0));
+
+        baseline.Ai!.OnSeasonEnd(0);
+        hidden.Ai!.OnSeasonEnd(0);
+        visibleFleet.Ai!.OnSeasonEnd(0);
+
+        List<string> hiddenDiffs = FogFairnessHarness.CompareMinds(baseline, hidden, observer: 0, sinceTick: 0);
+        Assert.True(hiddenDiffs.Count == 0, string.Join("; ", hiddenDiffs));
+        List<string> fleetDiffs = FogFairnessHarness.CompareMinds(baseline, visibleFleet, observer: 0, sinceTick: 0);
+        Assert.Contains(fleetDiffs, diff => diff.StartsWith("own fleet:", StringComparison.Ordinal));
+    }
+
+    private static int FindStrictlyUnseenTile(MatchModel match, int observer)
+    {
+        MapKnowledge map = match.Ai!.SeatOf(observer)!.Belief.Map;
+        int nearestOwnTileDistance(int tile)
+        {
+            int nearest = int.MaxValue;
+            for (int s = 0; s < match.Politics.SettlementTotal; s++)
+                if (match.Politics.SettlementCivOf(s) == observer && !match.Politics.IsFreeFolk(s))
+                    nearest = Math.Min(nearest, HexGrid.Distance(match.Politics.SettlementTileOf(s), tile, map.Width));
+            return nearest;
+        }
+
+        for (int tile = 0; tile < map.TileCount; tile++)
+            if (!map.IsExplored(tile) && nearestOwnTileDistance(tile) > Margin)
+                return tile;
+        throw new InvalidOperationException("Fief fixture has no tile beyond the observer's sight margin.");
+    }
+
+    private static void SetHiddenDeposit(MatchModel match, int tileIndex)
+    {
+        WorldTile tile = match.Ai!.World.Generated.TileAt(tileIndex);
+        tile.Deposit = DepositKind.Saltpeter;
+        tile.DepositAmount = 3;
+        tile.DepositDepth = 1;
+        GeneratedTiles(match.Ai.World.Generated)[tileIndex] = tile;
+        PoliticsTiles(match.Politics)[tileIndex] = tile;
+    }
+
     private sealed class Row
     {
         public ulong Seed; public int Season; public int Observer; public string Kind = "";
