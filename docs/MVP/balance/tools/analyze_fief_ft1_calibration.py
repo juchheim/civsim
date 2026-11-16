@@ -14,7 +14,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_fief_ft1_calibration as pinned  # noqa: E402
 
-DEFAULT_MANIFEST = Path(__file__).resolve().parents[1] / "m12-wp5-fief-ft1-calibration-seeds-2026-11-15.txt"
+DEFAULT_MANIFEST = Path(__file__).resolve().parents[1] / "m12-wp5-fief-ft1-calibration-r2-seeds-2026-11-16.txt"
 DEFAULT_RAW_DIR = Path(__file__).resolve().parents[1] / "m12-wp5-fief-ft1-calibration-output-2026-11-15"
 DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "m12-wp5-fief-ft1-calibration-analysis-2026-11-15.md"
 EXPECTED_PACKS = {

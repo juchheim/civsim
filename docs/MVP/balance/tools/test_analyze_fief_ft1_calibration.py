@@ -33,6 +33,11 @@ fief: E5 progress per civilization (KEY-6 timing is measured from own KEY-5; an 
 
 
 class FiefFt1CalibrationParserTests(unittest.TestCase):
+    def test_default_manifest_is_replacement_calibration_block(self) -> None:
+        self.assertTrue(analyzer.DEFAULT_MANIFEST.name.endswith("calibration-r2-seeds-2026-11-16.txt"))
+        self.assertEqual("ec992c60c6e4b2820f401de529a680a74b0bcd77eb33dc57d8e75eecc3ceb417",
+                         analyzer.sha256(analyzer.DEFAULT_MANIFEST))
+
     def test_parses_all_four_seats_and_preserves_censor_states(self) -> None:
         match = analyzer.parse_raw_output(SYNTHETIC_MATCH, 20500859, "synthetic.txt")
         self.assertEqual(20500859, match["seed"])

@@ -95,6 +95,13 @@ class Ft1CalibrationRunnerTests(unittest.TestCase):
         self.assertEqual(self.runner_hash, metadata["provenanceBefore"]["runnerSha256"])
         self.assertEqual(self.runner_hash, metadata["provenanceAfter"]["runnerSha256"])
 
+    def test_frozen_r2_manifest_excludes_consumed_seed_and_matches_runner_pin(self):
+        manifest = Path(__file__).resolve().parents[1] / "m12-wp5-fief-ft1-calibration-r2-seeds-2026-11-16.txt"
+        self.assertEqual("ec992c60c6e4b2820f401de529a680a74b0bcd77eb33dc57d8e75eecc3ceb417", runner.sha256(manifest))
+        seeds = runner.load_manifest(manifest)
+        self.assertEqual(20, len(seeds))
+        self.assertNotIn(20500859, seeds)
+
     def test_wrong_candidate_and_runner_pins_fail_before_output_creation(self):
         with self.assertRaisesRegex(ValueError, "frozen cohort provenance mismatch.*packSha256"):
             runner.validate_inputs(self.args(expected_pack_sha256="0" * 64),
