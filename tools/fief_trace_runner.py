@@ -383,7 +383,7 @@ def main() -> int:
     trace_group.add_argument("--trace-kinds", choices=tuple(TRACE_FLAGS), nargs="+",
                              help="capture this selected subset of compatible natural trace kinds")
     trace_group.add_argument("--combined-e5-traces", action="store_true",
-                             help="run all seven compatible traces for a frozen 130-minute held-out WP-E5 natural cohort")
+                             help="run all eight compatible traces for a frozen 130-minute held-out WP-E5 natural cohort")
     p.add_argument("--test-assembly", type=Path, help="exact Release CivSim.Tests.dll for --combined-e5-traces")
     p.add_argument("--expected-test-assembly-sha256")
     p.add_argument("--expected-manifest-sha256")
