@@ -188,16 +188,27 @@ def validate_run(raw_dir: Path, manifest_path: Path) -> tuple[list[int], dict[st
         raise ValueError(f"runner metadata status must be 'complete', got {metadata.get('status')!r}")
     if metadata.get("minutes") != 130 or metadata.get("cohortRole") != "calibration_only_not_acceptance":
         raise ValueError("runner metadata does not identify the pinned 130-minute calibration cohort")
-    if metadata.get("manifestSha256") != manifest_hash or metadata.get("seeds") != seeds:
-        raise ValueError("runner metadata manifest hash or seed list does not match the frozen manifest")
     provenance_before = metadata.get("provenanceBefore")
     provenance_after = metadata.get("provenanceAfter")
     if not isinstance(provenance_before, dict) or not isinstance(provenance_after, dict):
         raise ValueError("runner metadata is missing pre/post provenance")
+    if provenance_before.get("manifestSha256") != manifest_hash or metadata.get("seeds") != seeds:
+        raise ValueError("runner pre-run provenance manifest hash or seed list does not match the frozen manifest")
+    manifest_copy_name = metadata.get("manifestCopy")
+    if not isinstance(manifest_copy_name, str) or not manifest_copy_name or Path(manifest_copy_name).name != manifest_copy_name:
+        raise ValueError("runner metadata has no safe manifest-copy filename")
+    manifest_copy = raw_dir / manifest_copy_name
+    if not manifest_copy.is_file() or sha256(manifest_copy) != manifest_hash:
+        raise ValueError("runner manifest copy is missing or does not match the frozen manifest")
+    recorded_manifest_path = provenance_before.get("manifestPath")
+    if recorded_manifest_path and Path(recorded_manifest_path).resolve() != manifest_path:
+        raise ValueError("runner pre-run provenance manifest path does not match the supplied manifest")
     provenance_keys = ("headCommit", "sourceAggregateSha256", "packSha256", "harnessDllSha256",
                        "simDllSha256", "runnerSha256", "erasSha256")
     if any(provenance_before.get(key) != provenance_after.get(key) for key in provenance_keys):
         raise ValueError("runner pre/post provenance differs")
+    for key, value in provenance_before.items():
+        metadata.setdefault(key, value)
     if provenance_before.get("e5BaseCost") != pinned.EXPECTED_BASE_COST or \
             provenance_before.get("packE5BaseCost") != pinned.EXPECTED_BASE_COST:
         raise ValueError("runner provenance does not identify the frozen E5 base-cost candidate")
@@ -277,7 +288,7 @@ def write_analysis(seeds: list[int], matches: list[dict[str, Any]], metadata: di
     pack_base_cost = metadata.get("packE5BaseCost", metadata.get("fiefEraBaseCost", source_base_cost))
     source_record_hash = metadata.get("e5BaseCostRecordSha256", BASE_COST_RECORDS[source_base_cost])
     pack_record_hash = metadata.get("packE5BaseCostRecordSha256", BASE_COST_RECORDS[pack_base_cost])
-    eras_hash = metadata.get("erasSha256", pinned.EXPECTED_ERAS_SHA256)
+    eras_hash = metadata["erasSha256"]
     lines = [
         "# F-T1 calibration cohort analysis",
         "",

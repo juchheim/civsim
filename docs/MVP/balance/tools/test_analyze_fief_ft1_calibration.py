@@ -101,6 +101,7 @@ class FiefFt1CalibrationParserTests(unittest.TestCase):
                 **provenance, "e5BaseCost": 6000, "packE5BaseCost": 6000,
                 "e5BaseCostRecordSha256": analyzer.pinned.EXPECTED_BASE_COST_RECORD_SHA256,
                 "packE5BaseCostRecordSha256": analyzer.pinned.EXPECTED_BASE_COST_RECORD_SHA256,
+                "manifestPath": str(manifest.resolve()), "manifestSha256": manifest_hash,
             }
             rows = []
             for seed in seeds:
@@ -117,15 +118,22 @@ class FiefFt1CalibrationParserTests(unittest.TestCase):
             metadata = {
                 "status": "complete", "minutes": 130,
                 "cohortRole": "calibration_only_not_acceptance",
-                "manifestSha256": manifest_hash, "seeds": seeds,
+                "seeds": seeds, "manifestCopy": "seed-manifest.txt",
                 "provenanceBefore": enriched, "provenanceAfter": provenance, "runs": rows,
             }
+            (raw_dir / "seed-manifest.txt").write_bytes(manifest.read_bytes())
             (raw_dir / "run_metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
             with patch.object(analyzer.pinned, "EXPECTED_MANIFEST_SHA256", manifest_hash):
                 loaded_seeds, validated = analyzer.validate_run(raw_dir, manifest)
             self.assertEqual(seeds, loaded_seeds)
             self.assertEqual(20, len(validated["matches"]))
             self.assertEqual(80, sum(len(match["seats"]) for match in validated["matches"]))
+
+            metadata["provenanceBefore"]["manifestSha256"] = "0" * 64
+            (raw_dir / "run_metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+            with patch.object(analyzer.pinned, "EXPECTED_MANIFEST_SHA256", manifest_hash):
+                with self.assertRaisesRegex(ValueError, "pre-run provenance manifest hash"):
+                    analyzer.validate_run(raw_dir, manifest)
 
 
 if __name__ == "__main__":
