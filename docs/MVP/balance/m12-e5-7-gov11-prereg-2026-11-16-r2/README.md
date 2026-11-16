@@ -23,7 +23,7 @@ The provisional working screen is an estimate of 1.08–1.12 with the seed-clust
 
 1. Freeze the integrated source and numeric-status pack.
 2. Build the Release Harness and adjacent Sim from that same source.
-3. Generate separate runner manifests pinned to source, pack, Harness, Sim, HEAD, runner SHA, cohort, seed-file SHA, 130-minute horizon, and the provisional criteria status. Candidate pins remain `PENDING_FINAL_FREEZE`.
+3. Generate separate runner manifests for `tools/wp7_trace_runner.py` pinned to the clean source HEAD and `hash_e5_workspace.py` aggregate, numeric pack, adjacent Release `CivSim.Harness.dll` and `CivSim.Sim.dll`, runner and analyzer SHA-256, cohort role, seed-file SHA, 130-minute horizon, and provisional criteria status. Include the exact .NET host/SDK/runtime inventory, OS/release/version, and architecture. The build-provenance record must bind the Release `net10.0` command and timestamp to those same source, pack, and binary hashes. Candidate pins remain `PENDING_FINAL_FREEZE`.
 4. Repeat the full collision audit, verify an idle host, and use a fresh output path outside the source tree.
 5. Keep the 80-seed holdout sealed until the calibration fit and candidate are frozen. Any refit consumes this holdout and requires a new preregistered block.
 

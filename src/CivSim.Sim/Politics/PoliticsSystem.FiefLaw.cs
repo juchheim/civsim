@@ -32,7 +32,7 @@ public sealed partial class PoliticsSystem
     private int _nextFiefCreditClaimId;
     private readonly Fix64[] _fiefTradeProfit = Array.Empty<Fix64>();
 
-    /// <summary>Seller-side realized book margin in ration-equivalent value; no trade or resource decision reads this ledger.</summary>
+    /// <summary>Seller-side realized book margin in ration-equivalent value after the agreed invoice is paid.</summary>
     internal Fix64 FixtureFiefTradeProfit(int civ)
         => _economy.FiefChain && (uint)civ < (uint)_fiefTradeProfit.Length ? _fiefTradeProfit[civ] : Fix64.Zero;
 
@@ -66,12 +66,23 @@ public sealed partial class PoliticsSystem
         // This diagnostic must not make an otherwise valid settlement crash when unusually large stocks
         // produce a very large book value. Saturate only the separate accounting ledger; trade terms stay exact.
         Fix64 margin = SaturatingAccountingSubtract(paid, SaturatingAccountingMultiply(delivered, shipment.SellerBookValue));
-        int trd09 = _research.Catalog.IndexOf("TRD-09");
-        bool hasTrd09 = trd09 >= 0 && _research.IsDone(seller, trd09);
-        if (hasTrd09) margin = SaturatingAccountingMultiply(margin, Fix64.FromRatio(12, 10));
         _fiefTradeProfit[seller] = SaturatingAccountingAdd(_fiefTradeProfit[seller], margin);
-        FiefWp7TraceObserverForDiagnostics?.Invoke($"wp7-trd09-margin seed={_seed} season={_season} sellerCiv={seller} sellerSettlement={shipment.FromSettlement} buyerSettlement={shipment.ToSettlement} quantity={delivered.Raw} dispatchUnitValue={shipment.SellerBookValue.Raw} paid={paid.Raw} realizedMargin={margin.Raw} trd09={hasTrd09.ToString().ToLowerInvariant()} dispatch=true delivery=true");
+        FiefWp7TraceObserverForDiagnostics?.Invoke($"wp7-trd09-margin seed={_seed} season={_season} sellerCiv={seller} sellerSettlement={shipment.FromSettlement} buyerSettlement={shipment.ToSettlement} quantity={delivered.Raw} dispatchUnitValue={shipment.SellerBookValue.Raw} paid={paid.Raw} realizedMargin={margin.Raw} dispatch=true delivery=true");
     }
+
+    /// <summary>Raise only a positive Fief seller spread from its frozen book basis; the increased invoice is settled normally.</summary>
+    private Fix64 FiefTradeInvoice(int sellerCiv, Fix64 agreedInvoice, Fix64 dispatchBookBasis)
+    {
+        int trd09 = _research.Catalog.IndexOf("TRD-09");
+        if (!_economy.FiefChain || sellerCiv < 0 || trd09 < 0 || !_research.IsDone(sellerCiv, trd09)
+            || agreedInvoice <= dispatchBookBasis)
+            return agreedInvoice;
+        Fix64 spread = agreedInvoice - dispatchBookBasis;
+        return dispatchBookBasis + spread * _research.ModifierMultiplier(sellerCiv, "trade_profit");
+    }
+
+    internal Fix64 FixtureFiefTradeInvoice(int sellerCiv, Fix64 agreedInvoice, Fix64 dispatchBookBasis)
+        => FiefTradeInvoice(sellerCiv, agreedInvoice, dispatchBookBasis);
 
     private void HashFiefTradeAccounting(ref Core.StateHasher h)
     {

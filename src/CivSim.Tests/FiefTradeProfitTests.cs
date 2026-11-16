@@ -10,7 +10,7 @@ using CivSim.Sim.World;
 
 namespace CivSim.Tests;
 
-/// <summary>TRD-09 records a Fief-only seller margin without changing the barter transaction.</summary>
+/// <summary>TRD-09 improves a positive Fief seller spread through the ordinary invoice and settlement.</summary>
 public sealed class FiefTradeProfitTests
 {
     private const ulong Seed = 20261114;
@@ -48,20 +48,22 @@ public sealed class FiefTradeProfitTests
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = 0, TargetCiv = 1, FromSettlement = seller, ToSettlement = buyer,
-            Good = TradeGood.Salt, Cargo = Fix64.FromInt(2), Value = Fix64.FromInt(3), Id = 41, CompactId = compact.Id,
+            Good = TradeGood.Salt, Cargo = Fix64.FromInt(2), Value = match.Politics.FixtureFiefTradeInvoice(
+                0, basis + Fix64.One, basis), Id = 41, CompactId = compact.Id,
             SellerBookValue = basis, CarriesPlague = true,
         };
         match.Politics.FixtureAddCaravan(caravan);
         return (caravan, compact, seller, buyer, basis);
     }
 
-    private static Fix64 RunArrival(int researchCiv, out Fix64 sellerFood, out Fix64 buyerCopper)
+    private static Fix64 RunArrival(int researchCiv, out Fix64 sellerFood, out Fix64 buyerCopper, out Fix64 sellerProfitFactor)
     {
         (MatchModel match, SimRunner runner) = Start();
         Grant(runner, match, 0, "KEY-5");
         Grant(runner, match, 1, "KEY-5");
         Grant(runner, match, researchCiv, "TRD-09");
         (Expedition caravan, _, int seller, int buyer, Fix64 basis) = Prepare(match, researchCiv);
+        sellerProfitFactor = match.Research.ModifierMultiplier(0, "trade_profit");
         Fix64 sellerFoodBefore = match.Economy.FoodStores(seller);
         Fix64 buyerSaltBefore = match.Economy.GoodStock(buyer, "G-SALT");
         match.Politics.FixtureArriveCaravan(caravan);
@@ -71,17 +73,17 @@ public sealed class FiefTradeProfitTests
     }
 
     [Fact]
-    public void TRD09_scales_only_the_sellers_signed_book_margin_and_preserves_payment_and_cargo()
+    public void TRD09_increases_positive_dispatch_spread_and_settles_the_higher_invoice_in_goods()
     {
-        Fix64 sellerFoodWith, buyerCopperWith, sellerFoodWithout, buyerCopperWithout;
-        Fix64 withSellerResearch = RunArrival(0, out sellerFoodWith, out buyerCopperWith);
-        Fix64 withoutSellerResearch = RunArrival(1, out sellerFoodWithout, out buyerCopperWithout);
+        Fix64 sellerFoodWith, buyerCopperWith, sellerFoodWithout, buyerCopperWithout, factorWith, factorWithout;
+        Fix64 withSellerResearch = RunArrival(0, out sellerFoodWith, out buyerCopperWith, out factorWith);
+        Fix64 withoutSellerResearch = RunArrival(1, out sellerFoodWithout, out buyerCopperWithout, out factorWithout);
 
-        Assert.Equal(Fix64.FromInt(6), sellerFoodWith);
-        Assert.Equal(Fix64.FromInt(6), sellerFoodWithout);
+        Assert.True(factorWith > factorWithout);
+        Assert.InRange((sellerFoodWith - sellerFoodWithout - Fix64.FromInt(2) * (factorWith - factorWithout)).Raw, -64L, 64L);
         Assert.Equal(Fix64.FromInt(2), buyerCopperWith);
         Assert.Equal(Fix64.FromInt(2), buyerCopperWithout);
-        Assert.InRange((withSellerResearch - withoutSellerResearch * Fix64.FromRatio(12, 10)).Raw, -64L, 64L);
+        Assert.InRange((withSellerResearch - factorWith * withoutSellerResearch).Raw, -64L, 64L);
         Assert.True(withoutSellerResearch != Fix64.Zero, "fixture should realize a nonzero seller margin");
     }
 
@@ -110,8 +112,8 @@ public sealed class FiefTradeProfitTests
         resumed.Economy.FixtureStock(seller, "G-SALT", Fix64.FromInt(1000) - resumed.Economy.GoodStock(seller, "G-SALT"));
         Assert.NotEqual(basis, resumed.Politics.UnitValue(seller, TradeGood.Salt));
         resumed.Politics.FixtureArriveCaravan(loaded);
-        Fix64 rawMargin = Fix64.FromInt(6) - Fix64.FromInt(2) * basis;
-        Assert.InRange((resumed.Politics.FixtureFiefTradeProfit(0) - rawMargin * Fix64.FromRatio(12, 10)).Raw, -64L, 64L);
+        Fix64 rawMargin = loaded.Value * Fix64.FromInt(2) - Fix64.FromInt(2) * basis;
+        Assert.InRange((resumed.Politics.FixtureFiefTradeProfit(0) - rawMargin).Raw, -64L, 64L);
         Assert.Equal(Fix64.Zero, resumed.Politics.FixtureFiefTradeProfit(1));
 
         using var completed = new MemoryStream();
@@ -125,7 +127,7 @@ public sealed class FiefTradeProfitTests
     }
 
     [Fact]
-    public void Fief_profit_ledger_saturates_per_shipment_multiplier_and_cumulative_sum()
+    public void Fief_profit_ledger_saturates_shipment_margin_and_cumulative_sum()
     {
         (MatchModel productMatch, _) = Start();
         Compact productCompact = productMatch.Politics.FixtureAddCompact(0, 1, TradeGood.Salt);
@@ -140,11 +142,11 @@ public sealed class FiefTradeProfitTests
         sumMatch.Politics.FixtureRecordFiefTradeProfit(sumCompact, zeroCost, Fix64.Zero, Fix64.MaxValue);
         Assert.Equal(Fix64.MaxValue, sumMatch.Politics.FixtureFiefTradeProfit(0));
 
-        (MatchModel multiplierMatch, SimRunner runner) = Start();
-        Grant(runner, multiplierMatch, 0, "KEY-5", "TRD-09");
-        Compact multiplierCompact = multiplierMatch.Politics.FixtureAddCompact(0, 1, TradeGood.Salt);
-        multiplierMatch.Politics.FixtureRecordFiefTradeProfit(multiplierCompact, zeroCost, Fix64.Zero, Fix64.MaxValue);
-        Assert.Equal(Fix64.MaxValue, multiplierMatch.Politics.FixtureFiefTradeProfit(0));
+        (MatchModel researchedMatch, SimRunner runner) = Start();
+        Grant(runner, researchedMatch, 0, "KEY-5", "TRD-09");
+        Compact researchedCompact = researchedMatch.Politics.FixtureAddCompact(0, 1, TradeGood.Salt);
+        researchedMatch.Politics.FixtureRecordFiefTradeProfit(researchedCompact, zeroCost, Fix64.Zero, Fix64.MaxValue);
+        Assert.Equal(Fix64.MaxValue, researchedMatch.Politics.FixtureFiefTradeProfit(0));
     }
 
     [Fact]
@@ -159,5 +161,19 @@ public sealed class FiefTradeProfitTests
         Assert.Equal(before, match.ComputeChecksum());
         for (int civ = 0; civ < match.Economy.CivilizationCount; civ++)
             Assert.Equal(Fix64.Zero, match.Politics.FixtureFiefTradeProfit(civ));
+    }
+
+    [Fact]
+    public void TRD09_leaves_nonpositive_spreads_and_non_Fief_invoice_values_unchanged()
+    {
+        (MatchModel fief, SimRunner runner) = Start();
+        Grant(runner, fief, 0, "KEY-5", "TRD-09");
+        Assert.Equal(Fix64.FromInt(3), fief.Politics.FixtureFiefTradeInvoice(0, Fix64.FromInt(3), Fix64.FromInt(4)));
+        Assert.Equal(Fix64.FromInt(4), fief.Politics.FixtureFiefTradeInvoice(0, Fix64.FromInt(4), Fix64.FromInt(4)));
+
+        MatchModel iron = MatchModel.Create(Seed, Pack.Value, World.Value, Balanced, default, rules: ChapterRules.Iron);
+        SimRunner ironRunner = new(iron);
+        Grant(ironRunner, iron, 0, "KEY-5", "TRD-09");
+        Assert.Equal(Fix64.FromInt(5), iron.Politics.FixtureFiefTradeInvoice(0, Fix64.FromInt(5), Fix64.FromInt(4)));
     }
 }

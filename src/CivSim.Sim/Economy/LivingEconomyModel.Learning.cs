@@ -1,3 +1,4 @@
+using System;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
@@ -35,6 +36,37 @@ public sealed partial class LivingEconomyModel
         return n;
     }
 
+    /// <summary>
+    /// SOC-11 extends age-based service life only for registry goods that both have a numeric season lifetime and are
+    /// outputs of a compiled recipe. This excludes indefinite "durable" labels, raw/extracted stock, and the G-TOOL
+    /// working-season kits (especially T12), whose dedicated tool-life model is unchanged.
+    /// </summary>
+    private Fix64 FiefCraftServiceLifeMultiplier(SettlementState settlement, string goodId, int serviceSeasons)
+    {
+        if (!FiefChain || serviceSeasons <= 0 || goodId.StartsWith("G-TOOL", StringComparison.Ordinal)) return Fix64.One;
+        int slot = SlotOf(goodId);
+        if (slot == NoSlot) return Fix64.One;
+        bool recipeOutput = false;
+        foreach (CompiledRecipe recipe in _allRecipes)
+        {
+            if (recipe.OutputSlot != slot || recipe.OutputQuantity <= Fix64.Zero) continue;
+            recipeOutput = true;
+            break;
+        }
+        return recipeOutput ? Modifier(settlement.Civilization, "craft_quality") : Fix64.One;
+    }
+
+    /// <summary>One season of stock wear for an age-wearing recipe good; SOC-11 stretches only eligible Fief service life.</summary>
+    private Fix64 AgeCraftedDurableGood(SettlementState settlement, string goodId, Fix64 stock, int serviceSeasons)
+    {
+        if (stock <= Fix64.Zero || serviceSeasons <= 0) return stock;
+        Fix64 life = Fix64.FromInt(serviceSeasons) * FiefCraftServiceLifeMultiplier(settlement, goodId, serviceSeasons);
+        return life <= Fix64.Zero ? stock : Fix64.Max(Fix64.Zero, stock - stock / life);
+    }
+
+    internal Fix64 FixtureCraftServiceLifeMultiplier(int settlementIndex, string goodId, int serviceSeasons)
+        => FiefCraftServiceLifeMultiplier(_settlements[settlementIndex], goodId, serviceSeasons);
+
     /// <summary>CER-10 and ART-09 wants (secondary, like the levy's bows): one pair of spectacles per elder, up to four a season, and two manuscripts per staffed monastery.</summary>
     private void FiefLearningWants(SettlementState s, MetalPlan plan)
     {
@@ -54,7 +86,7 @@ public sealed partial class LivingEconomyModel
         }
     }
 
-    /// <summary>Spectacles wear out over their registry service life (80 seasons), the way stored arms do.</summary>
+    /// <summary>Spectacles wear out over their registry service life; SOC-11 extends this non-kit crafted Fief good.</summary>
     private void WearSpectacles(SettlementState s)
     {
         if (!FiefChain) return;
@@ -63,7 +95,7 @@ public sealed partial class LivingEconomyModel
         if (stock <= Fix64.Zero) return;
         int t = _content.TradeGoodIndex(BowGoodId(BowGood.Spectacles));
         int seasons = t >= 0 && _content.TradeGoods[t].ServiceSeasons > 0 ? _content.TradeGoods[t].ServiceSeasons : SpectacleServiceSeasonsFallback;
-        AddStock(s, slot, -(stock / seasons));
+        AddStock(s, slot, AgeCraftedDurableGood(s, BowGoodId(BowGood.Spectacles), stock, seasons) - stock);
     }
 
     /// <summary>Whole pairs of spectacles in a settlement's stores (zero outside Fief).</summary>

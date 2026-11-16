@@ -156,7 +156,7 @@ projects:
       - {kind: role, id: gunner}
       - {kind: good, id: "G-CANNON"}
       - {kind: unlock_action, action: fire_cannon}
-      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per firing season, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
+      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per shot, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
     practice: [{action: fire_cannon, share: 100}]
     flavor: "Thunder is taught to break walls."
     moment: "A gunner touches a match and a wall shudders."

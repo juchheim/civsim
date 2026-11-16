@@ -586,11 +586,14 @@ public sealed partial class PoliticsSystem : ITradeRouteSource
         if (taken < MinLoad) { if (taken > Fix64.Zero) Unload(seller, c.Good, taken); TraceSea10Route("route_rejected", c, null, seller, buyer, "stock_take_below_minimum", requested, load, taken); return; }
         int partySize = canEscort ? 4 : 2;
         List<Fighter> crew = PickParty(seller, mover, partySize, attacking: false, out List<long> ids, stayHome: 4);
+        Fix64 sellerBookBasis = _economy.FiefChain ? vs : Fix64.Zero;
+        Fix64 agreedInvoice = Fix64.Sqrt(vs * vb) * PilgrimageTradeMultiplier(seller, buyer);
+        Fix64 invoice = _economy.FiefChain ? FiefTradeInvoice(c.SellerCiv, agreedInvoice, sellerBookBasis) : agreedInvoice;
         var caravan = new Expedition
         {
             Kind = ExpeditionKind.Caravan, Civ = mover, TargetCiv = c.BuyerCiv, FromSettlement = seller, ToSettlement = buyer,
             ArriveSeason = _season + SeasonsFor(CaravanTiles(mover, seller, buyer, travel)), Id = _nextPartyId++, Good = c.Good, Cargo = taken, CompactId = c.Id,
-            FolkSeller = c.SellerFolk, Value = Fix64.Sqrt(vs * vb) * PilgrimageTradeMultiplier(seller, buyer), SellerBookValue = _economy.FiefChain ? vs : Fix64.Zero,
+            FolkSeller = c.SellerFolk, Value = invoice, SellerBookValue = sellerBookBasis,
             CarriesPlague = _economy.FiefChain && _economy.OutbreakAt(seller).Class == OutbreakClass.Plague,
             EscortCount = canEscort ? Math.Min(2, Math.Max(0, ids.Count - 2)) : 0,
         };

@@ -22,10 +22,11 @@ Status: complete; seeds 16; extra args ['--fief-power-ledger']
 | 20709980 | 32 | 1 | 32/32 | 84.7% | 1408.80 | 805.85/10.60/577.76 | 14.59 | 0.00 | 1 |
 
 Totals: 505 complete windows, 26 censored (excluded, not imputed), 503 meeting 60%; seeds with no ledger: 0 [].
-Below-60% complete windows: 3
+Below-60% complete windows: 2
 - seed 20701208 s5 c1 seasons 457-468: 58.0% sources water/wind 0/2
-- seed 20705529 s28 c1 seasons 516-520: 53.5% sources water/wind 0/2
 - seed 20705710 s5 c0 seasons 476-487: 50.6% sources water/wind 0/2
+Censored window with below-60% observed coverage (5/12 seasons; excluded from complete-window pass/fail counts):
+- seed 20705529 s28 c1 seasons 516-520: 53.5% sources water/wind 0/2
 Windows with two or more same-type sources (second-source cases): 30
 - seed 20700066 s0 c0: 73.2% water/wind 0/2
 - seed 20700066 s5 c3: 74.6% water/wind 0/2

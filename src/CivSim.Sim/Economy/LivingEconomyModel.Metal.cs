@@ -2158,10 +2158,10 @@ public sealed partial class LivingEconomyModel
             if (m.Goods[g] <= Fix64.Zero) continue;
             int t = _content.TradeGoodIndex(MetalGoodId((MetalGood)g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
-            if (seasons > 0) m.Goods[g] -= m.Goods[g] / seasons;
+            if (seasons > 0) m.Goods[g] = AgeCraftedDurableGood(s, MetalGoodId((MetalGood)g), m.Goods[g], seasons);
         }
 
-        if (IronChain) WearIronGoods(m);
+        if (IronChain) WearIronGoods(s, m);
 
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;
@@ -2274,10 +2274,13 @@ public sealed partial class LivingEconomyModel
             Fix64 wasteRate = FiefCraftLossApplies(recipe) ? FiefRecipeWasteRate(s.Civilization) : Fix64.Zero;
             for (int i = 0; i < recipe.InputQuantity.Length; i++)
                 civic.GuildRecipeWaste += batches * recipe.InputQuantity[i] * wasteRate;
-            civic.CraftQualityUnits += batches * (Done(s.Civilization, "SOC-11") ? Fix64.Parse("1.2") : Fix64.One);
-            // One training exposure unit per craft work-season; SOC-11's 1.5 speed is
-            // modeled as faster accumulated practice, not faster product output.
-            civic.CraftRoleTraining += batches * labor * (Done(s.Civilization, "SOC-11") ? Fix64.Parse("1.5") : Fix64.One);
+            Fix64 quality = Modifier(s.Civilization, "craft_quality");
+            Fix64 apprenticeship = Modifier(s.Civilization, "apprenticeship_speed");
+            civic.CraftQualityUnits += batches * quality;
+            // Retained as telemetry for the same multiplier that now reduces craft-role recipe labor.
+            civic.CraftRoleTraining += batches * labor * apprenticeship;
+            bool guilds = Done(s.Civilization, "SOC-11");
+            Fix64 training = batches * labor * apprenticeship;
             if (wp7Observer is not null)
             {
                 Fix64 loss = Fix64.Zero;
@@ -2296,9 +2299,6 @@ public sealed partial class LivingEconomyModel
                     }
                     inputs.Append("]:").Append(declared.Raw).Append(':').Append(effective.Raw);
                 }
-                bool guilds = Done(s.Civilization, "SOC-11");
-                Fix64 quality = guilds ? Fix64.Parse("1.2") : Fix64.One;
-                Fix64 training = batches * labor * (guilds ? Fix64.Parse("1.5") : Fix64.One);
                 wp7TraceRow = $"wp7-soc11 seed={_seed} season={_seasonsCompleted} civ={s.Civilization} settlement={s.Id} recipe={recipe.Def.Id} batches={batches.Raw} inputs={inputs} declaredLoss={loss.Raw} expectedLoss={loss.Raw} output={(batches * OutputQuantity(s, recipe)).Raw} qualityIndex={quality.Raw} role=craft trainingWork={training.Raw} soc11={guilds.ToString().ToLowerInvariant()}";
             }
         }

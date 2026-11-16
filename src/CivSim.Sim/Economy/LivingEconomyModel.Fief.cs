@@ -50,9 +50,12 @@ public sealed partial class LivingEconomyModel
     }
 
     private Fix64 FiefRecipeWasteRate(int civilization)
-        => Done(civilization, "SOC-11") ? BaseFiefRecipeWaste / Fix64.Parse("1.2") : BaseFiefRecipeWaste;
+    {
+        Fix64 quality = Modifier(civilization, "craft_quality");
+        return quality > Fix64.One ? BaseFiefRecipeWaste / quality : BaseFiefRecipeWaste;
+    }
 
-    /// <summary>Fief craft-role training exposure in work-seasons; guild apprenticeship speed affects only this quantity.</summary>
+    /// <summary>Diagnostic craft-role practice exposure; the physical apprenticeship effect reduces eligible recipe labor in <c>FiefRecipeLabor</c>.</summary>
     internal Fix64 FiefCraftRoleTraining(int settlementIndex)
         => FiefChain && _settlements[settlementIndex].Civic is { } civic ? civic.CraftRoleTraining : Fix64.Zero;
 

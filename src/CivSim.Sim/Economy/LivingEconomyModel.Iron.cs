@@ -1756,7 +1756,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Iron arms and siege engines wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge, 12 for an engine).</summary>
-    private void WearIronGoods(MetalState m)
+    private void WearIronGoods(SettlementState settlement, MetalState m)
     {
         if (m.IronGoods is not { } iron) return;
         SpoilIronLiquids(m);
@@ -1764,7 +1764,8 @@ public sealed partial class LivingEconomyModel
         {
             int t = _content.TradeGoodIndex(IronGoodId(g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
-            if (seasons > 0 && iron[(int)g] > Fix64.Zero) iron[(int)g] -= iron[(int)g] / seasons;
+            if (seasons > 0 && iron[(int)g] > Fix64.Zero)
+                iron[(int)g] = AgeCraftedDurableGood(settlement, IronGoodId(g), iron[(int)g], seasons);
         }
     }
 

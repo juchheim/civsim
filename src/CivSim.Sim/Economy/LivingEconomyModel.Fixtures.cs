@@ -322,6 +322,12 @@ public sealed partial class LivingEconomyModel
         EnsureCivic(_settlements[settlementIndex]).BuildKind = kind;
     }
 
+    internal Fix64 FixtureCivicBuildLabor(int settlementIndex, string structure)
+    {
+        CivicBuild kind = CivicOf(structure) ?? throw new ArgumentException($"Unknown civic structure '{structure}'.", nameof(structure));
+        return CivicLabor(_settlements[settlementIndex], kind);
+    }
+
     internal void FixtureSetScoutPolicy(int settlementIndex, ScoutPolicy policy)
         => _settlements[settlementIndex].ScoutPolicy = policy;
 

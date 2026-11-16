@@ -1,5 +1,7 @@
 # WP-E5-5/6/7 F-T1 / F-T2 / F-T3 closeout on the final dev source (2026-11-16)
 
+> **Supersession note (2026-11-16):** Do not use this document's F-T1 “PASS” claim as acceptance evidence. The 7,300 holdout attempt was subsequently quarantined because its execution provenance did not establish the required clean/current source tuple; the later quarantine record in [the F-T1 preflight](m12-wp5-fief-ft1-final-code-preflight-2026-11-15.md) governs. Do not analyze or reuse that output. The F-T2 and F-T3 results below are source-bound mechanics diagnostics only; neither closes whole-match WP-E5-11 acceptance. A fresh disjoint F-T1 acceptance block is required after the final source/candidate freeze.
+
 All 50 E5 rows stay `draft`; the repo era base stays 6,000; ordinary/release Fief selection is untouched; F-T4 is not touched. The 7,300 base exists only in a scratch pack. Source: dev copy `/Users/ejuchheim/Projects/CivSim/civsim-e5-dev` (derived from the dirty `civsim-e5` snapshot, HEAD `bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c`, snapshot aggregate `7decf87ac45f924efeedb8fb28cd87c8f8d0476b93b438344c931c07fa4947d6`).
 
 ## Hashes
