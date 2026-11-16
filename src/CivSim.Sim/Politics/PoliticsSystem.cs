@@ -96,6 +96,8 @@ public enum PoliticsEventKind : byte
     LeagueEnded,
     /// <summary>A BEL-11 pilgrimage completed over connected roads. Other = destination settlement, A = origin settlement, B = food spent.</summary>
     PilgrimageCompleted,
+    /// <summary>A Fief settlement suffered a crime or dispute incident. Other = -1, A = settlement.</summary>
+    FiefLawIncident,
 }
 
 /// <summary>Diagnostic-only mining-camp claim-radius alternatives for frontier projection.</summary>

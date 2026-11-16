@@ -320,6 +320,8 @@ public enum ViewEventKind : ushort
     SettlementAbandoned = 75,
     /// <summary>Residents returned to an existing abandoned settlement. Tile = resettled site.</summary>
     SettlementRevived = 76,
+    /// <summary>A Fief settlement suffered a crime or dispute. Settlement = it.</summary>
+    FiefLawIncident = 77,
 }
 
 /// <summary>
@@ -351,7 +353,7 @@ public enum ChronicleKey : ushort
     VillageJoined = 108, EmbargoOnUs = 109, DecreePact = 110,
 
     BlockadeBegan = 111, BlockadeEnded = 112, TributeAgreed = 113, TributeEnded = 114, LeagueJoined = 115, LeagueEnded = 116,
-    SettlementAbandoned = 117, SettlementRevived = 118,
+    SettlementAbandoned = 117, SettlementRevived = 118, FiefLawIncident = 119,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -451,6 +453,7 @@ public static class ViewText
         ChronicleKey.LeagueEnded => "chronicle.league.ended",
         ChronicleKey.SettlementAbandoned => "alert.settlement.abandoned",
         ChronicleKey.SettlementRevived => "chronicle.settlement.revived",
+        ChronicleKey.FiefLawIncident => "chronicle.law.crime_or_dispute",
         _ => "",
     };
 }

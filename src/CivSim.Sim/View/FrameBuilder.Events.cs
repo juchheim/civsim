@@ -418,6 +418,10 @@ public sealed partial class FrameBuilder
                 case PoliticsEventKind.LeagueEnded:
                     e.Kind = ViewEventKind.LeagueEnded; e.Text = ChronicleKey.LeagueEnded; e.Tier = ViewEventTier.Info;
                     break;
+                case PoliticsEventKind.FiefLawIncident:
+                    e.Kind = ViewEventKind.FiefLawIncident; e.Text = ChronicleKey.FiefLawIncident; e.Tier = ViewEventTier.Info;
+                    e.Settlement = p.A; e.Tile = TileOf(p.A);
+                    break;
                 default:
                     continue;
             }

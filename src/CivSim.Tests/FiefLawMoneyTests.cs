@@ -6,6 +6,7 @@ using CivSim.Sim.Politics;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
+using CivSim.Sim.View;
 
 namespace CivSim.Tests;
 
@@ -114,6 +115,18 @@ public sealed class FiefLawMoneyTests
                 court.Politics.FixtureResolveFiefLawEvents(year * 4 + 3);
                 Assert.Equal(Fix64.FromRatio(6, 1000), controlBefore - control.Economy.SettlementCohesion(controlSettlement));
                 Assert.Equal(courtBefore, court.Economy.SettlementCohesion(courtSettlement));
+                var playerFrame = new MatchFrame();
+                new FrameBuilder(control, 0).Build(control, playerFrame);
+                ViewEvent incident = System.Linq.Enumerable.Range(0, playerFrame.EventCount).Select(i => playerFrame.Events[i])
+                    .Last(e => e.Kind == ViewEventKind.FiefLawIncident);
+                Assert.Equal((sbyte)0, incident.Civ);
+                Assert.Equal(controlSettlement, incident.Settlement);
+                Assert.Equal(control.Economy.SettlementLite(controlSettlement).SiteTile, incident.Tile);
+                Assert.Equal("chronicle.law.crime_or_dispute", ViewText.Key(incident.Text));
+                var rivalFrame = new MatchFrame();
+                new FrameBuilder(control, 1).Build(control, rivalFrame);
+                Assert.DoesNotContain(System.Linq.Enumerable.Range(0, rivalFrame.EventCount).Select(i => rivalFrame.Events[i]),
+                    e => e.Kind == ViewEventKind.FiefLawIncident);
                 break;
             }
         }

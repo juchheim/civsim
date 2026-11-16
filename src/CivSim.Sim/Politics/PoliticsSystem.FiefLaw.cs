@@ -150,6 +150,8 @@ public sealed partial class PoliticsSystem
                 _economy.AdjustCohesion(settlement, -Fix64.FromRatio(6, 1000)); // one existing Cohesion point
             Fix64 after = hit ? before - Fix64.FromRatio(6, 1000) : before;
             (int id, _, _, _, _, _) = _economy.SettlementLite(settlement);
+            if (hit)
+                _events.Add(new PoliticsEvent(_tick, (byte)civ, PoliticsEventKind.FiefLawIncident, -1, settlement, 0));
             FiefWp7TraceObserverForDiagnostics?.Invoke(string.Join(" ", "wp7-gov10", $"seed={_seed}", $"season={_season}", $"year={year}",
                 $"civ={civ}", $"settlement={id}", $"live={live.ToString().ToLowerInvariant()}", $"eligible={eligible.ToString().ToLowerInvariant()}",
                 $"disorder={disorder}", $"gov10={gov10.ToString().ToLowerInvariant()}", $"chance={chance.Raw}", $"roll={roll.Raw}",
