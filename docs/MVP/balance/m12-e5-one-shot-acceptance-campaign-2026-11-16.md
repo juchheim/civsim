@@ -4,8 +4,8 @@
 
 ## Current candidate boundary
 
-- Source anchor: `codex/e5-fief` at `7f756170a20e2079e2c32d854cd69b55bc85a7b9`; canonical `content/src/game` aggregate: `5d4f0763adf3bda9946e4bcf3fe21ed85db431977809ef931e7f84ebbc80705c`.
-- The 6,400-era-base D/P diagnostic pack pair is byte-identical across the 50 status changes. The P pack is `0f0106dc89e910a9559a0612bf42b7232f4085ace81b4261e1c343becbb81cff`. It is not an accepted promotion pack; all 50 canonical rows remain draft.
+- Current source anchor: `codex/e5-fief` at `2af599acdf543d37c11c61b3c141408e70da94dd`; current acceptance-workspace aggregate: `e5f991d94f5b4bf6a2b66a3c23603b1a9b96699dac042831d800e7826c886fc6`.
+- The earlier 6,400-era-base D/P diagnostic pack pair was byte-identical across the 50 status changes, but it was built at `7f75617` and is not the current source freeze. The P pack SHA was `0f0106dc89e910a9559a0612bf42b7232f4085ace81b4261e1c343becbb81cff`. Rebuild/pin current binaries and test assembly from this source before acceptance. It is not an accepted promotion pack; all 50 canonical rows remain draft.
 - The dated WP-E5-9 preflight points at stale `5ee659bd` source and binaries. Its output directories contain only placeholders. Rebuild and pin all acceptance inputs after the final source freeze; do not reuse its hashes or outputs as evidence.
 - Keep the reserved WP-E5-12 seed block `33,000,000–33,000,079` untouched.
 
