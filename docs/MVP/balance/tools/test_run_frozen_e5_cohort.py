@@ -104,11 +104,27 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
                 prefix = Path(actual_command[actual_command.index("--output-prefix") + 1])
                 prefix.parent.mkdir(parents=True, exist_ok=True)
                 seed = Path(actual_command[actual_command.index("--seeds-file") + 1]).read_text().strip()
+                tick_values = {"seed": seed, "minutes": 130, "warmup_minutes": 5, "timed_ticks": 75000,
+                    "expected_timed_ticks": 75000, "stop_reason": "horizon", "censored": 0, "final_tick": 78000,
+                    "final_checksum": "0123456789abcdef", "mean_ms": 1, "p50_ms": 1, "p95_ms": 2,
+                    "p99_ms": 2, "max_ms": 3, "gc_pause_ms": 0, "gc_pause_ms_per_tick": 0,
+                    "gen0": 0, "gen1": 0, "gen2": 0, "allocated_bytes": 0, "allocated_bytes_per_tick": 0}
                 prefix.with_name(prefix.name + "-ticks.csv").write_text(
-                    f"seed,timed_ticks,stop_reason,censored,final_tick,mean_ms,p95_ms,gc_pause_ms_per_tick\n{seed},75000,horizon,0,78000,1.0,2.0,0.1\n", encoding="utf-8")
-                prefix.with_name(prefix.name + "-seats.csv").write_text(f"seed,civ\n{seed},0\n", encoding="utf-8")
-                prefix.with_name(prefix.name + "-tick-samples.csv").write_text(f"seed,tick\n{seed},1\n", encoding="utf-8")
-                prefix.with_name(prefix.name + "-provenance.txt").write_text("fixture\n", encoding="utf-8")
+                    ",".join(runner.TICK_FIELDS) + "\n" +
+                    ",".join(str(tick_values[k]) for k in runner.TICK_FIELDS) + "\n", encoding="utf-8")
+                prefix.with_name(prefix.name + "-seats.csv").write_text(
+                    ",".join(runner.SEAT_FIELDS) + "\n", encoding="utf-8")
+                with prefix.with_name(prefix.name + "-tick-samples.csv").open("w", encoding="utf-8") as samples:
+                    samples.write(",".join(runner.SAMPLE_FIELDS) + "\n")
+                    for tick in range(3001, 78001): samples.write(f"{seed},{tick},1.0\n")
+                seed_manifest = Path(actual_command[actual_command.index("--seeds-file") + 1])
+                provenance = {"cohort": "natural", "grant_e5": "false", "minutes": "130", "warmup_minutes": "5",
+                    "seeds_file": str(seed_manifest.resolve()), "seeds_sha256": runner.sha256(seed_manifest),
+                    "pack_file": str(pack.resolve()), "pack_sha256": runner.sha256(pack),
+                    "executable": str(harness.resolve()), "executable_sha256": runner.sha256(harness),
+                    "runtime": ".NET fixture", "os": "fixture OS", "architecture": "X64", "process_id": "1"}
+                prefix.with_name(prefix.name + "-provenance.txt").write_text(
+                    "".join(f"{key}={value}\n" for key, value in provenance.items()), encoding="utf-8")
                 return argparse.Namespace(returncode=0)
 
             with patch.object(runner, "capture_candidate", return_value=snapshot), \
@@ -126,7 +142,7 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
                 self.assertGreaterEqual(seed["elapsedSeconds"], 0)
                 self.assertEqual(snapshot, seed["provenanceBefore"])
                 self.assertEqual(snapshot, seed["provenanceAfter"])
-                self.assertEqual("1.0", seed["performance"]["mean_ms"])
+                self.assertEqual("1", seed["performance"]["mean_ms"])
                 self.assertTrue(seed["artifactsSha256"])
 
     def test_existing_root_is_refused(self) -> None:
@@ -164,6 +180,18 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
             output.symlink_to(Path(temporary) / "missing-target", target_is_directory=True)
             with self.assertRaisesRegex(FileExistsError, "refusing to overwrite cohort output path"):
                 runner._fresh_external_output(output, root)
+
+    def test_performance_row_rejects_nan_and_censor_horizon_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "ticks.csv"
+            path.write_text(",".join(runner.TICK_FIELDS) +
+                "\n1,130,5,75000,75000,horizon,0,78000,0123456789abcdef,nan,1,1,1,1,0,0,0,0,0,0,0,0\n")
+            with self.assertRaisesRegex(ValueError, "non-finite"):
+                runner._metrics_for_seed(path, 1)
+            path.write_text(",".join(runner.TICK_FIELDS) +
+                "\n1,130,5,74999,75000,horizon,0,78000,0123456789abcdef,1,1,1,1,1,0,0,0,0,0,0,0,0\n")
+            with self.assertRaisesRegex(ValueError, "does not reach"):
+                runner._metrics_for_seed(path, 1)
 
 
 

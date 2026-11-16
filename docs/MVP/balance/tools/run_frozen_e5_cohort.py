@@ -13,7 +13,9 @@ import csv
 import datetime as dt
 import hashlib
 import json
+import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -178,19 +180,106 @@ def _verify_snapshot(snapshot: dict[str, Any], args: argparse.Namespace) -> None
     })
 
 
-def _metrics_for_seed(tick_csv: Path, expected_seed: int) -> dict[str, Any] | None:
+TICK_FIELDS = ("seed", "minutes", "warmup_minutes", "timed_ticks", "expected_timed_ticks",
+               "stop_reason", "censored", "final_tick", "final_checksum", "mean_ms",
+               "p50_ms", "p95_ms", "p99_ms", "max_ms", "gc_pause_ms",
+               "gc_pause_ms_per_tick", "gen0", "gen1", "gen2", "allocated_bytes",
+               "allocated_bytes_per_tick")
+SAMPLE_FIELDS = ("seed", "sim_tick", "elapsed_ms")
+SEAT_FIELDS = ("seed", "civ", "archetype", "season", "tick", "key5_completed_tick",
+               "population", "view_figure_count", "view_budget", "over_budget")
+
+
+def _csv_rows(path: Path, fields: tuple[str, ...]) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8-sig") as stream:
+        reader = csv.DictReader(stream)
+        if tuple(reader.fieldnames or ()) != fields:
+            raise ValueError(f"unexpected CSV header in {path}: {reader.fieldnames}")
+        return list(reader)
+
+
+def _metrics_for_seed(tick_csv: Path, expected_seed: int) -> dict[str, Any]:
     if not tick_csv.is_file():
         raise FileNotFoundError(f"per-seed timing CSV is missing: {tick_csv}")
-    with tick_csv.open(newline="", encoding="utf-8-sig") as stream:
-        rows = list(csv.DictReader(stream))
+    rows = _csv_rows(tick_csv, TICK_FIELDS)
     if len(rows) != 1:
         raise ValueError(f"expected exactly one timing row for seed {expected_seed}; found {len(rows)}")
     if rows[0].get("seed") != str(expected_seed):
         raise ValueError(f"per-seed performance CSV seed mismatch: expected {expected_seed}, got {rows[0].get('seed')}")
-    for field in ("timed_ticks", "stop_reason", "censored", "final_tick", "mean_ms", "p95_ms", "gc_pause_ms_per_tick"):
-        if field not in rows[0] or rows[0][field] == "":
-            raise ValueError(f"per-seed performance CSV is missing required timing field {field}")
-    return rows[0]
+    row = rows[0]
+    try:
+        ints = {key: int(row[key]) for key in ("minutes", "warmup_minutes", "timed_ticks", "expected_timed_ticks", "censored", "final_tick", "gen0", "gen1", "gen2", "allocated_bytes")}
+        numbers = {key: float(row[key]) for key in ("mean_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms", "gc_pause_ms", "gc_pause_ms_per_tick", "allocated_bytes_per_tick")}
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"per-seed performance CSV contains a non-numeric metric: {exc}") from exc
+    if ints["minutes"] != 130 or ints["warmup_minutes"] != 5 or ints["expected_timed_ticks"] != 75000:
+        raise ValueError("performance row does not record the fixed 130-minute/5-minute B5-11 horizon")
+    if any(value < 0 for value in ints.values()) or ints["censored"] not in (0, 1):
+        raise ValueError("performance row has negative counts or invalid censor flag")
+    if any(not math.isfinite(value) or value < 0 for value in numbers.values()):
+        raise ValueError("performance row contains a negative or non-finite metric")
+    if not re.fullmatch(r"[0-9a-fA-F]{16}", row["final_checksum"]):
+        raise ValueError("performance row final checksum must be 16 hexadecimal characters")
+    if ints["timed_ticks"] > 75000:
+        raise ValueError("performance row exceeds the requested measured horizon")
+    if ints["censored"] == 0:
+        if (row["stop_reason"] != "horizon" or ints["timed_ticks"] != 75000 or ints["final_tick"] != 78000):
+            raise ValueError("uncensored performance row does not reach the requested horizon")
+    elif row["stop_reason"] != "terminal-before-horizon" or ints["timed_ticks"] >= 75000 or ints["final_tick"] >= 78000:
+        raise ValueError("censored performance row is inconsistent with early terminal exposure")
+    return row
+
+
+def _validate_seed_artifacts(seed_root: Path, prefix_name: str, seed: int,
+                             role: str, seed_manifest: Path, pack: Path,
+                             harness: Path, expected_harness_sha256: str,
+                             performance: dict[str, Any]) -> None:
+    samples_path = seed_root / f"{prefix_name}-tick-samples.csv"
+    sample_rows = _csv_rows(samples_path, SAMPLE_FIELDS)
+    timed = int(performance["timed_ticks"])
+    if len(sample_rows) != timed:
+        raise ValueError(f"tick sample count {len(sample_rows)} differs from measured ticks {timed}")
+    first_tick = 3001
+    for offset, row in enumerate(sample_rows):
+        try:
+            row_seed, tick, elapsed = int(row["seed"]), int(row["sim_tick"]), float(row["elapsed_ms"])
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"invalid tick sample: {exc}") from exc
+        if row_seed != seed or tick != first_tick + offset or not math.isfinite(elapsed) or elapsed < 0:
+            raise ValueError("tick samples are not contiguous, finite, nonnegative rows for this seed")
+    seats = _csv_rows(seed_root / f"{prefix_name}-seats.csv", SEAT_FIELDS)
+    for row in seats:
+        try:
+            row_seed, civ = int(row["seed"]), int(row["civ"])
+            season, tick = int(row["season"]), int(row["tick"])
+            key5, population, figures, budget, over = (int(row[k]) for k in
+                ("key5_completed_tick", "population", "view_figure_count", "view_budget", "over_budget"))
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"invalid seat sample: {exc}") from exc
+        if (row_seed != seed or not 0 <= civ <= 3 or min(season, tick, key5, population, figures) < 0
+                or budget != 600 or over not in (0, 1) or over != int(figures > budget)):
+            raise ValueError("seat sample has invalid seed, counts, view budget, or over-budget flag")
+    provenance_path = seed_root / f"{prefix_name}-provenance.txt"
+    provenance = {}
+    for line in provenance_path.read_text(encoding="utf-8").splitlines():
+        if "=" not in line:
+            raise ValueError("malformed Harness provenance line")
+        key, value = line.split("=", 1)
+        if key in provenance:
+            raise ValueError(f"duplicate Harness provenance key: {key}")
+        provenance[key] = value
+    expected = {"cohort": role, "grant_e5": "true" if role == "grant-e5" else "false",
+                "minutes": "130", "warmup_minutes": "5", "seeds_file": str(seed_manifest.resolve()),
+                "seeds_sha256": sha256(seed_manifest), "pack_file": str(pack.resolve()),
+                "pack_sha256": sha256(pack), "executable": str(harness.resolve()),
+                "executable_sha256": expected_harness_sha256.lower()}
+    if any(provenance.get(key) != value for key, value in expected.items()):
+        raise ValueError("Harness provenance does not match the pinned seed, pack, binary, or cohort")
+    for key in ("runtime", "os", "architecture", "process_id"):
+        if not provenance.get(key):
+            raise ValueError(f"Harness provenance is missing {key}")
+    if not provenance["process_id"].isdecimal():
+        raise ValueError("Harness provenance process_id is not numeric")
 
 
 def run(args: argparse.Namespace) -> int:
@@ -289,6 +378,9 @@ def run(args: argparse.Namespace) -> int:
             record["artifactsSha256"] = _hash_files(seed_root)
             tick_csv = seed_root / f"{base_prefix.name}-ticks.csv"
             record["performance"] = _metrics_for_seed(tick_csv, seed)
+            _validate_seed_artifacts(seed_root, base_prefix.name, seed, command_spec["role"],
+                                     seed_manifest, pack, harness, args.expected_harness_sha256,
+                                     record["performance"])
             record["completedUtc"] = dt.datetime.now(dt.timezone.utc).isoformat()
             record["status"] = "complete" if completed.returncode == 0 and record["provenanceStable"] else "failed"
             if completed.returncode != 0 or not record["provenanceStable"]:

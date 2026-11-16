@@ -85,3 +85,23 @@ This audit's `7decf87…` tuple and the later `5ee659bd…` tuple are historical
 ## Promotion and cohort-runner hardening — 2026-11-16
 
 The dirty target checkout now includes three fail-closed tooling fixes: promotion preparation binds the report to exact manifest bytes and a content-tree hash and aborts if either changes during staging; the B5-11 wrapper validates that its command invokes the pinned Release Harness `fief-perf` with the exact pinned pack, manifest, horizon, warmup, and fresh output-root prefix; and B5-03 requires the recorded Sim DLL to be adjacent to the pinned Harness DLL. The promotion, B5-11, and B5-03 fixture checks pass 19/19 in this checkout. No acceptance cohorts were run and no rows were promoted. The checkout remains dirty, so none of these changes creates a runnable final freeze.
+
+## Focused runner revalidation — 2026-11-16
+
+On `codex/e5-fief` at HEAD `ceaadef`, with the worktree still dirty and before any final freeze, I reran the relevant guard/fixture suites after the runner hardening:
+
+| Suite | Result |
+| --- | ---: |
+| `test_run_b5_03_determinism.py` | 14/14 |
+| `test_run_frozen_e5_cohort.py` | 7/7 |
+| `test_run_wp_e5_12_whole_match.py` | 4/4 |
+| `test_wp7_trace_runner.py` | 16/16 |
+| `test_prepare_e5_promotion.py` | 15/15 |
+
+These are 56 fixture tests for runner refusal, provenance, and expected command construction; they do not execute acceptance matches. They do not close B5-03, B5-11, B5-13, or the WP-E5-12 whole-match gate. All 50 E5 catalog rows were re-read as unique and `draft`, and the Fief launch override remains under `#if DEBUG`; this does not open ordinary or Release selection. No match cohort was started and no row was promoted. Regenerate pins after all concurrent source edits settle.
+
+## Dirty-integration Release verification — 2026-11-16
+
+After the SOC-11, TRD-09, golden, and A8-validator edits were present, `dotnet test src/CivSim.Tests/CivSim.Tests.csproj -c Release --no-restore --logger "console;verbosity=minimal"` passed **1,470/1,470**. The first full pass exposed two TRD-09 assertions that incorrectly assumed full research adoption immediately after unlock, plus the expected content-pack golden mismatch from the WAR-12 “per shot” wording change. The assertions now use the actual adoption-scaled research multiplier and verify the realized margin once; the committed content-pack summary now matches the rebuilt 519-project pack (396,145 bytes, SHA-256 `144e53f9e835a6638e96b01de47d5857dd6be421c8973b8d521695328dfb7fc7`).
+
+This is full-suite evidence for the current dirty, unpromoted integration checkout, not a clean final P candidate. It does not close B5-13's final-candidate requirement or any natural whole-match, determinism, performance, Windows-parity, human-study, or owner-approval gate. No acceptance cohort ran and all E5 catalog rows remain draft.

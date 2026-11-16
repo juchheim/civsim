@@ -103,6 +103,18 @@ def shard_seeds(seeds: list[int], shard_index: int = 0, shard_count: int = 1) ->
     return selected
 
 
+def fresh_external_output(raw_output: Path, repo: Path) -> Path:
+    """Require an absent output path outside and disjoint from the frozen checkout."""
+    raw = Path(os.path.abspath(raw_output))
+    if os.path.lexists(raw):
+        raise FileExistsError(f"refusing to overwrite existing host artifact root: {raw}")
+    output = raw.resolve()
+    root = repo.resolve()
+    if output == root or root in output.parents or output in root.parents:
+        raise ValueError("B5-03 artifact root must be a fresh path outside the repository worktree")
+    return output
+
+
 def host_identity() -> tuple[str, str, str]:
     system, machine = platform.system(), platform.machine().lower()
     if system == "Darwin" and machine in {"arm64", "aarch64"}:
@@ -118,7 +130,7 @@ def validate_inputs(args: argparse.Namespace) -> tuple[list[int], dict[str, Any]
     harness = args.harness_dll.resolve()
     sim = args.sim_dll.resolve() if args.sim_dll else harness.with_name("CivSim.Sim.dll")
     manifest = args.manifest.resolve()
-    output = args.output_root.resolve()
+    output = fresh_external_output(args.output_root, repo)
     for path, label in ((repo / ".git", "Git checkout"), (pack, "compiled content pack"),
                         (harness, "Release harness DLL"), (sim, "Release simulation DLL"),
                         (manifest, "frozen seed manifest")):
@@ -128,8 +140,6 @@ def validate_inputs(args: argparse.Namespace) -> tuple[list[int], dict[str, Any]
         raise ValueError("pack, harness DLL, simulation DLL, and manifest must be files")
     if harness.parent != sim.parent:
         raise ValueError("Release Harness and adjacent Sim must be in the same directory")
-    if output.exists():
-        raise FileExistsError(f"refusing to overwrite existing host artifact root: {output}")
     seeds = load_manifest(manifest, args.expected_manifest_sha256)
     shard_index = getattr(args, "shard_index", 0)
     shard_count = getattr(args, "shard_count", 1)
@@ -290,6 +300,11 @@ def parse_fief_replay(path: Path, expected_seed: int, expected_pack_hash: str) -
         raise ValueError(f"{path}: invalid checksum count {checksum_count}")
     if pos + checksum_count * 16 != len(view):
         raise ValueError(f"{path}: checksum section size or trailing bytes are invalid")
+    checksums = []
+    checksum_pos = pos
+    for index in range(checksum_count):
+        tick, checksum = struct.unpack_from("<qQ", view, checksum_pos + index * 16)
+        checksums.append({"tick": tick, "checksum": f"{checksum:016x}"})
     if seed != expected_seed:
         raise ValueError(f"{path}: replay seed {seed} does not match manifest seed {expected_seed}")
     if pack_hash != expected_pack_hash:
@@ -305,6 +320,7 @@ def parse_fief_replay(path: Path, expected_seed: int, expected_pack_hash: str) -
         "commandCount": command_count,
         "checksumInterval": interval,
         "checksumCount": checksum_count,
+        "checksums": checksums,
         "archetypes": archetypes,
         "controls": [{"difficulty": level, "archetype": arch} for level, arch in controls],
         "commandLogSha256": hashlib.sha256(view[command_start:command_start + command_bytes]).hexdigest(),
@@ -318,7 +334,7 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
     expected_checkpoints = list(range(0, ticks + 1, SNAPSHOT_INTERVAL))
     expected_intervals = list(range(CHECKSUM_INTERVAL, ticks + 1, CHECKSUM_INTERVAL))
     checkpoints: list[dict[str, Any]] = []
-    intervals: list[int] = []
+    intervals: list[dict[str, Any]] = []
     finals: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8", newline="") as stream:
         rows = csv.DictReader(stream)
@@ -332,6 +348,8 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
             expected = row["expectedChecksum"].lower()
             restored = row["restoredChecksum"].lower()
             matched = row["matchChecksum"].lower()
+            if any(not re.fullmatch(r"[0-9a-f]{16}", value) for value in (expected, restored, matched)):
+                raise ValueError(f"{path}: invalid checksum encoding at tick {tick}")
             if row["kind"] == "checkpoint":
                 snapshot_name = row["snapshotFile"]
                 if Path(snapshot_name).name != snapshot_name or not snapshot_name:
@@ -355,7 +373,7 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
                     raise ValueError(f"{path}: interval row unexpectedly names a snapshot")
                 if expected != restored or expected != matched:
                     raise ValueError(f"{path}: resumed interval checksum differs at tick {tick}")
-                intervals.append(tick)
+                intervals.append({"tick": tick, "checksum": expected})
             elif row["kind"] == "final":
                 if expected != restored or expected != matched:
                     raise ValueError(f"{path}: final continuation checksum differs")
@@ -364,15 +382,27 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
                 raise ValueError(f"{path}: unknown continuation row kind {row['kind']!r}")
     if [row["tick"] for row in checkpoints] != expected_checkpoints:
         raise ValueError(f"{path}: checkpoint ticks are missing, duplicated, or out of order")
-    if intervals != expected_intervals:
+    if [row["tick"] for row in intervals] != expected_intervals:
         raise ValueError(f"{path}: interval checksum ticks are missing, duplicated, or out of order")
     if len(finals) != 1 or finals[0]["tick"] != ticks:
         raise ValueError(f"{path}: expected exactly one final row at tick {ticks}")
     return {
         "sidecar": str(path.resolve()), "sidecarSha256": sha256(path),
         "checkpointCount": len(checkpoints), "intervalCount": len(intervals),
+        "checkpoints": checkpoints, "intervals": intervals,
         "finalChecksum": finals[0]["checksum"], "snapshots": checkpoints,
     }
+
+
+def validate_continuation_against_index(seed: int, continuation: dict[str, Any],
+                                        index_entry: dict[str, Any]) -> None:
+    indexed = {row["tick"]: row["checksum"].lower() for row in index_entry["checksums"]}
+    for row in continuation["intervals"]:
+        if indexed.get(row["tick"]) != row["checksum"]:
+            raise ValueError(f"seed {seed}: continuation interval checksum differs from replay index at tick {row['tick']}")
+    for row in continuation["checkpoints"]:
+        if row["tick"] and indexed.get(row["tick"]) != row["expectedChecksum"]:
+            raise ValueError(f"seed {seed}: continuation checkpoint checksum differs from replay index at tick {row['tick']}")
 
 
 def make_parser() -> argparse.ArgumentParser:
@@ -627,6 +657,9 @@ def run(args: argparse.Namespace) -> int:
             raise ValueError(f"seed {seed}: replay header and index final checksums differ")
         if continuation["finalChecksum"] != replay_info["finalChecksum"]:
             raise ValueError(f"seed {seed}: continuation and replay final checksums differ")
+        validate_continuation_against_index(seed, continuation, index[seed])
+        continuation_record = {key: value for key, value in continuation.items()
+                               if key not in {"checkpoints", "intervals"}}
         replay_path = replay_dir / f"{seed}.replay"
         metadata["seeds"].append({
             "seed": seed, "matchExitCode": match_cmd["exitCode"], "ticks": entry["ticks"],
@@ -639,7 +672,7 @@ def run(args: argparse.Namespace) -> int:
                        "verifyExitCode": verify["exitCode"], "verificationStdout": verify["stdout"],
                        "verificationStdoutSha256": verify["stdoutSha256"], "verificationStderr": verify["stderr"],
                        "verificationStderrSha256": verify["stderrSha256"]},
-            "continuation": continuation,
+            "continuation": continuation_record,
         })
     save()
 
@@ -684,7 +717,7 @@ def run(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = make_parser()
     args = parser.parse_args(argv)
-    output_was_absent = not args.output_root.exists()
+    output_was_absent = not os.path.lexists(args.output_root)
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, _handle_termination_signal)
     hash_values = [args.expected_source_head, args.expected_source_tree, args.expected_source_aggregate,

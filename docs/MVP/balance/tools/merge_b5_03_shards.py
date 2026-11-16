@@ -14,6 +14,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -36,6 +37,18 @@ def _sha(path: Path, expected: str, label: str) -> None:
     actual = runner.sha256(path)
     if actual != expected.lower():
         raise ValueError(f"{label} SHA-256 mismatch for {path}: expected {expected}, got {actual}")
+
+
+def _fresh_output(raw: Path, roots: list[Path]) -> Path:
+    candidate = Path(os.path.abspath(raw))
+    if os.path.lexists(candidate):
+        raise FileExistsError(f"refusing to overwrite merged artifact root: {candidate}")
+    output = candidate.resolve()
+    for root in roots:
+        base = root.resolve()
+        if output == base or output in base.parents or base in output.parents:
+            raise ValueError("merged artifact root must be fresh and disjoint from every shard root")
+    return output
 
 
 def _seeds_from_subset_manifest(path: Path) -> list[int]:
@@ -121,7 +134,7 @@ def canonical_seed_entries(shard_metadata: list[dict[str, Any]], frozen_seeds: l
     return [all_entries[seed] for seed in frozen_seeds]
 
 
-def _check_common_inputs(metadata: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+def _check_common_inputs(metadata: dict[str, Any], args: argparse.Namespace, root: Path) -> dict[str, Any]:
     if metadata.get("schema") != runner.SCHEMA or metadata.get("status") != "complete":
         raise ValueError("each shard must have complete B5-03 run metadata")
     source = metadata.get("source", {})
@@ -162,12 +175,15 @@ def _check_common_inputs(metadata: dict[str, Any], args: argparse.Namespace) -> 
     if source.get("dirty") is not False or source.get("dirtyDiffSha256") is not None:
         raise ValueError("shard metadata does not record a clean frozen source")
     source_manifest_info = metadata.get("artifacts", {}).get("sourceManifest", {})
-    source_manifest_path = Path(source_manifest_info.get("path", ""))
+    source_manifest_path = _within(Path(source_manifest_info.get("path", "")), root, "source manifest")
     if not source_manifest_path.is_file():
         raise FileNotFoundError("shard source file manifest is missing")
     _sha(source_manifest_path, source_manifest_info.get("sha256", ""), "source file manifest")
     source_manifest = _read_json(source_manifest_path)
+    payload = {"head": source_manifest.get("head"), "files": source_manifest.get("files")}
+    computed_aggregate = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if (source_manifest.get("aggregate_sha256") != args.expected_source_aggregate.lower()
+            or computed_aggregate != args.expected_source_aggregate.lower()
             or len(source_manifest.get("files", [])) != source.get("fileCount")
             or source_manifest_info.get("fileCount") != source.get("fileCount")):
         raise ValueError("source file manifest does not match the pinned workspace aggregate/file count")
@@ -178,9 +194,13 @@ def _check_common_inputs(metadata: dict[str, Any], args: argparse.Namespace) -> 
         raise ValueError("shard protocol does not match frozen B5-03 configuration")
     if protocol.get("command") != "fief-match":
         raise ValueError("shard did not run the fief-match protocol")
+    runtime = metadata.get("runtime")
+    if (not isinstance(runtime, dict) or any(not isinstance(runtime.get(key), str) or not runtime[key].strip()
+                                             for key in ("sdk", "runtime", "os", "architecture"))):
+        raise ValueError("shard runtime metadata is incomplete")
     return {
         "source": source,
-        "runtime": metadata.get("runtime"),
+        "runtime": runtime,
         "protocol": {key: value for key, value in protocol.items() if key not in {"shardIndex", "shardCount", "argv"}},
         "manifest": manifest,
         "pack": pack,
@@ -195,7 +215,7 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
     subset_info = shard.get("subsetManifest")
     if not isinstance(subset_info, dict):
         raise ValueError(f"shard {shard['index']}: missing recorded subset manifest")
-    subset_path = Path(subset_info.get("path", ""))
+    subset_path = _within(Path(subset_info.get("path", "")), root, "subset manifest")
     if not subset_path.is_file():
         raise FileNotFoundError(f"shard {shard['index']}: subset manifest missing: {subset_path}")
     _sha(subset_path, subset_info.get("sha256", ""), "subset manifest")
@@ -204,7 +224,7 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
 
     artifacts = metadata.get("artifacts", {})
     _validate_raw_logs(root, metadata)
-    index_path = Path(artifacts.get("replayIndex", ""))
+    index_path = _within(Path(artifacts.get("replayIndex", "")), root, "replay index")
     if not index_path.is_file():
         raise FileNotFoundError(f"shard {shard['index']}: replay index missing: {index_path}")
     _sha(index_path, artifacts.get("replayIndexSha256", ""), "replay index")
@@ -236,7 +256,7 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
             if record.get(key) != entry.get(key):
                 raise ValueError(f"seed {seed}: run metadata {key} differs from replay index")
         replay_info = record.get("replay", {})
-        replay_path = Path(replay_info.get("path", ""))
+        replay_path = _within(Path(replay_info.get("path", "")), root, "replay")
         if not replay_path.is_file():
             raise FileNotFoundError(f"seed {seed}: replay file missing: {replay_path}")
         _sha(replay_path, replay_info.get("sha256", ""), "replay")
@@ -248,10 +268,12 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
 
         continuation_info = record.get("continuation", {})
         sidecar = Path(continuation_info.get("sidecar", ""))
+        sidecar = _within(sidecar, root, "continuation sidecar")
         if not sidecar.is_file():
             raise FileNotFoundError(f"seed {seed}: continuation sidecar missing: {sidecar}")
         _sha(sidecar, continuation_info.get("sidecarSha256", ""), "continuation sidecar")
         continuation = runner.parse_continuation(sidecar, sidecar.parent, seed, runner.TOTAL_TICKS)
+        runner.validate_continuation_against_index(seed, continuation, entry)
         if continuation_info.get("finalChecksum") != entry["finalChecksum"].lower():
             raise ValueError(f"seed {seed}: continuation final checksum differs from replay index")
         if continuation_info.get("checkpointCount") != continuation["checkpointCount"] or continuation_info.get("intervalCount") != continuation["intervalCount"]:
@@ -264,12 +286,11 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
 
 def merge(args: argparse.Namespace) -> int:
     frozen_seeds = runner.load_manifest(args.manifest.resolve(), args.expected_manifest_sha256)
-    if args.output_root.exists():
-        raise FileExistsError(f"refusing to overwrite merged artifact root: {args.output_root}")
     if len(args.shard_root) < 1:
         raise ValueError("at least one --shard-root is required")
 
     roots = [path.resolve() for path in args.shard_root]
+    output = _fresh_output(args.output_root, roots)
     metadata_rows: list[tuple[Path, dict[str, Any]]] = []
     for root in roots:
         metadata_path = root / "run_metadata.json"
@@ -285,7 +306,7 @@ def merge(args: argparse.Namespace) -> int:
     combined_commands: list[dict[str, Any]] = []
     combined_logs: list[dict[str, str]] = []
     for root, metadata in metadata_rows:
-        inputs = _check_common_inputs(metadata, args)
+        inputs = _check_common_inputs(metadata, args, root)
         if common is None:
             common = inputs
         elif inputs != common:
@@ -319,7 +340,6 @@ def merge(args: argparse.Namespace) -> int:
     if [record["seed"] for record in ordered_seed_records] != frozen_seeds:
         raise ValueError("combined run metadata is not in canonical frozen-manifest order")
 
-    output = args.output_root.resolve()
     output.mkdir(parents=True, exist_ok=False)
     index_path = output / "replay-index.json"
     merged_index = {

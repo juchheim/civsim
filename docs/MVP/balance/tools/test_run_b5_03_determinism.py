@@ -286,6 +286,7 @@ class B503DeterminismRunnerTests(unittest.TestCase):
             self.assertEqual(1, info["commandCount"])
             self.assertEqual(runner.TOTAL_TICKS // runner.CHECKSUM_INTERVAL, info["checksumCount"])
             self.assertEqual(hashlib.sha256(replay_path.read_bytes()).hexdigest(), info["replaySha256"])
+            self.assertEqual(f"{runner.CHECKSUM_INTERVAL + 7:016x}", info["checksums"][0]["checksum"])
             with self.assertRaisesRegex(ValueError, "does not match manifest seed"):
                 runner.parse_fief_replay(replay_path, SEED_START + 1, pack_hash)
             with self.assertRaisesRegex(ValueError, "does not match frozen pack"):
@@ -327,6 +328,13 @@ class B503DeterminismRunnerTests(unittest.TestCase):
             self.assertEqual(1_560, result["intervalCount"])
             self.assertEqual(f"{runner.TOTAL_TICKS + 1:016x}", result["finalChecksum"])
             self.assertEqual(hashlib.sha256(sidecar.read_bytes()).hexdigest(), result["sidecarSha256"])
+            index_entry = {"checksums": [{"tick": tick, "checksum": f"{tick + 1:016x}"}
+                                          for tick in range(runner.CHECKSUM_INTERVAL, runner.TOTAL_TICKS + 1,
+                                                            runner.CHECKSUM_INTERVAL)]}
+            runner.validate_continuation_against_index(seed, result, index_entry)
+            bad_index = {"checksums": [{**row, "checksum": "0" * 16} for row in index_entry["checksums"]]}
+            with self.assertRaisesRegex(ValueError, "differs from replay index"):
+                runner.validate_continuation_against_index(seed, result, bad_index)
 
             sidecar.write_text(sidecar.read_text(encoding="utf-8").replace(
                 ",0000000000000001,0000000000000001,0000000000000001\n",
