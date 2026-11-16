@@ -112,7 +112,7 @@ public sealed class FiefLawMoneyTests
                 Fix64 courtBefore = court.Economy.SettlementCohesion(courtSettlement);
                 control.Politics.FixtureResolveFiefLawEvents(year * 4 + 3);
                 court.Politics.FixtureResolveFiefLawEvents(year * 4 + 3);
-                Assert.True(control.Economy.SettlementCohesion(controlSettlement) < controlBefore);
+                Assert.Equal(Fix64.FromRatio(6, 1000), controlBefore - control.Economy.SettlementCohesion(controlSettlement));
                 Assert.Equal(courtBefore, court.Economy.SettlementCohesion(courtSettlement));
                 break;
             }
