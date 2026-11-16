@@ -655,7 +655,10 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 		_whole([build_q] + big, "wonder_site", site_mesh, 2.1)
 	var cstage: int = wb.castle_stage(s)
 	if cstage > 0:
-		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", "castle_%d" % cstage, 1.25)
+		var castle_mesh := "castle_%d" % cstage
+		if w.fief_active and bool(w.fief_settlement(s).get("concentric_castle", false)):
+			castle_mesh = "concentric_4_idle" if int(s.get("soldiers", 0)) <= 0 else "concentric_4"
+		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", castle_mesh, 1.25)
 		if r != null:
 			var cp: Vector2 = r[1]
 			var cyaw := _face(cp)
