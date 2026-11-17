@@ -19,12 +19,12 @@ using Xunit;
 namespace CivSim.Tests;
 
 /// <summary>
-/// WP-E5-9 acceptance A8, whole-match form. Plays full Fief matches (four AI seats, 64 minutes) and, at every checkpoint
-/// season, clones the live match once per observer, changes in the clone only state that observer cannot see (unexplored
-/// deposits, rival cannon/powder stock, a hidden harbor/galley and crew, live horse herds on unexplored tiles, plus the
-/// Bronze-era hidden people/stores/research perturbation), runs both one season-end pass and compares everything that
-/// observer's mind received and did. At the same checkpoints, for a rotating observer, visible changes of each kind must
-/// be detected (positive controls). Inactive unless CIVSIM_A8_PACK is set.
+/// WP-E5-9 acceptance A8, whole-match form. Plays full Fief matches (four AI seats, 64 minutes). At each checkpoint, it
+/// advances the live match normally, then clones the resulting whole-match state for the observer baseline and perturbations.
+/// It changes only state the observer cannot see (unexplored deposits, rival cannon/powder stock, hidden harbor/galley and
+/// crew, live horse herds on unexplored tiles, plus hidden people/stores/research), refreshes only the target seat, and
+/// compares that mind's inputs and decisions before other seats can react. A rotating observer's visible controls must be
+/// detected at the same checkpoints. Inactive unless CIVSIM_A8_PACK is set.
 /// Environment: CIVSIM_A8_PACK (frozen pack), CIVSIM_A8_OUT (directory), CIVSIM_A8_SEEDS (comma list),
 /// CIVSIM_A8_INTERVAL (checkpoint every N seasons, default 8), CIVSIM_A8_MINUTES (default 64), CIVSIM_A8_DOP (default 3).
 /// </summary>
@@ -49,10 +49,10 @@ public sealed class FiefWholeMatchFogFairnessTests
 
         // Establish both minds at the same checkpoint, then plant the fixture and run its
         // same-tick observation/decision pass, as the whole-match harness does after season end.
-        baseline.Ai!.OnSeasonEnd(0);
-        perturbed.Ai!.OnSeasonEnd(0);
+        RefreshObserverSeat(baseline, 0, 0);
+        RefreshObserverSeat(perturbed, 0, 0);
         Assert.Null(ApplyVisibleFleetControl(perturbed, observer: 0));
-        perturbed.Ai.OnSeasonEnd(0);
+        RefreshObserverSeat(perturbed, 0, 0);
 
         List<string> diffs = FogFairnessHarness.CompareMinds(baseline, perturbed, observer: 0, sinceTick: 0);
         Assert.Contains(diffs, diff => diff.StartsWith("own fleet:", StringComparison.Ordinal));
@@ -81,9 +81,9 @@ public sealed class FiefWholeMatchFogFairnessTests
             (changedHiddenTile.Deposit, changedHiddenTile.DepositAmount, changedHiddenTile.DepositDepth));
         Assert.Null(ApplyVisibleFleetControl(visibleFleet, observer: 0));
 
-        baseline.Ai!.OnSeasonEnd(0);
-        hidden.Ai!.OnSeasonEnd(0);
-        visibleFleet.Ai!.OnSeasonEnd(0);
+        RefreshObserverSeat(baseline, 0, 0);
+        RefreshObserverSeat(hidden, 0, 0);
+        RefreshObserverSeat(visibleFleet, 0, 0);
 
         List<string> hiddenDiffs = FogFairnessHarness.CompareMinds(baseline, hidden, observer: 0, sinceTick: 0);
         Assert.True(hiddenDiffs.Count == 0, string.Join("; ", hiddenDiffs));
@@ -109,6 +109,35 @@ public sealed class FiefWholeMatchFogFairnessTests
         throw new InvalidOperationException("Fief fixture has no tile beyond the observer's sight margin.");
     }
 
+    [Fact]
+    public void Hidden_horse_change_is_inert_to_one_seat_while_visible_fleet_is_detected()
+    {
+        CivControl[] controls = FogFairnessHarness.DefaultControls();
+        const ulong seed = 20261118;
+        MatchModel baseline = FogFairnessHarness.NewMatch(controls, seed, fief: true);
+        RefreshObserverSeat(baseline, 0, 0);
+        MatchModel reference = FogFairnessHarness.Clone(baseline, controls, seed, fief: true, independentWorld: true);
+        MatchModel hidden = FogFairnessHarness.Clone(baseline, controls, seed, fief: true, independentWorld: true);
+        MatchModel visibleFleet = FogFairnessHarness.Clone(baseline, controls, seed, fief: true, independentWorld: true);
+        AiSeat seat = baseline.Ai!.SeatOf(0)!;
+        int herdIndex = -1;
+        for (int i = 0; i < baseline.Economy.WildHerdCount; i++)
+        {
+            WildHerdView herd = baseline.Economy.WildHerd(i);
+            if (herd.Species == HerdSpecies.Horse && !seat.Belief.Map.IsExplored(herd.CurrentTile)) { herdIndex = i; break; }
+        }
+        Assert.True(herdIndex >= 0, "Fief fixture has no hidden horse herd.");
+        int hiddenTile = FindStrictlyUnseenTile(baseline, 0);
+        hidden.Economy.FixtureSetWildHerd(herdIndex, hiddenTile, Fix64.FromInt(19));
+        Assert.Null(ApplyVisibleFleetControl(visibleFleet, 0));
+        RefreshObserverSeat(reference, 0, 0);
+        RefreshObserverSeat(hidden, 0, 0);
+        RefreshObserverSeat(visibleFleet, 0, 0);
+        Assert.Empty(Compare(reference, hidden, 0, 0));
+        Assert.Contains(FogFairnessHarness.CompareMinds(reference, visibleFleet, 0, 0),
+            diff => diff.StartsWith("own fleet:", StringComparison.Ordinal));
+    }
+
     private static void SetHiddenDeposit(MatchModel match, int tileIndex)
     {
         WorldTile tile = match.Ai!.World.Generated.TileAt(tileIndex);
@@ -122,6 +151,7 @@ public sealed class FiefWholeMatchFogFairnessTests
     private sealed class Row
     {
         public ulong Seed; public int Season; public int Observer; public string Kind = "";
+        public bool Eligible = true, ObserverHasSettlement = true;
         public bool Applied; public string NotApplied = "";
         public int Deposits, Powder, Fleet, Horses, People;
         public bool WorldChanged;
@@ -172,6 +202,7 @@ public sealed class FiefWholeMatchFogFairnessTests
 
         var summary = new StringBuilder();
         summary.AppendLine("{");
+        summary.AppendLine("  \"schemaVersion\": 2,");
         summary.AppendLine($"  \"simAssemblyPath\": \"{simPath}\",");
         summary.AppendLine($"  \"simAssemblySha256\": \"{Sha(simPath)}\",");
         summary.AppendLine($"  \"packSha256\": \"{Convert.ToHexString(SHA256.HashData(packBytes)).ToLowerInvariant()}\",");
@@ -179,31 +210,44 @@ public sealed class FiefWholeMatchFogFairnessTests
         var unseen = all.Where(r => r.Kind == "unseen-strict" || r.Kind == "unseen-horse").ToList();
         var nulls = all.Where(r => r.Kind == "null-control" && r.Applied).ToList();
         var tierBRows = all.Where(r => r.Kind == "unseen-composite" && r.Applied).ToList();
-        int unseenNotApplied = unseen.Count(r => !r.Applied);
-        int nullNotApplied = all.Count(r => r.Kind == "null-control" && !r.Applied);
-        int tierBNotApplied = all.Count(r => r.Kind == "unseen-composite" && !r.Applied);
+        int unseenNotApplied = unseen.Count(r => r.Eligible && !r.Applied);
+        int unseenIneligible = unseen.Count(r => !r.Eligible);
+        int nullNotApplied = all.Count(r => r.Kind == "null-control" && r.Eligible && !r.Applied);
+        int nullIneligible = all.Count(r => r.Kind == "null-control" && !r.Eligible);
+        int tierBNotApplied = all.Count(r => r.Kind == "unseen-composite" && r.Eligible && !r.Applied);
+        int tierBIneligible = all.Count(r => r.Kind == "unseen-composite" && !r.Eligible);
         int unseenApplied = unseen.Count(r => r.Applied), unseenFail = unseen.Count(r => r.Applied && !r.Pass);
         summary.AppendLine($"  \"unseenCompositeObserverCheckpoints\": {unseen.Count}, \"unseenCompositeApplied\": {unseenApplied}, \"unseenInvarianceFailures\": {unseenFail},");
         summary.AppendLine($"  \"unseenNotApplied\": {unseenNotApplied},");
+        summary.AppendLine($"  \"unseenIneligible\": {unseenIneligible},");
         summary.AppendLine($"  \"unseenWorldChangedCount\": {unseen.Count(r => r.Applied && r.WorldChanged)},");
-        summary.AppendLine($"  \"unseenAppliedByCategory\": {{\"deposits\": {unseen.Count(r => r.Applied && r.Deposits > 0)}, \"powderCannon\": {unseen.Count(r => r.Applied && r.Powder > 0)}, \"fleetCrew\": {unseen.Count(r => r.Applied && r.Fleet > 0)}, \"horses\": {unseen.Count(r => r.Applied && r.Horses > 0)}, \"peopleStoresResearch\": {unseen.Count(r => r.Applied && r.People > 0)}}},");
-        summary.AppendLine($"  \"unseenMatchesWithCategory\": {{\"deposits\": {unseen.Where(r => r.Applied && r.Deposits > 0).Select(r => r.Seed).Distinct().Count()}, \"powderCannon\": {unseen.Where(r => r.Applied && r.Powder > 0).Select(r => r.Seed).Distinct().Count()}, \"fleetCrew\": {unseen.Where(r => r.Applied && r.Fleet > 0).Select(r => r.Seed).Distinct().Count()}, \"horses\": {unseen.Where(r => r.Applied && r.Horses > 0).Select(r => r.Seed).Distinct().Count()}, \"peopleStoresResearch\": {unseen.Where(r => r.Applied && r.People > 0).Select(r => r.Seed).Distinct().Count()}}},");
+        var exposureRows = all.Where(r => r.Eligible && r.Applied &&
+            (r.Kind == "unseen-strict" || r.Kind == "unseen-composite" || r.Kind == "unseen-horse")).ToList();
+        int WithExposure(Func<Row, int> field) => exposureRows.Count(r => field(r) > 0);
+        int SeedsWithExposure(Func<Row, int> field) => exposureRows.Where(r => field(r) > 0).Select(r => r.Seed).Distinct().Count();
+        summary.AppendLine($"  \"unseenAppliedByCategory\": {{\"deposits\": {WithExposure(r => r.Deposits)}, \"powderCannon\": {WithExposure(r => r.Powder)}, \"fleetCrew\": {WithExposure(r => r.Fleet)}, \"horses\": {WithExposure(r => r.Horses)}, \"peopleStoresResearch\": {WithExposure(r => r.People)}}},");
+        summary.AppendLine($"  \"unseenMatchesWithCategory\": {{\"deposits\": {SeedsWithExposure(r => r.Deposits)}, \"powderCannon\": {SeedsWithExposure(r => r.Powder)}, \"fleetCrew\": {SeedsWithExposure(r => r.Fleet)}, \"horses\": {SeedsWithExposure(r => r.Horses)}, \"peopleStoresResearch\": {SeedsWithExposure(r => r.People)}}},");
+        string[] exposureFields = { "deposits", "powderCannon", "fleetCrew", "horses", "peopleStoresResearch" };
+        Func<Row, int>[] exposureValues = { r => r.Deposits, r => r.Powder, r => r.Fleet, r => r.Horses, r => r.People };
+        string bySeed = "{" + string.Join(",", seeds.Select(seed => "\"" + seed + "\":{" + string.Join(",", exposureFields.Select((name, i) =>
+            "\"" + name + "\":" + exposureRows.Count(r => r.Seed == seed && exposureValues[i](r) > 0))) + "}")) + "}";
+        summary.AppendLine($"  \"unseenExposureBySeed\": {bySeed},");
         int controlMisses = 0;
         summary.AppendLine("  \"visibleControls\": {");
         string[] kinds = { "visible-deposit", "visible-stock", "visible-fleet", "visible-horse" };
         for (int i = 0; i < kinds.Length; i++)
         {
             var c = all.Where(r => r.Kind == kinds[i]).ToList();
-            int applied = c.Count(r => r.Applied), detected = c.Count(r => r.Applied && r.Pass);
-            int unapplied = c.Count - applied, misses = c.Count - detected;
+            int eligible = c.Count(r => r.Eligible), applied = c.Count(r => r.Eligible && r.Applied), detected = c.Count(r => r.Eligible && r.Applied && r.Pass);
+            int ineligible = c.Count - eligible, unapplied = eligible - applied, misses = eligible - detected;
             controlMisses += misses;
-            summary.AppendLine($"    \"{kinds[i]}\": {{\"checkpoints\": {c.Count}, \"applied\": {applied}, \"unapplied\": {unapplied}, \"detected\": {detected}, \"misses\": {misses}}}{(i < kinds.Length - 1 ? "," : "")}");
+            summary.AppendLine($"    \"{kinds[i]}\": {{\"checkpoints\": {c.Count}, \"eligible\": {eligible}, \"ineligible\": {ineligible}, \"applied\": {applied}, \"unapplied\": {unapplied}, \"detected\": {detected}, \"misses\": {misses}}}{(i < kinds.Length - 1 ? "," : "")}");
         }
         summary.AppendLine("  },");
         summary.AppendLine($"  \"visibleControlMisses\": {controlMisses},");
-        summary.AppendLine($"  \"nullControls\": {{\"applied\": {nulls.Count}, \"notApplied\": {nullNotApplied}, \"withDiffs\": {nulls.Count(r => !r.Pass)}}},");
+        summary.AppendLine($"  \"nullControls\": {{\"applied\": {nulls.Count}, \"notApplied\": {nullNotApplied}, \"ineligible\": {nullIneligible}, \"withDiffs\": {nulls.Count(r => !r.Pass)}}},");
         int tierBBad = tierBRows.Count(r => !r.Pass), tierBDecisionOnly = tierBRows.Count(r => !r.Pass && r.Diffs.All(d => d.StartsWith("decisions:", StringComparison.Ordinal)));
-        summary.AppendLine($"  \"tierBComposite\": {{\"applied\": {tierBRows.Count}, \"notApplied\": {tierBNotApplied}, \"withInputOrDecisionDiffs\": {tierBBad}, \"decisionDiffsWithoutOtherDiffs\": {tierBDecisionOnly}}},");
+        summary.AppendLine($"  \"tierBComposite\": {{\"applied\": {tierBRows.Count}, \"notApplied\": {tierBNotApplied}, \"ineligible\": {tierBIneligible}, \"withInputOrDecisionDiffs\": {tierBBad}, \"decisionDiffsWithoutOtherDiffs\": {tierBDecisionOnly}}},");
         int cloneMismatches = all.Count(r => r.Kind == "clone-mismatch");
         summary.AppendLine($"  \"cloneChecksumMismatches\": {cloneMismatches},");
         summary.AppendLine($"  \"observerCheckpointsTotal\": {all.Count}");
@@ -311,25 +355,38 @@ public sealed class FiefWholeMatchFogFairnessTests
             if (!isCheckpoint) { runner.Advance(Math.Min(150, horizon - t)); continue; }
 
             runner.Advance(149);
-            long tick = runner.Tick;
+            long checkpointTick = runner.Tick;
+            runner.Advance(1);
+            if (runner.Tick != checkpointTick + 1 || match.Politics.Season != season + 1)
+                throw new InvalidOperationException($"A8 checkpoint alignment failed at season {season + 1}: tick {runner.Tick}, politics season {match.Politics.Season}.");
+            // MatchModel.Step passes the pre-increment tick to AiSystem.OnSeasonEnd.
+            long decisionTick = checkpointTick;
             var pending = new List<(Row Row, MatchModel Copy, SimRunner CopyRunner, MatchModel? Against, string? Expect)>();
+            var isolatedReferences = new Dictionary<int, MatchModel>();
             int visibleObserver = checkpoint % 4;
             bool tierB = Environment.GetEnvironmentVariable("CIVSIM_A8_TIERB") == "1";
             for (int o = 0; o < 4; o++)
             {
                 if (!HasHome(match, o))
                 {
-                    rows.Add(new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "null-control", NotApplied = "observer has no settlement" });
-                    rows.Add(new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "unseen-strict", NotApplied = "observer has no settlement" });
+                    rows.Add(Ineligible(seed, season + 1, o, "null-control", "observer has no settlement"));
+                    rows.Add(Ineligible(seed, season + 1, o, "unseen-strict", "observer has no settlement"));
+                    if (tierB) rows.Add(Ineligible(seed, season + 1, o, "unseen-composite", "observer has no settlement"));
                     continue;
                 }
-                // Null control: a restored clone with nothing changed must be indistinguishable from the live match.
+                // Clone the already-advanced whole-match checkpoint, then refresh only the tested seat.
+                // This preserves the map, diplomacy, economy and prior AI history while preventing other
+                // seats' reactions to the perturbation from entering the one-seat observation comparison.
+                MatchModel isolatedReference = Clone(match, pack, seed);
+                RefreshObserverSeat(isolatedReference, o, decisionTick);
+                isolatedReferences[o] = isolatedReference;
+                // Null control: a restored target-seat clone with nothing changed must match the isolated reference.
                 MatchModel nullCopy = Clone(match, pack, seed);
-                pending.Add((new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "null-control", Applied = true }, nullCopy, new SimRunner(nullCopy, int.MaxValue, tick), null, null));
+                pending.Add((new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "null-control", Applied = true }, nullCopy, new SimRunner(nullCopy, int.MaxValue), null, null));
                 // Strict unseen tier: only state the observer cannot observe within the pass.
                 var strictRow = new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "unseen-strict" };
                 MatchModel strictCopy = Clone(match, pack, seed);
-                var strictRunner = new SimRunner(strictCopy, int.MaxValue, tick);
+                var strictRunner = new SimRunner(strictCopy, int.MaxValue);
                 PerturbStrict(strictCopy, strictRunner, o, unchecked((int)(seed * 31 + (ulong)season * 7 + (ulong)o)), strictRow);
                 strictRow.Applied = strictRow.Deposits + strictRow.Powder + strictRow.Fleet + strictRow.Horses + strictRow.People > 0;
                 if (!strictRow.Applied) { strictRow.NotApplied = "no strictly unseen target"; rows.Add(strictRow); }
@@ -338,7 +395,7 @@ public sealed class FiefWholeMatchFogFairnessTests
                 {
                     var row = new Row { Seed = seed, Season = season + 1, Observer = o, Kind = "unseen-composite" };
                     MatchModel copy = Clone(match, pack, seed);
-                    var cr = new SimRunner(copy, int.MaxValue, tick);
+                    var cr = new SimRunner(copy, int.MaxValue);
                     PerturbUnseen(copy, cr, o, unchecked((int)(seed * 31 + (ulong)season * 7 + (ulong)o)), row);
                     row.Applied = row.Deposits + row.Powder + row.Fleet + row.Horses + row.People > 0;
                     if (!row.Applied) { row.NotApplied = "no unseen target"; rows.Add(row); }
@@ -348,9 +405,9 @@ public sealed class FiefWholeMatchFogFairnessTests
             foreach (string kind in new[] { "visible-deposit", "visible-stock", "visible-fleet" })
             {
                 var row = new Row { Seed = seed, Season = season + 1, Observer = visibleObserver, Kind = kind };
-                if (!HasHome(match, visibleObserver)) { row.NotApplied = "observer has no settlement"; rows.Add(row); continue; }
+                if (!HasHome(match, visibleObserver)) { rows.Add(Ineligible(seed, season + 1, visibleObserver, kind, "observer has no settlement")); continue; }
                 MatchModel copy = Clone(match, pack, seed);
-                var cr = new SimRunner(copy, int.MaxValue, tick);
+                var cr = new SimRunner(copy, int.MaxValue);
                 // Fleet is applied at the checkpoint's observation phase below. Planting a fake
                 // supplied-crew count before the season pass is invalid: the economy correctly
                 // replaces it from real soldier residents and food during that pass.
@@ -359,10 +416,11 @@ public sealed class FiefWholeMatchFogFairnessTests
                 row.Applied = true;
                 pending.Add((row, copy, cr, null, ExpectedLabel(kind)));
             }
-            AddHorseTriple(pending, rows, match, pack, seed, season + 1, visibleObserver, tick);
+            AddHorseTriple(pending, rows, match, pack, seed, season + 1, visibleObserver, decisionTick);
 
-            runner.Advance(1);
-            foreach ((_, _, SimRunner advanceRunner, _, _) in pending) advanceRunner.Advance(1);
+            foreach ((Row row, MatchModel copy, _, _, _) in pending)
+                if (row.Eligible && (row.Applied || row.Kind == "horse-reference"))
+                    RefreshObserverSeat(copy, row.Observer, decisionTick);
             foreach ((Row row, MatchModel copy, _, _, _) in pending)
             {
                 if (row.Kind != "visible-fleet") continue;
@@ -375,13 +433,13 @@ public sealed class FiefWholeMatchFogFairnessTests
                 }
                 // Re-evaluate this checkpoint's AI observation and decision pipeline at the same
                 // season-end tick, with the visible fleet present in own state.
-                copy.Ai!.OnSeasonEnd(tick);
+                RefreshObserverSeat(copy, row.Observer, decisionTick);
             }
             foreach ((Row row, MatchModel copy, _, MatchModel? against, string? expect) in pending)
             {
-                MatchModel reference = against ?? match;
+                MatchModel reference = against ?? isolatedReferences.GetValueOrDefault(row.Observer) ?? match;
                 row.WorldChanged = copy.ComputeChecksum() != reference.ComputeChecksum();
-                row.Diffs = row.Applied ? Compare(reference, copy, row.Observer, tick) : new List<string>();
+                row.Diffs = row.Applied ? Compare(reference, copy, row.Observer, decisionTick) : new List<string>();
                 if (!row.Applied) { }
                 else if (expect is null)
                 {
@@ -537,7 +595,7 @@ public sealed class FiefWholeMatchFogFairnessTests
             m.Economy.AdjustCohesion(s, Fix64.FromRatio(-1, 10));
             row.People += 2;
         }
-        if ((mask & 32) != 0) row.People += GrantHiddenResearch(m, cr, observer);
+        if ((mask & 32) != 0) row.People += GrantHiddenResearch(m, observer);
         if (pool.Length > 0)
             for (int i = 0; i < m.Economy.WildHerdCount; i++)
             {
@@ -588,7 +646,14 @@ public sealed class FiefWholeMatchFogFairnessTests
             if (match.Economy.WildHerd(i).Species == HerdSpecies.Horse) herds.Add(i);
         if (home < 0 || pool.Length == 0 || herds.Count == 0)
         {
-            string why = home < 0 ? "no home" : pool.Length == 0 ? "no unexplored tiles beyond margin" : "world has no horse herd";
+            string why = home < 0 ? "observer has no settlement" : pool.Length == 0 ? "no unexplored tiles beyond margin" : "world has no horse herd";
+            if (home < 0)
+            {
+                hiddenRow.Eligible = false;
+                visibleRow.Eligible = false;
+                hiddenRow.ObserverHasSettlement = false;
+                visibleRow.ObserverHasSettlement = false;
+            }
             hiddenRow.NotApplied = why; visibleRow.NotApplied = why;
             rows.Add(hiddenRow); rows.Add(visibleRow);
             return;
@@ -659,6 +724,15 @@ public sealed class FiefWholeMatchFogFairnessTests
         return copy;
     }
 
+    private static Row Ineligible(ulong seed, int season, int observer, string kind, string reason)
+        => new() { Seed = seed, Season = season, Observer = observer, Kind = kind, Eligible = false, ObserverHasSettlement = false, NotApplied = reason };
+
+    /// <summary>Rebuilds and decides only the selected seat against a frozen whole-match state.</summary>
+    private static void RefreshObserverSeat(MatchModel match, int civ, long tick)
+    {
+        match.Ai!.UpdateSeatForTesting(civ, tick);
+    }
+
     private static void PerturbUnseen(MatchModel m, SimRunner cr, int observer, int randomSeed, Row row, int mask = 63)
     {
         var random = new Random(randomSeed);
@@ -725,7 +799,7 @@ public sealed class FiefWholeMatchFogFairnessTests
             }
 
         if ((mask & 16) != 0) row.People += FogFairnessHarness.PerturbUnseen(m, cr, observer, Margin, research: false);
-        if ((mask & 32) != 0) row.People += GrantHiddenResearch(m, cr, observer);
+        if ((mask & 32) != 0) row.People += GrantHiddenResearch(m, observer);
     }
 
     /// <summary>Returns null when the visible change was made; otherwise why the control was not applicable at this checkpoint.</summary>
@@ -787,7 +861,7 @@ public sealed class FiefWholeMatchFogFairnessTests
     }
 
     /// <summary>The research half of FogFairnessHarness.PerturbUnseen (rivals never contacted and whose figures are out of sight).</summary>
-    private static int GrantHiddenResearch(MatchModel m, SimRunner runner, int observer)
+    private static int GrantHiddenResearch(MatchModel m, int observer)
     {
         TrueWorld world = m.Ai!.World;
         int changes = 0;
@@ -803,12 +877,20 @@ public sealed class FiefWholeMatchFogFairnessTests
                 bool ready = true;
                 foreach (int r in def.Requires) ready &= m.Research.IsDone(o, r);
                 if (!ready) continue;
-                runner.Submit(new Command(runner.Tick, (byte)o, CommandKind.CompleteProject, p, 0, 0));
+                CompleteHiddenProject(m, o, p, m.Economy.Tick);
                 granted++;
                 changes++;
             }
         }
         return changes;
+    }
+
+    private static void CompleteHiddenProject(MatchModel match, int civ, int project, long tick)
+    {
+        ProjectDef def = match.Research.Catalog.Projects[project];
+        MethodInfo complete = typeof(ResearchSystem).GetMethod("Complete", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        complete.Invoke(match.Research, new object[] { civ, project, tick, false });
+        match.Economy.FixtureComplete(civ, def.Id);
     }
 
     private static void SetStock(LivingEconomyModel economy, int settlement, string good, int value)
@@ -825,7 +907,7 @@ public sealed class FiefWholeMatchFogFairnessTests
     private static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     private static string ToJson(Row r) =>
-        $"{{\"seed\":{r.Seed},\"season\":{r.Season},\"observer\":{r.Observer},\"kind\":\"{r.Kind}\",\"applied\":{(r.Applied ? "true" : "false")},\"notApplied\":\"{Esc(r.NotApplied)}\"," +
+        $"{{\"seed\":{r.Seed},\"season\":{r.Season},\"observer\":{r.Observer},\"kind\":\"{r.Kind}\",\"eligible\":{(r.Eligible ? "true" : "false")},\"observerHasSettlement\":{(r.ObserverHasSettlement ? "true" : "false")},\"applied\":{(r.Applied ? "true" : "false")},\"notApplied\":\"{Esc(r.NotApplied)}\"," +
         $"\"deposits\":{r.Deposits},\"powder\":{r.Powder},\"fleet\":{r.Fleet},\"horses\":{r.Horses},\"people\":{r.People},\"worldChanged\":{(r.WorldChanged ? "true" : "false")}," +
         $"\"pass\":{(r.Pass ? "true" : "false")},\"triage\":\"{Esc(r.Triage)}\",\"diffs\":[{string.Join(",", r.Diffs.Take(6).Select(d => "\"" + Esc(d.Length > 200 ? d[..200] : d) + "\""))}]}}";
 }

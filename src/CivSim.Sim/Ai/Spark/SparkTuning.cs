@@ -74,6 +74,8 @@ public static class SparkTuning
     public static readonly Fix64 FrontierBonus = Fix64.FromInt(8);
     /// <summary>Legacy-equivalent value of GOV-02's posture lever while an open frontier can still be expanded.</summary>
     public static readonly Fix64 PostureUnlockBonus = Fix64.FromInt(36);
+    /// <summary>Warlord-only step toward GOV-02 when open land remains; the A2 Grower cohort spent 344/512 seasons frontier-open but locked.</summary>
+    public static readonly Fix64 WarlordPostureUnlockBonus = Fix64.FromInt(40);
     /// <summary>Modest value for food and lean-season capabilities while settlements are food insecure.</summary>
     public static readonly Fix64 FoodNeedBonus = Fix64.FromInt(10);
     public static readonly Fix64 LeanNeedBonus = Fix64.FromInt(12);

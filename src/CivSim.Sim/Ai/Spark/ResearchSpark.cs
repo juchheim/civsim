@@ -421,8 +421,8 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 // The posture guards compare normalized intent with FortifyAt, not Legacy-equivalent bonuses.
                 // Keep the older chapters' established valuation while correcting the Fief planner's units.
                 bonus += ctx.Own.FiefChapter
-                    ? PostureUnlockBonus(intent.FrontierValue, defenseUrgency, intent.AttackReadiness, PostureUnlockBonusOverrideForDiagnostics)
-                    : PostureUnlockBonus(frontier, defense, attack, PostureUnlockBonusOverrideForDiagnostics);
+                    ? PostureUnlockBonus(intent.FrontierValue, defenseUrgency, intent.AttackReadiness, PostureUnlockBonusOverrideForDiagnostics ?? LevelPostureUnlockBonus())
+                    : PostureUnlockBonus(frontier, defense, attack, PostureUnlockBonusOverrideForDiagnostics ?? LevelPostureUnlockBonus());
             _value.Bonus[p] = bonus;
         }
     }
@@ -436,6 +436,10 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             return Fix64.Zero;
         return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * (bonusOverride ?? SparkTuning.PostureUnlockBonus);
     }
+
+    private Fix64 LevelPostureUnlockBonus() => _spec.Level == Difficulty.Warlord
+        ? SparkTuning.WarlordPostureUnlockBonus
+        : SparkTuning.PostureUnlockBonus;
 
     private bool IsDone(int project) => project >= 0 && project < _start.Done.Length && _start.Done[project];
 

@@ -1,5 +1,11 @@
 # WP-E5-9 A8 whole-match preflight — stale 5ee record (2026-11-16)
 
+## Follow-up implementation — 2026-11-17
+
+The canonical whole-match probe now advances the live Fief match normally, clones the resulting checkpoint for baseline and perturbation variants, and refreshes only the target seat with the same `AiSystem` season-end update used in production. This holds whole-match history fixed while preventing other seats from reacting to a hidden perturbation before the target mind is measured. Hidden research perturbations complete the research and economy sides directly at the current tick, without another `SimRunner` step.
+
+Raw rows and summaries use schema version 2. Each row has an `eligible` flag and `observerHasSettlement` evidence; an eliminated seat remains in the report as `eligible: false`, `observerHasSettlement: false`, `applied: false`, with the exact reason `notApplied: "observer has no settlement"`. Such rows are accounted for separately and do not count as missed controls. Eligible controls still must apply and pass, and each frozen seed must contain eligible examples of every visible-control kind and applied unseen exposure for every category. The focused validator contract checks these fields and per-seed exposure totals against raw JSONL. No acceptance threshold or balance parameter changed. Focused fast tests cover the seat-isolated hidden/visible fixture and schema validator rules; the full A8 campaign remains unrun.
+
 **Status: stale historical preflight; do not run its pinned commands.** This preflight does not close A8. The 5ee values below are preserved as diagnostics only. The `d3908981…` source aggregate was a prior intermediate snapshot after the corrected test source was added; it is no longer the current working-tree aggregate. At this audit, HEAD remains `bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c` and the dirty `content/src/game` snapshot hashes to `fd22df0fc0ca563a3e85c38538012aa05200e5e18ff6f04c77afdea7b07fbd48` across 1,046 files. This working-tree hash identifies the current source only; it is not a clean final freeze and has no verified final pack or Release binary tuple. A fresh final-tuple preflight is required after WP-E5-11's freeze, including new source, pack, Harness, Sim, test-source, test-assembly, runner, validator, and hash-helper hashes.
 
 ## Validator follow-up — 2026-11-16
