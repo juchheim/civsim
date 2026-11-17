@@ -24,9 +24,9 @@ public static class ArchetypeResearch
     /// Big families, little schooling: ×0.93 Insight, fewer specialists (×0.9) and less practice per head (×0.95). Fertility
     /// ×1.3 already gives the Grower 5 settlements to the others' 3 and its Kin Leaning favours the research engine.
     /// </summary>
-    public static readonly Scales Grower = new(Fix64.FromRatio(93, 100), Fix64.FromRatio(90, 100), Fix64.FromRatio(95, 100));
-    /// <summary>Efficient core: practice turns into Know-how 27% faster, trimmed from 30% after the binding E5 FFA over-share.</summary>
-    public static readonly Scales Builder = new(Fix64.One, Fix64.One, Fix64.FromRatio(127, 100));
+    public static readonly Scales Grower = new(Fix64.FromRatio(95, 100), Fix64.FromRatio(92, 100), Fix64.FromRatio(97, 100));
+    /// <summary>Efficient core: practice turns into Know-how 23% faster, trimmed again after the E5 FFA over-share.</summary>
+    public static readonly Scales Builder = new(Fix64.One, Fix64.One, Fix64.FromRatio(123, 100));
     /// <summary>
     /// Travellers who learn from everything they meet: ×1.15 Insight and Know-how ×1.1. Pays for the Era Boons taken as
     /// Beacons and for a Reach Leaning that keeps the planner off the Kin research engine (07 had ×0.95 against a Territory

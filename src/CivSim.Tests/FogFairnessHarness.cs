@@ -313,7 +313,8 @@ public static class FogFairnessHarness
     /// lowered in settlements out of sight; and, for rivals it has never contacted and whose figures it cannot see,
     /// research granted that wins no First and moves no era. Returns how many changes were made.
     /// </summary>
-    public static int PerturbUnseen(MatchModel m, SimRunner runner, int observer, int margin, bool research = true)
+    public static int PerturbUnseen(MatchModel m, SimRunner runner, int observer, int margin, bool research = true,
+        IReadOnlySet<long>? excludedFigureIds = null)
     {
         TrueWorld world = m.Ai!.World;
         int changes = 0;
@@ -329,6 +330,7 @@ public static class FogFairnessHarness
             m.Economy.ListFigures(s, figures);
             for (int i = 0; i < figures.Count; i++)
             {
+                if (excludedFigureIds?.Contains(figures[i].Id) == true) continue;
                 if (i % 3 == 0) { m.Economy.KillFigure(figures[i].Id); changes++; }
                 else if (i % 3 == 1) { m.Economy.WoundFigure(figures[i].Id, 2); changes++; }
             }

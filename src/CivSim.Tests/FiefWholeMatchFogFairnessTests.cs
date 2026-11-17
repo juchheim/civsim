@@ -798,8 +798,44 @@ public sealed class FiefWholeMatchFogFairnessTests
                 row.Horses++;
             }
 
-        if ((mask & 16) != 0) row.People += FogFairnessHarness.PerturbUnseen(m, cr, observer, Margin, research: false);
+        if ((mask & 16) != 0)
+        {
+            HashSet<long> visibleCampCrew = VisibleRivalCampCrew(m, observer);
+            row.People += FogFairnessHarness.PerturbUnseen(m, cr, observer, Margin, research: false,
+                excludedFigureIds: visibleCampCrew);
+        }
         if ((mask & 32) != 0) row.People += GrantHiddenResearch(m, observer);
+    }
+
+    /// <summary>
+    /// Figures assigned to a rival camp are visible whenever the belief update will refresh that camp at this checkpoint,
+    /// even if the camp's parent settlement is hidden. Keep those figures outside the unseen-people perturbation.
+    /// Mirrors BeliefBuilder's awareness and local-range/owner-seen rule.
+    /// </summary>
+    private static HashSet<long> VisibleRivalCampCrew(MatchModel m, int observer)
+    {
+        AiSeat seat = m.Ai!.SeatOf(observer)!;
+        MapKnowledge map = seat.Belief.Map;
+        int routineSight = BeliefRules.RoutineSight(m.Politics.ReachOf(observer));
+        var crewIds = new HashSet<long>();
+        var crew = new List<LivingEconomyModel.FighterRecord>();
+        for (int i = 0; i < m.Economy.MiningCampCount; i++)
+        {
+            MiningCampView camp = m.Economy.MiningCamp(i);
+            if (camp.Civilization == observer || (uint)camp.Civilization >= (uint)seat.Belief.Rivals.Length) continue;
+            if (!seat.Belief.Rivals[camp.Civilization].Aware) continue;
+            int distance = int.MaxValue;
+            for (int s = 0; s < m.Politics.SettlementTotal; s++)
+            {
+                if (m.Politics.SettlementCivOf(s) != observer || m.Politics.IsFreeFolk(s)) continue;
+                distance = Math.Min(distance, HexGrid.Distance(m.Politics.SettlementTileOf(s), camp.Tile, m.Ai.World.Generated.Width));
+            }
+            if (distance > routineSight && map.OwnerSeen(camp.Tile).Season != m.Politics.Season) continue;
+            crew.Clear();
+            m.Economy.ListMiningCampCrew(camp.Id, crew);
+            foreach (LivingEconomyModel.FighterRecord figure in crew) crewIds.Add(figure.Id);
+        }
+        return crewIds;
     }
 
     /// <summary>Returns null when the visible change was made; otherwise why the control was not applicable at this checkpoint.</summary>

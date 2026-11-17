@@ -4506,8 +4506,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     // mortality; since M5 raids and assaults kill fighters in the simulation itself (docs/MVP/14 §17).
     private ArchetypeProfile Profile(int civ) => _archetypes[civ] switch
     {
-        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.03"), Fix64.Parse("1.03"), Fix64.One, Fix64.Zero),
-        EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.00"), Fix64.Parse("1.07"), Fix64.One, Fix64.Parse("-0.02")),
+        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.04"), Fix64.Parse("1.03"), Fix64.One, Fix64.Zero),
+        EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.00"), Fix64.Parse("1.05"), Fix64.One, Fix64.Parse("-0.02")),
         EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Sage => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
