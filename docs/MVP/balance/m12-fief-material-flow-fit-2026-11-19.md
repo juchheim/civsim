@@ -18,3 +18,13 @@ These are draft fit hypotheses, not promoted E5 numeric rows. The matched natura
 ## Same-seed rerun
 
 With these changes, seed 124 at 150 minutes ended with 6,556 of 7,049 fighters holding a modeled weapon kit (93.0%), compared with 5,255/7,595 (69.2%) on the prior candidate. The armed count increased by 1,301; the fighter cohort and civ-by-civ distribution also changed, so this single match is directional evidence rather than a causal or population-weighted estimate. There were no chariots because none of the four civilizations researched WAR-06. No civilization reached WAR-11 in this run either, so it does not test crossbow/longbow manufacture. Keep those research-access gaps separate from the mineral-input fix.
+
+## Forge-site intermediate follow-up
+
+The later 80-season trace at forge site 29 (seed 125, seasons 520–599) showed that common assembly inputs were not the choke: arsenical bronze was below cast-arms demand in 41/79 seasons; hide/leather was never short and wood was short once. At the co-smelter, arsenical ore was below its planned input in 39/78 seasons and charcoal in 32/78. Across the traced window, burn-charcoal produced 35.67/47.11 planned batches (75.7%), arsenical co-smelt 19.51/30.26 (64.5%), and cast arsenical arms 175.83/301.16 (58.4%).
+
+The Fief-only runtime fit now raises charcoal output by 50%, arsenical co-smelt output by 100%, wrought iron and steel by 25%, crucible steel by 33%, and bronze alloy output by 20%, without creating deposits. The matched seed-125–127, 150-minute cohort recorded 519 chariots versus 447 in the earlier material-flow cohort, and no post-MET-09 charcoal-fuel shortfall. However, weighted armed-fighter coverage was 65.6% (15,127/23,060), versus 68.7% (15,898/23,155) in that earlier cohort. Since other flow changes and resulting match trajectories differ, this is directional evidence, not a one-variable causal comparison; the arms-coverage goal is still open.
+
+The trace also found 17/80 seasons below 0.80 food security; these seasons contained 8.59 work-seasons of planned military assembly for which the craft-work gate did not open. Overall, assembly reservation covered 88.4% of planned assembly labor. Further changes should separate food-security gating, raw ore/charcoal delivery, and the remaining assembly-work shortfall before raising intermediate yields again.
+
+A one-seed sensitivity check raised existing mineral extraction by 25% in Fief, but seed 125 then ended at 64.7% armed (5,626/8,691) with 179 chariots, versus 65.7% (5,567/8,470) and 190 chariots in the three-seed run's seed 125. This did not demonstrate a gain, so the extra mining multiplier was removed; the sixfold finite reserve remains.

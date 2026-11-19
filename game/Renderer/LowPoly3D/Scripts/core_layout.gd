@@ -640,15 +640,22 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 
 	# ---- whole-hex buildings, in priority order: Wonder, castle, ziggurat, temple, civic works (§4.4)
 	var big := [Q.SACRED, Q.HOMES_B, Q.FRONT, Q.WATCH]
+	var build_k := int(s.get("ironBuildKind", -1))
+	var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
+	var build_pm := int(s.get("ironBuildPermille", 0))
 	for wid in [["great_dome", "dome", "great_dome", 1.35], ["great_library", "library", "great_library", 1.2]]:
 		if w.iron_works(s, String(wid[0])) > 0:
 			var wonder_q := Q.WONDER_A if String(wid[0]) == "great_dome" else Q.WONDER_C
 			var r = _whole([wonder_q] + big, String(wid[1]), String(wid[2]), float(wid[3]))
 			if r != null:
 				wb.civic_sites.append({"kind": String(wid[1]), "p": r[1], "y": w.height_at(r[1]), "yaw": _face(r[1]), "civ": _civ, "seed": _seed, "tile": _t})
-	var build_k := int(s.get("ironBuildKind", -1))
-	var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
-	var build_pm := int(s.get("ironBuildPermille", 0))
+	# The Gothic Cathedral is the Fief Wonder, with its own staged mesh. It shares the Wonder quarter
+	# fallback list with the other landmark so a tight core still gets a visible site when possible.
+	if w.fief_active and (w.iron_works(s, "gothic_cathedral") > 0 or (build_id == "gothic_cathedral" and build_pm > 0)):
+		var cathedral_stage := clampi(1 + build_pm * 3 / 1000, 1, 4) if build_id == "gothic_cathedral" and build_pm > 0 else 4
+		var cathedral = _whole([Q.WONDER_B, Q.WONDER_C, Q.WONDER_A] + big, "gothic_cathedral", "gothic_cathedral_%d" % cathedral_stage, 1.35)
+		if cathedral != null:
+			wb.civic_sites.append({"kind": "gothic_cathedral", "p": cathedral[1], "y": w.height_at(cathedral[1]), "yaw": _face(cathedral[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
 	var site_mesh := "build_site_%d" % (1 + mini(2, build_pm * 3 / 1000))
 	if build_pm > 0 and build_id.begins_with("great_") and build_id != "great_lighthouse":
 		var build_q := Q.WONDER_A if build_id == "great_dome" else Q.WONDER_C
@@ -707,7 +714,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	# Faith & Fief adds three small institutions. Reuse the established civic mesh kit and its protected civic quarter;
 	# keeping this branch mode-gated leaves Iron/Bronze presentation byte-for-byte on its existing path.
 	if w.fief_active:
-		for fw in [["monastery", "monastery", "temple", Q.SACRED], ["university", "university", "academy", Q.LEARNING], ["hospital", "hospital", "bathhouse", Q.HEALTH]]:
+		for fw in [["monastery", "monastery", "monastery", Q.SACRED], ["university", "university", "university", Q.LEARNING],
+			["cathedral_school", "cathedral_school", "academy", Q.LEARNING], ["hospital", "hospital", "hospital", Q.HEALTH]]:
 			if w.iron_works(s, String(fw[0])) <= 0:
 				continue
 			var fr = _whole([int(fw[3])] + big, String(fw[1]), String(fw[2]), 1.25)
@@ -1377,11 +1385,39 @@ func _outer_candidates() -> Array:
 				out.append(nb)
 	return out
 
+## Place one Fief work on an unclaimed ring-2 land hex and record its footprint for the layout inspector.
+func _fief_outer_site(ring2: Array, taken: Dictionary, kind: String, mesh: String, scale: float, tint: Color):
+	for tile in ring2:
+		if taken.has(tile) or not w.is_land(tile) or w.plot_kind[tile] >= 0 or w.biome[tile] >= M7WorldData.Biome.PEAK:
+			continue
+		var p := w.tile_center(tile)
+		if wb._river_dist(p) < 0.15:
+			p += (_c0 - p).normalized() * 0.2
+		var yaw := atan2((_c0 - p).x, (_c0 - p).y)
+		wb.props.add(mesh, wb._xf(p, w.height_at(p), yaw, scale), tint)
+		var footprint := _foot(mesh)
+		_record({"kind": kind, "mesh": mesh, "quarter": "outer", "slot": "ring2", "chain": "fief", "tier": kind,
+			"slot_hex": tile, "x": p.x, "z": p.y, "r": float(footprint[0]) * scale, "outer": true})
+		return [tile, p]
+	_dropped.append(kind)
+	return null
+
 func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> void:
 	var K := M7WorldData.Kind
 	var tint := Color(_cc.r, _cc.g, _cc.b, _seed)
 	var ring2 := _outer_candidates()
 	var taken := {}
+	if w.fief_active:
+		# Fief power and industry works use distinct custom meshes. They stand beyond the protected core,
+		# sharing the same finite ring-2 site budget as other outer works.
+		for fw in [["windmill", "windmill", 0.82], ["sawmill", "sawmill", 0.78],
+			["blast_furnace", "blast_furnace", 0.82], ["powder_mill", "powder_mill", 0.78],
+			["print_shop", "print_shop", 0.82]]:
+			if w.iron_works(s, String(fw[0])) <= 0:
+				continue
+			var placed = _fief_outer_site(ring2, taken, String(fw[0]), String(fw[1]), float(fw[2]), tint)
+			if placed != null:
+				taken[int(placed[0])] = true
 	# the aqueduct's spans first (a line feature); nothing else stands on a tile they cross
 	if aqueduct_at != null:
 		_aqueduct_spans(aqueduct_at)

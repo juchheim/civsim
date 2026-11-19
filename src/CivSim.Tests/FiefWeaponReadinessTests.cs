@@ -119,7 +119,7 @@ public sealed class FiefWeaponReadinessTests
     }
 
     [Fact]
-    public void Assembly_reserve_is_capped_at_twenty_percent_after_tools()
+    public void Assembly_reserve_covers_planned_work_after_essential_tools()
     {
         ContentPack pack = TestPack.WithNumeric("KEY-5");
         BronzeFixture fixture = BronzeFixture.CreateFiefWithCamp(pack, Seed + 20, 40, "KEY-5");
@@ -127,8 +127,8 @@ public sealed class FiefWeaponReadinessTests
         (Fix64 remaining, Fix64 reserved, _) =
             fixture.Economy.FixtureCraftToolsWithAssemblyReserve(0, Fix64.FromInt(10), Fix64.FromInt(8));
 
-        Assert.True(reserved > Fix64.Zero && reserved <= Fix64.FromInt(2),
-            $"the reserve must be positive but cannot exceed 20% of the initial ten work-seasons after essential tools: {reserved}");
+        Assert.True(reserved > Fix64.Zero && reserved <= Fix64.FromInt(8),
+            $"the reserve should cover available planned work after essential tools, bounded by the requested eight: {reserved}");
         Assert.True(remaining >= reserved, "the held share remains available to the finishing recipe pass");
     }
 
@@ -228,6 +228,22 @@ public sealed class FiefWeaponReadinessTests
         Assert.True(toolStock > Fix64.Zero, "the available work repairs the essential tool first");
         Assert.True(reserved <= F("0.01"), $"tools should consume nearly all work before assembly can reserve any: {reserved}");
         Assert.True(remaining <= F("0.01"), $"the small reserve remainder must be returned: {remaining}");
+    }
+
+    [Fact]
+    public void Fief_arsenical_intermediate_yield_offsets_the_traced_ore_shortfall()
+    {
+        ContentPack pack = TestPack.WithNumeric("KEY-5", "MET-04", "FIR-08", "FIR-09", "FIB-03");
+        BronzeFixture fixture = BronzeFixture.CreateFiefWithCamp(pack, Seed + 21, 40,
+            "KEY-5", "MET-04", "FIR-08", "FIR-09", "FIB-03");
+        fixture.Economy.FixtureSetMetalFacilities(0, forges: 0, smelters: 1);
+        fixture.Economy.FixtureSetGoodStock(0, "G-ASORE", Fix64.FromInt(2));
+        fixture.Economy.FixtureSetGoodStock(0, "G-CHAR", F("1.6"));
+
+        Fix64 made = fixture.Economy.FixtureRunRecipe(0, "cosmelt_arsenical", Fix64.One, Fix64.FromInt(10));
+
+        Assert.Equal(Fix64.One, made);
+        Assert.Equal(F("2.8"), fixture.Economy.GoodStock(0, "G-ABRONZE"));
     }
 
     [Fact]
@@ -431,6 +447,66 @@ public sealed class FiefWeaponReadinessTests
         economy.FixtureSetGoodStock(daughter, "G-ARMS3", Fix64.Zero);
         economy.FixtureShareFinishedMilitaryGoods(0);
         Assert.Equal(Fix64.Zero, economy.GoodStock(daughter, "G-ARMS3")); // fractional stores are not pooled into a weapon
+    }
+
+    [Fact]
+    public void Forge_sites_receive_a_small_buffer_of_weapon_recipe_inputs_from_reachable_sisters()
+    {
+        BronzeFixture fixture = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, Seed + 30, 100,
+            "KEY-5", "MET-09", "MET-10", "WAR-08", "SOC-07");
+        LivingEconomyModel economy = fixture.Economy;
+        economy.FixtureSetMetalFacilities(0, forges: 1, smelters: 0);
+        economy.FixtureSetGoodStock(0, "G-STEEL", Fix64.Zero);
+        economy.FixtureSetGoodStock(0, "G-WOOD", Fix64.Zero);
+        economy.FixtureSetGoodStock(0, "G-LEATHER", Fix64.Zero);
+        economy.FixtureSetGoodStock(0, "G-HIDE", Fix64.Zero);
+
+        int daughter = economy.FoundByDecree(0, fixture.CampTile, F("0.4"), minDaughter: 6, startCohesion: 60);
+        Assert.True(daughter >= 0);
+        economy.FixtureSetMetalFacilities(daughter, forges: 1, smelters: 0);
+        economy.FixtureSetGoodStock(daughter, "G-ARMS3", Fix64.FromInt(100));
+        economy.FixtureSetGoodStock(daughter, "G-STEEL", Fix64.FromInt(20));
+        economy.FixtureSetGoodStock(daughter, "G-WOOD", Fix64.FromInt(200));
+        economy.FixtureSetGoodStock(daughter, "G-HIDE", Fix64.FromInt(50));
+        Assert.True(economy.FixtureMilitaryProductionInputDemandCount(0) > 0,
+            $"expected a metal-arms input demand at the producer, reach={economy.FixtureSharing(0, 0, daughter).Reach}");
+
+        economy.FixtureShareMilitaryProductionInputs(0);
+
+        Assert.True(economy.GoodStock(0, "G-STEEL") > Fix64.Zero,
+            "the producer should receive its missing steel input");
+        Assert.True(economy.GoodStock(0, "G-WOOD") > Fix64.Zero,
+            "the iron arms producer should receive its missing timber input");
+        Assert.True(economy.GoodStock(0, "G-HIDE") > Fix64.Zero,
+            "the iron arms producer should receive its missing grip and shield input");
+        Assert.True(economy.GoodStock(daughter, "G-WOOD") > Fix64.FromInt(100),
+            "the donor must keep a substantial fuel and construction reserve");
+    }
+
+    [Fact]
+    public void Arsenical_arms_input_sharing_follows_the_settlement_cast_path_instead_of_preferring_tin_by_recipe_order()
+    {
+        BronzeFixture fixture = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, Seed + 31, 100,
+            "KEY-5", "MET-04", "WAR-05", "SOC-07");
+        LivingEconomyModel economy = fixture.Economy;
+        economy.FixtureSetMetalFacilities(0, forges: 1, smelters: 1);
+        economy.FixtureSetGoodStock(0, "G-ABRONZE", F("0.2"));
+        economy.FixtureSetGoodStock(0, "G-WOOD", Fix64.Zero);
+        economy.FixtureSetGoodStock(0, "G-LEATHER", Fix64.Zero);
+        economy.FixtureSetGoodStock(0, "G-HIDE", Fix64.Zero);
+
+        int daughter = economy.FoundByDecree(0, fixture.CampTile, F("0.4"), minDaughter: 6, startCohesion: 60);
+        Assert.True(daughter >= 0);
+        economy.FixtureSetMetalFacilities(daughter, forges: 1, smelters: 1);
+        economy.FixtureSetGoodStock(daughter, "G-ABRONZE", Fix64.FromInt(20));
+        economy.FixtureSetGoodStock(daughter, "G-WOOD", Fix64.FromInt(200));
+        economy.FixtureSetGoodStock(daughter, "G-HIDE", Fix64.FromInt(50));
+        Assert.True(economy.FixtureMilitaryProductionInputDemandCount(0) > 0);
+
+        economy.FixtureShareMilitaryProductionInputs(0);
+
+        Assert.True(economy.GoodStock(0, "G-ABRONZE") > F("0.2"),
+            "the receiver's arsenical cast path should draw arsenical bronze from a reachable sister");
     }
 
     [Fact]

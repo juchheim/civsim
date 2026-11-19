@@ -1318,6 +1318,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ShareFinishedMilitaryGoods(season);
+        ShareMilitaryProductionInputs(season + 1);
 
         CompactPendingDeaths();
         if (!_holdPopulation && season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
@@ -3091,8 +3092,9 @@ public sealed partial class LivingEconomyModel : ISimModel
 
         // Hold a bounded share of post-food material work for finishing military recipes. Core tool replacement above keeps first claim;
         // the protected share then survives optional craft stockpiles and is returned to the metal recipe pass.
-        // Cap the military hold to one fifth of labor left after core tool replacement.
-        protectedAssembly = Fix64.Min(remaining * Fix64.FromRatio(1, 5), assemblyReserve);
+        // Military weapons and vehicles outrank optional stockpiles once core tool repair is done.
+        // The plan already bounds assemblyReserve to the labor needed by currently feasible recipes.
+        protectedAssembly = Fix64.Min(remaining, assemblyReserve);
         remaining -= protectedAssembly;
 
         if (HasProject(civ, "FOR-07"))

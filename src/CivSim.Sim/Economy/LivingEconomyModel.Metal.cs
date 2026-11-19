@@ -943,8 +943,26 @@ public sealed partial class LivingEconomyModel
     private Fix64 OutputQuantity(SettlementState s, CompiledRecipe r)
     {
         Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+        if (FiefChain)
+            q *= FiefMilitaryIntermediateYield(r.Def.Id);
         return FurnaceActive(s, r) ? q * FurnaceOutputFactor(s) : q;
     }
+
+    /// <summary>
+    /// Fief-only throughput fit for traced constrained intermediates. The seed-125 forge trace fulfilled about 58% of
+    /// arsenical co-smelt and charcoal plans; the factors reduce raw ore/wood needed per military-ready intermediate.
+    /// Existing wrought/steel, crucible steel, and bronze fits keep their recipe-to-kit batch targets. No deposits are added.
+    /// Earlier eras keep the registry yields unchanged.
+    /// </summary>
+    private static Fix64 FiefMilitaryIntermediateYield(string recipeId) => recipeId switch
+    {
+        "burn_charcoal" => Fix64.FromRatio(3, 2),
+        "cosmelt_arsenical" => Fix64.FromInt(2),
+        "forge_wrought" or "carburize_steel" => Fix64.FromRatio(5, 4),
+        "crucible_steel" => Fix64.FromRatio(4, 3),
+        "alloy_bronze" => Fix64.FromRatio(6, 5),
+        _ => Fix64.One,
+    };
 
     private Fix64 InputQuantity(SettlementState s, CompiledRecipe r, int input)
     {
@@ -2190,8 +2208,9 @@ public sealed partial class LivingEconomyModel
                 if (ironPlan.Length > 0) ironPlan.Append(' ');
                 ironPlan.Append(recipe.Def.Id).Append('=').Append(plan.Batches[r].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
-            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} assemblyNeed {F(plan.MilitaryAssemblyNeed)} assemblyReserved {F(plan.MilitaryAssemblyReserved)} toolsBefore {F(plan.CraftWorkBeforeTools)} toolsAfter {F(plan.CraftWorkAfterTools)} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
+            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} foodSec {F(s.FoodSecurity)} craftLeft {craftLeft.ToDoubleForDisplay():F2} assemblyNeed {F(plan.MilitaryAssemblyNeed)} assemblyReserved {F(plan.MilitaryAssemblyReserved)} toolsBefore {F(plan.CraftWorkBeforeTools)} toolsAfter {F(plan.CraftWorkAfterTools)} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
                 $"work={plan.TotalWork.ToDoubleForDisplay():F2} pushCap={plan.PushCap.ToDoubleForDisplay():F2} kitCapMargin={plan.IronKitCapMarginApplied} chainPrimary={plan.PrimaryChain.ToDoubleForDisplay():F2}x{plan.PrimaryScale.ToDoubleForDisplay():F2} chainSecondary={plan.SecondaryChain.ToDoubleForDisplay():F2}x{plan.SecondaryScale.ToDoubleForDisplay():F2} assigned(mine/char/smelt)={plan.MineAssigned.ToDoubleForDisplay():F2}/{plan.CharcoalAssigned.ToDoubleForDisplay():F2}/{plan.SmeltAssigned.ToDoubleForDisplay():F2} " +
+                $"rawStock cuOre={F(m.Goods[(int)MetalGood.CopperOre])} asOre={F(m.Goods[(int)MetalGood.ArsenicalOre])} tinOre={F(m.Goods[(int)MetalGood.TinOre])} feOre={F(m.Goods[(int)MetalGood.IronOre])} charcoal={F(m.Goods[(int)MetalGood.Charcoal])} " +
                 $"ironStock ore={m.Goods[(int)MetalGood.IronOre].ToDoubleForDisplay():F2} iron={m.Goods[(int)MetalGood.Iron].ToDoubleForDisplay():F2} charcoal={m.Goods[(int)MetalGood.Charcoal].ToDoubleForDisplay():F2} wrought={IronStock(s, IronGood.Wrought).ToDoubleForDisplay():F2} steel={IronStock(s, IronGood.Steel).ToDoubleForDisplay():F2} T11={IronStock(s, IronGood.Kit11).ToDoubleForDisplay():F2} T12={IronStock(s, IronGood.Kit12).ToDoubleForDisplay():F2}; ironPlan {ironPlan}");
         }
         Fix64 earlyIronKit12Made = Fix64.Zero;
@@ -2247,7 +2266,7 @@ public sealed partial class LivingEconomyModel
                 : plan.Batches[r];
             if (planned <= Fix64.Zero) continue;
             if (recipe.OutputSlot == MetalSlot(MetalGood.Salted)) PanSalt(s, m, plan, season, ref craftLeft);
-            string inputReadiness = traceSettlement && recipe.Def.Order >= CraftOrder
+            string inputReadiness = traceSettlement
                 ? MilitaryInputReadiness(s, recipe, planned) : "";
             Fix64 made = RunRecipe(s, recipe, planned, plan.AnyMetalKit, ref metalPool, ref craftLeft);
             if (traceSettlement)
@@ -2394,7 +2413,7 @@ public sealed partial class LivingEconomyModel
             stock[recipe.OutputSlot] += batches * OutputQuantity(s, recipe);
         }
         Fix64 net = need - Stock(s, charcoal);
-        return net <= Fix64.Zero ? Fix64.Zero : net / _compiledRecipes[charcoalRecipe].OutputQuantity;
+        return net <= Fix64.Zero ? Fix64.Zero : net / OutputQuantity(s, _compiledRecipes[charcoalRecipe]);
     }
 
     /// <summary>Runs one recipe for up to <paramref name="planned"/> batches; returns the batches made.</summary>
@@ -2525,7 +2544,8 @@ public sealed partial class LivingEconomyModel
         ref Fix64 metalPool, ref Fix64 craftPool, out bool fuelShort)
     {
         fuelShort = false;
-        Fix64 plannedCharcoal = planned * recipe.OutputQuantity;
+        Fix64 charcoalOutput = OutputQuantity(s, recipe);
+        Fix64 plannedCharcoal = planned * charcoalOutput;
         bool traceFuelSupply = IT6AccountingTraceEnabled && IronChain && Done(s.Civilization, "MET-09");
         Fix64 reachableWoodBefore = Fix64.Zero, harvestableWoodBefore = Fix64.Zero;
         Fix64 inRangeWoodBefore = Fix64.Zero, outerReachWoodBefore = Fix64.Zero;
@@ -2626,11 +2646,11 @@ public sealed partial class LivingEconomyModel
             m.ClampTile = tile;
         }
         if (planned > Fix64.FromRatio(1, 100) && metalPool + craftPool > Fix64.FromRatio(1, 100)) fuelShort = true;
-        Fix64 unmetCharcoal = fuelShort ? planned * recipe.OutputQuantity : Fix64.Zero;
+        Fix64 unmetCharcoal = fuelShort ? planned * charcoalOutput : Fix64.Zero;
         RecordIT6CharcoalPlan(s, plannedCharcoal, unmetCharcoal, Done(s.Civilization, "MET-09"), fuelShort,
             reachableWoodBefore, harvestableWoodBefore, inRangeWoodBefore, outerReachWoodBefore,
             localWoodBefore, metalPool + craftPool, woodFactorBefore);
-        if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
+        if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * charcoalOutput;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
         RecordIT6CharcoalHaul(s.Civilization, haulLabor);
         return made;

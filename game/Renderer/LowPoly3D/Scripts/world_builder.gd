@@ -527,7 +527,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 		for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
 			h = h * 31 + w.iron_works(s, wid)
 		if w.fief_active:
-			for wid in ["monastery", "university", "hospital", "windmill", "blast_furnace", "concentric_castle"]:
+			for wid in ["monastery", "university", "hospital", "windmill", "sawmill", "blast_furnace", "powder_mill", "print_shop", "cathedral_school", "gothic_cathedral", "concentric_castle"]:
 				h = h * 31 + w.iron_works(s, wid)
 			h = h * 31 + (1 if bool(w.fief_settlement(s).get("concentric_castle", false)) else 0)
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
