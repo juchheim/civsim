@@ -3,10 +3,10 @@
 schema: 1
 recipes:
   - {id: burn_charcoal, name: Burn charcoal, unlocked_by: [FIR-08], inputs: {G-WOOD: 4}, outputs: {G-CHAR: 1}, labor: 0.3, order: 10, practice: burn_charcoal, note: "wood from the standing stock of one forest tile in range or at a mining camp (23 §7.4)"}
-  - {id: smelt_copper, name: Smelt copper, unlocked_by: [MET-02], structure: [kiln, smelter], inputs: {G-CUORE: 2, G-CHAR: 2}, outputs: {G-COPPER: 0.75}, labor: 0.5, order: 20, practice: smelt, bellows: true}
-  - {id: cosmelt_arsenical, name: Co-smelt arsenical bronze, unlocked_by: [MET-04], structure: [kiln, smelter], inputs: {G-ASORE: 2, G-CHAR: 2}, outputs: {G-ABRONZE: 0.75}, labor: 0.5, order: 20, practice: smelt, bellows: true}
-  - {id: smelt_tin, name: Smelt tin, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-TINORE: 1, G-CHAR: 1}, outputs: {G-TIN: 0.75}, labor: 0.3, order: 20, practice: smelt}
-  - {id: bloomery, name: Bloomery iron, unlocked_by: [MET-08], structure: [smelter], inputs: {G-IRONORE: 2, G-CHAR: 3}, outputs: {G-IRON: 0.75}, labor: 0.8, order: 20, practice: smelt}
+  - {id: smelt_copper, name: Smelt copper, unlocked_by: [MET-02], structure: [kiln, smelter], inputs: {G-CUORE: 2, G-CHAR: 2}, outputs: {G-COPPER: 1}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: cosmelt_arsenical, name: Co-smelt arsenical bronze, unlocked_by: [MET-04], structure: [kiln, smelter], inputs: {G-ASORE: 2, G-CHAR: 2}, outputs: {G-ABRONZE: 1}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: smelt_tin, name: Smelt tin, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-TINORE: 1, G-CHAR: 1}, outputs: {G-TIN: 1}, labor: 0.3, order: 20, practice: smelt}
+  - {id: bloomery, name: Bloomery iron, unlocked_by: [MET-08], structure: [smelter], inputs: {G-IRONORE: 2, G-CHAR: 3}, outputs: {G-IRON: 1}, labor: 0.8, order: 20, practice: smelt}
   - {id: alloy_bronze, name: Alloy tin bronze, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-COPPER: 0.9, G-TIN: 0.1, G-CHAR: 0.5}, outputs: {G-BRONZE: 1}, labor: 0.2, order: 30, practice: smelt}
   - {id: cast_t8, name: Cast copper kit, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.12}, outputs: {G-TOOL8: 1}, labor: 0.1, order: 40, practice: smelt}
   - {id: cast_t9, name: Cast arsenical bronze kit, unlocked_by: [MET-04], structure: [forge], inputs: {G-ABRONZE: 0.15}, outputs: {G-TOOL9: 1}, labor: 0.1, order: 40, practice: smelt}

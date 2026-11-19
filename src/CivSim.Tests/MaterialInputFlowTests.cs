@@ -78,11 +78,11 @@ public sealed class MaterialInputFlowTests
         Assert.Equal(Fix64.FromInt(4), charcoal.Inputs[0].Quantity);
         Assert.Equal(Fix64.Parse("0.3"), charcoal.Labor);
         foreach (string id in new[] { "smelt_copper", "cosmelt_arsenical", "smelt_tin", "bloomery" })
-            Assert.Equal(Fix64.Parse("0.75"), Recipe(id).Outputs[0].Quantity);
+            Assert.Equal(Fix64.One, Recipe(id).Outputs[0].Quantity);
         foreach (string id in new[] { "forge_wrought", "carburize_steel", "cast_iron_goods" })
             Assert.Equal(Fix64.Parse("0.32"), Recipe(id).Labor);
         Assert.Equal(Fix64.Parse("0.48"), Recipe("crucible_steel").Labor);
-        Rate("mine", "1.5");
+        Rate("mine", "2");
         Rate("quarry", "3");
         Rate("chop", "3");
         Rate("gather_clay", "4.5");

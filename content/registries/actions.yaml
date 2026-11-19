@@ -29,7 +29,7 @@ actions:
   - {id: draft_oxen, name: Draft oxen, class: activity}
   - {id: feast, name: Feast, class: activity}
   # E3 Bronze actions (docs/MVP/23 §6.1)
-  - {id: mine, name: Mine ore, class: family, base_rate: 1.5, unit: L/ws}
+  - {id: mine, name: Mine ore, class: family, base_rate: 2.0, unit: L/ws}
   - {id: pottery, name: Make pottery, class: family, base_rate: 13.3, unit: pots/ws}
   - {id: haul, name: Haul, class: family, base_rate: 60, unit: "L·tiles/ws"}
   - {id: dress_stone, name: Dress stone, class: activity, base_rate: 2, unit: L/ws}

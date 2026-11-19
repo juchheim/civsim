@@ -511,11 +511,11 @@ public sealed partial class LivingEconomyModel
         Fix64 rate;
         if (d.Kind is DepositKind.Gold or DepositKind.Silver) rate = BaseRate("pan_gold", Fix64.FromRatio(1, 10));
         else if (d.Kind == DepositKind.Salt) rate = BaseRate("salt", Fix64.One);
-        else if (d.Kind is DepositKind.Saltpeter or DepositKind.Sulfur) rate = BaseRate("mine", Fix64.Parse("1.5"));
+        else if (d.Kind is DepositKind.Saltpeter or DepositKind.Sulfur) rate = BaseRate("mine", Fix64.FromInt(2));
         else
         {
             Fix64 factor = d.Kind == DepositKind.Tin ? Fix64.Half : Fix64.One;
-            rate = BaseRate("mine", Fix64.Parse("1.5")) * factor;
+            rate = BaseRate("mine", Fix64.FromInt(2)) * factor;
             if (mineHead && Done(civ, "MIN-04"))
             {
                 Fix64 fire = MethodMult(civ, "mine", 2);

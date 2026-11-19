@@ -319,18 +319,18 @@ public sealed partial class LivingEconomyModel
         InitializeFood();
     }
 
-    /// <summary>Candidate finite reserves: three times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
+    /// <summary>Candidate finite reserves: six times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
     private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false) => d.Kind switch
     {
-        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 1800, 2 => 450, _ => 300 }),
-        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 2700 : 900),
-        DepositKind.ArsenicalCopper => Fix64.FromInt(2400),
-        DepositKind.Iron => Fix64.FromInt(3000),
-        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(120),
-        DepositKind.Salt => Fix64.FromInt(1200),
+        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 3600, 2 => 900, _ => 600 }),
+        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 5400 : 1800),
+        DepositKind.ArsenicalCopper => Fix64.FromInt(4800),
+        DepositKind.Iron => Fix64.FromInt(6000),
+        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(240),
+        DepositKind.Salt => Fix64.FromInt(2400),
         // Draft Fief fit hypotheses until WP-E5-11 promotes the registered quantities.
-        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(450),
-        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(300),
+        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(900),
+        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(600),
         _ => Fix64.Zero,
     };
 

@@ -86,7 +86,7 @@ public class IronChainTests
         Near(F("0.4"), oreStock - e.GoodStock(0, Ore));                  // 0.4 G-IRONORE
         Near(F("0.73"), charStock - e.GoodStock(0, Char));              // 0.73 G-CHAR = 2.92 G-WOOD at 4 per charcoal
         Near(F("2.92"), (charStock - e.GoodStock(0, Char)) * Fix64.FromInt(4));
-        Near(F("0.05"), e.GoodStock(0, "G-IRON"));                    // the 0.75 L bloom output leaves a small intermediate surplus
+        Near(F("0.1"), e.GoodStock(0, "G-IRON"));                    // the 1 L bloom output leaves a small intermediate surplus
         Near(Fix64.Zero, e.GoodStock(0, "G-WROUGHT"));
         Near(Fix64.One, e.GoodStock(0, "G-TOOL11"));
         // Labor excluding charcoal burning: bloomery 0.16 + forging 0.064 + kit 0.2 = 0.424 ws.
@@ -166,13 +166,13 @@ public class IronChainTests
         f.RunSeasons(3);
 
         Fix64 kits = e.GoodStock(0, "G-TOOL11");
-        // Every litre of ore went through the bloomery (2 ore -> 0.5 bloom -> 0.4 wrought at the forge -> 0.08 wrought a kit).
+        // Every litre of ore went through the bloomery (2 ore -> 1 bloom -> 0.4 wrought at the forge -> 0.08 wrought a kit).
         int held = 0;
         foreach (int t in e.FixtureAdultKitTiers(0)) if (t == 11) held++;
         Assert.True(held > 0, "kits made should reach hands");
         Fix64 allKits = kits + Fix64.FromInt(held);
         Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + allKits * F("0.08")) * F("1.25");
-        Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromRatio(8, 3));
+        Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromInt(2));
     }
 
     [Fact]
