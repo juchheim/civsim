@@ -91,7 +91,7 @@ public class E3ContentTests
         Assert.Equal(20, smelt.GetInt("order"));
         Assert.True(smelt.Get("bellows")!.BoolValue);
         Assert.Equal(new[] { "kiln", "smelter" }, smelt.GetStringList("structure"));
-        Assert.Equal(CivSim.Sim.Numerics.Fix64.FromRatio(1, 2), smelt.Get("outputs")!.GetFix("G-COPPER")!.Value);
+        Assert.Equal(CivSim.Sim.Numerics.Fix64.One, smelt.Get("outputs")!.GetFix("G-COPPER")!.Value);
         Assert.NotNull(recipes.Find("build_chariot")!.Get("inputs")!.Get("G-BRONZE|G-ABRONZE"));
         Assert.Equal(0, report.ErrorCount);
     }
@@ -132,11 +132,11 @@ public class E3ContentTests
     [InlineData("registries/tools.yaml", "mods: {quarry: 1.1, mine: 1.1,", "mods: {quarry: fast, mine: 1.1,", "V1", "expected a number")]
     [InlineData("registries/tools.yaml", "crew: 2, horses: 2", "crew: 2, horses: 2, wheels: 2", "V1", "unknown field 'wheels'")]
     [InlineData("registries/roles.yaml", "staffing: \"1 per forge\"", "staffing: 3", "V1", "expected non-empty text")]
-    [InlineData("registries/recipes.yaml", "inputs: {G-WOOD: 6}", "inputs: {G-WOODX: 6}", "V12", "G-WOODX")]
+    [InlineData("registries/recipes.yaml", "G-WOOD: 6", "G-WOODX: 6", "V12", "G-WOODX")]
     [InlineData("registries/recipes.yaml", "unlocked_by: [FIR-08], inputs", "unlocked_by: [FIR-98], inputs", "V2", "FIR-98")]
     [InlineData("registries/recipes.yaml", "structure: [forge], inputs: {G-COPPER: 0.12}", "structure: [anvil], inputs: {G-COPPER: 0.12}", "V12", "anvil")]
     [InlineData("registries/recipes.yaml", "order: 10, practice: burn_charcoal", "order: 10, practice: burn_coal", "V14", "burn_coal")]
-    [InlineData("registries/recipes.yaml", "labor: 0.4, order: 10", "labor: 0.4, order: ten", "V1", "expected an integer")]
+    [InlineData("registries/recipes.yaml", "labor: 0.3, order: 10", "labor: 0.3, order: ten", "V1", "expected an integer")]
     public void Registry_schema_and_reference_rules_catch_defects(string file, string oldText, string newText, string code, string message)
     {
         Report report = ContentFixture.Mutate(file, oldText, newText);

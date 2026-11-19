@@ -1,0 +1,21 @@
+{
+  "simAssemblyPath": "/private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/src-tree/src/CivSim.Tests/bin/Release/net10.0/CivSim.Sim.dll",
+  "simAssemblySha256": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+  "packSha256": "f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a",
+  "seeds": [20261019,20261024,20261029,20261034,20261039,20261044,20261049,20261054], "intervalSeasons": 16, "minutes": 64, "margin": 8,
+  "unseenCompositeObserverCheckpoints": 640, "unseenCompositeApplied": 640, "unseenInvarianceFailures": 4,
+  "unseenWorldChangedCount": 640,
+  "unseenAppliedByCategory": {"deposits": 512, "powderCannon": 512, "fleetCrew": 512, "horses": 640, "peopleStoresResearch": 512},
+  "unseenMatchesWithCategory": {"deposits": 8, "powderCannon": 8, "fleetCrew": 8, "horses": 8, "peopleStoresResearch": 8},
+  "visibleControls": {
+    "visible-deposit": {"checkpoints": 128, "applied": 128, "detected": 128},
+    "visible-stock": {"checkpoints": 128, "applied": 128, "detected": 128},
+    "visible-fleet": {"checkpoints": 128, "applied": 100, "detected": 100},
+    "visible-horse": {"checkpoints": 128, "applied": 128, "detected": 128}
+  },
+  "visibleControlMisses": 0,
+  "nullControls": {"applied": 512, "withDiffs": 0},
+  "tierBComposite": {"applied": 512, "withInputOrDecisionDiffs": 27, "decisionDiffsWithoutOtherDiffs": 0},
+  "cloneChecksumMismatches": 0,
+  "observerCheckpointsTotal": 2304
+}

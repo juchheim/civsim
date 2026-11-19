@@ -640,22 +640,35 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 
 	# ---- whole-hex buildings, in priority order: Wonder, castle, ziggurat, temple, civic works (§4.4)
 	var big := [Q.SACRED, Q.HOMES_B, Q.FRONT, Q.WATCH]
+	var build_k := int(s.get("ironBuildKind", -1))
+	var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
+	var build_pm := int(s.get("ironBuildPermille", 0))
 	for wid in [["great_dome", "dome", "great_dome", 1.35], ["great_library", "library", "great_library", 1.2]]:
 		if w.iron_works(s, String(wid[0])) > 0:
 			var wonder_q := Q.WONDER_A if String(wid[0]) == "great_dome" else Q.WONDER_C
 			var r = _whole([wonder_q] + big, String(wid[1]), String(wid[2]), float(wid[3]))
 			if r != null:
 				wb.civic_sites.append({"kind": String(wid[1]), "p": r[1], "y": w.height_at(r[1]), "yaw": _face(r[1]), "civ": _civ, "seed": _seed, "tile": _t})
-	var build_k := int(s.get("ironBuildKind", -1))
-	var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
-	var build_pm := int(s.get("ironBuildPermille", 0))
+	# The Gothic Cathedral is the Fief Wonder, with its own staged mesh. It shares the Wonder quarter
+	# fallback list with the other landmark so a tight core still gets a visible site when possible.
+	if w.fief_active and (w.iron_works(s, "gothic_cathedral") > 0 or (build_id == "gothic_cathedral" and build_pm > 0)):
+		var cathedral_stage := clampi(1 + build_pm * 3 / 1000, 1, 4) if build_id == "gothic_cathedral" and build_pm > 0 else 4
+		var cathedral = _whole([Q.WONDER_B, Q.WONDER_C, Q.WONDER_A] + big, "gothic_cathedral", "gothic_cathedral_%d" % cathedral_stage, 1.35)
+		if cathedral != null:
+			wb.civic_sites.append({"kind": "gothic_cathedral", "p": cathedral[1], "y": w.height_at(cathedral[1]), "yaw": _face(cathedral[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
 	var site_mesh := "build_site_%d" % (1 + mini(2, build_pm * 3 / 1000))
 	if build_pm > 0 and build_id.begins_with("great_") and build_id != "great_lighthouse":
 		var build_q := Q.WONDER_A if build_id == "great_dome" else Q.WONDER_C
 		_whole([build_q] + big, "wonder_site", site_mesh, 2.1)
 	var cstage: int = wb.castle_stage(s)
 	if cstage > 0:
-		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", "castle_%d" % cstage, 1.25)
+		var castle_mesh := "castle_%d" % cstage
+		if w.fief_active:
+			if bool(w.fief_settlement(s).get("concentric_castle", false)) and cstage == 4:
+				castle_mesh = "concentric_4" if int(s.get("soldiers", 0)) > 0 else "concentric_4_idle"
+			elif build_pm > 0 and build_id == "concentric_castle" and cstage == 4:
+				castle_mesh = "concentric_%d" % (1 + mini(2, build_pm * 3 / 1000))
+		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", castle_mesh, 1.25)
 		if r != null:
 			var cp: Vector2 = r[1]
 			var cyaw := _face(cp)
@@ -694,6 +707,8 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 		if r != null:
 			wb.civic_sites.append({"kind": "temple", "p": r[1], "y": w.height_at(r[1]), "yaw": _face(r[1]), "civ": _civ, "seed": _seed, "tile": _t})
 	for cw in [["academy", "academy", "academy", Q.LEARNING], ["theatre", "theatre_arena", "amphitheatre", Q.CIVIC], ["bathhouse", "bathhouse", "bathhouse", Q.HEALTH]]:
+		if w.fief_active and String(cw[0]) == "academy" and w.iron_works(s, "university") > 0:
+			continue
 		if w.iron_works(s, String(cw[1])) > 0:
 			var r = _whole([int(cw[3])] + big, String(cw[0]), String(cw[2]), 1.3)
 			if r != null:
@@ -701,6 +716,21 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				if cw[0] == "bathhouse":
 					var off: Vector3 = M7WorldBuilder.rot_y(_face(r[1])) * (Vector3(-0.08, 0.205, -0.05) * float(r[2]))
 					wb.chimney_smokes.append({"pos": Vector3(r[1].x + off.x, w.height_at(r[1]) + off.y, r[1].y + off.z), "seed": _seed})
+	# Faith & Fief institutions use their working and idle meshes, in the established civic quarters.
+	if w.fief_active:
+		var fief := w.fief_settlement(s)
+		if w.iron_works(s, "university") > 0:
+			var fu = _whole([Q.LEARNING] + big, "university", "university" if int(fief.get("scholars", 0)) > 0 else "university_idle", 1.25)
+			if fu != null:
+				wb.civic_sites.append({"kind": "university", "p": fu[1], "y": w.height_at(fu[1]), "yaw": _face(fu[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
+		if w.iron_works(s, "cathedral_school") > 0:
+			var fs = _whole([Q.LEARNING] + big, "cathedral_school", "academy", 1.25)
+			if fs != null:
+				wb.civic_sites.append({"kind": "cathedral_school", "p": fs[1], "y": w.height_at(fs[1]), "yaw": _face(fs[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
+		if w.iron_works(s, "hospital") > 0:
+			var fh = _whole([Q.HEALTH] + big, "hospital", "hospital" if bool(fief.get("hospital_staffed", false)) else "hospital_idle", 1.25)
+			if fh != null:
+				wb.civic_sites.append({"kind": "hospital", "p": fh[1], "y": w.height_at(fh[1]), "yaw": _face(fh[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
 	if build_pm > 0 and build_id in ["academy", "theatre_arena", "bathhouse"]:
 		_whole(big, "site", site_mesh, 1.3)
 
@@ -776,6 +806,15 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	if build_pm > 0 and build_id in ["crane", "press"]:
 		if _half(yard_q, "site", site_mesh, 1.3) == null:
 			_dropped.append("site")
+	if w.fief_active:
+		var fief_c := w.fief_settlement(s)
+		if w.iron_works(s, "print_shop") > 0:
+			var print_mesh := "print_shop" if int(fief_c.get("craft_used_raw", 0)) > 0 else "print_shop_idle"
+			if _half(yard_q, "print_shop", print_mesh, 1.3) == null:
+				_small(works_q, "print_shop", print_mesh, 1.3)
+		if w.iron_works(s, "clock_tower") > 0:
+			if _half([Q.FRONT, Q.HEART] + yard_q, "clock_tower", "clock_tower", 1.3) == null:
+				_small([Q.FRONT, Q.HEART] + works_q, "clock_tower", "clock_tower", 1.3)
 	# ---- houses (§4.3): one per sub-slot of the Homes quarters (and up to three Heart petals in a Village, the Heart in a Band), then
 	# clusters of two in a Town and three in a City; the rest are implied by the clusters
 	_houses(s, st, decor)
@@ -1370,11 +1409,77 @@ func _outer_candidates() -> Array:
 				out.append(nb)
 	return out
 
+## Add unclaimed ring-3 and ring-4 land tiles when ring 2 is full, so Fief works have room outside dense cores.
+func _outer_far_candidates(ring2: Array) -> Array:
+	var seen := {}
+	for hx in _hex:
+		seen[int(hx.tile)] = true
+	for tile in ring2:
+		seen[int(tile)] = true
+	var out := []
+	var frontier: Array = ring2.duplicate()
+	for ring in 2:
+		var next := []
+		for tile in frontier:
+			for k in 6:
+				var nb := w.neighbour(int(tile), k)
+				if nb >= 0 and not seen.has(nb):
+					seen[nb] = true
+					next.append(nb)
+					if not _sim_claimed_tiles.has(nb):
+						out.append(nb)
+		frontier = next
+	return out
+
+## Place a Fief work on an unclaimed outer land hex and record its footprint for the layout inspector.
+func _fief_outer_site(candidates: Array, taken: Dictionary, kind: String, mesh: String, scale: float, tint: Color):
+	for tile in candidates:
+		if taken.has(tile) or not w.is_land(tile) or w.plot_kind[tile] >= 0 or w.biome[tile] >= M7WorldData.Biome.PEAK:
+			continue
+		var p := w.tile_center(tile)
+		if wb._river_dist(p) < 0.15:
+			p += (_c0 - p).normalized() * 0.2
+		var yaw := atan2((_c0 - p).x, (_c0 - p).y)
+		wb.props.add(mesh, wb._xf(p, w.height_at(p), yaw, scale), tint)
+		var footprint := _foot(mesh)
+		_record({"kind": kind, "mesh": mesh, "quarter": "outer", "slot": "outer", "chain": "fief", "tier": kind,
+			"slot_hex": tile, "x": p.x, "z": p.y, "r": float(footprint[0]) * scale, "outer": true})
+		return [tile, p]
+	_dropped.append(kind)
+	return null
+
 func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> void:
 	var K := M7WorldData.Kind
 	var tint := Color(_cc.r, _cc.g, _cc.b, _seed)
 	var ring2 := _outer_candidates()
+	var outer_fief_sites := ring2 + (_outer_far_candidates(ring2) if w.fief_active else [])
 	var taken := {}
+	if w.fief_active:
+		# Fief works stand beyond the protected core and can use rings 2-4 if a dense settlement fills ring 2.
+		for fw in [["windmill", "windmill", 0.82], ["blast_furnace", "blast_furnace", 0.82], ["arsenal", "arsenal", 1.0]]:
+			if w.iron_works(s, String(fw[0])) <= 0:
+				continue
+			var mesh_name := String(fw[1])
+			if String(fw[0]) == "blast_furnace" and int(w.fief_settlement(s).get("power_hours_raw", 0)) <= 0:
+				mesh_name = "blast_furnace_cold"
+			var placed = _fief_outer_site(outer_fief_sites, taken, String(fw[0]), mesh_name, float(fw[2]), tint)
+			if placed != null:
+				taken[int(placed[0])] = true
+		var build_k := int(s.get("ironBuildKind", -1))
+		var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
+		if w.iron_works(s, "monastery") > 0:
+			var monastery_mesh := "monastery" if int(w.fief_settlement(s).get("monks", 0)) > 0 else "monastery_idle"
+			var monastery = _fief_outer_site(outer_fief_sites, taken, "monastery", monastery_mesh, 1.1, tint)
+			if monastery != null:
+				taken[int(monastery[0])] = true
+		elif int(s.get("ironBuildPermille", 0)) > 0 and build_id == "monastery":
+			var monastery_site = _fief_outer_site(outer_fief_sites, taken, "monastery", "monastery_site", 1.1, tint)
+			if monastery_site != null:
+				taken[int(monastery_site[0])] = true
+		if int(s.get("ironBuildPermille", 0)) > 0 and build_id == "arsenal" and w.iron_works(s, "arsenal") <= 0:
+			var arsenal_site = _fief_outer_site(outer_fief_sites, taken, "arsenal", "arsenal_site", 1.0, tint)
+			if arsenal_site != null:
+				taken[int(arsenal_site[0])] = true
 	# the aqueduct's spans first (a line feature); nothing else stands on a tile they cross
 	if aqueduct_at != null:
 		_aqueduct_spans(aqueduct_at)
@@ -1434,7 +1539,11 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 			"x": p.x, "z": p.y, "r": float(f[0]) * float(ex[2]), "outer": true})
 	if w.iron_works(s, "water_mill") > 0:
 		var before := wb.props.instance_count
-		var mills_before: int = _count_groups("water_mill")
+		# WOD-09 builds its sawmill on the water mill's river site rather than duplicating the building.
+		var mill_mesh := "water_mill"
+		if w.fief_active and w.iron_works(s, "sawmill") > 0:
+			mill_mesh = "sawmill" if int(w.fief_settlement(s).get("sawing_used_raw", 0)) > 0 else "sawmill_idle"
+		var mills_before: int = _count_groups(mill_mesh)
 		var mill_clearance: Array = []
 		for item in _items:
 			var radius := float(item.get("r", 0.0))
@@ -1442,10 +1551,10 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 				var box: Array = item["box"]
 				radius = maxf(radius, Vector2(float(box[2]), float(box[3])).length())
 			mill_clearance.append([Vector2(float(item.x), float(item.z)), radius])
-		wb._water_mill(s, _c, _h0, _seed, 1.15, [], tint, _sim_claimed_tiles, mill_clearance)
-		if _count_groups("water_mill") > mills_before:
-			var mill_at := _last_xf("water_mill")
-			_record({"kind": "water_mill", "mesh": "water_mill", "quarter": "outer", "slot": "river", "chain": "grinding", "tier": "water_mill", "slot_hex": w.tile_at(mill_at),
+		wb._water_mill(s, _c, _h0, _seed, 1.15, [], tint, _sim_claimed_tiles, mill_clearance, mill_mesh)
+		if _count_groups(mill_mesh) > mills_before:
+			var mill_at := _last_xf(mill_mesh)
+			_record({"kind": "water_mill", "mesh": mill_mesh, "quarter": "outer", "slot": "river", "chain": "grinding", "tier": "water_mill", "slot_hex": w.tile_at(mill_at),
 				"x": mill_at.x, "z": mill_at.y, "r": 0.3, "outer": true})
 	if w.iron_works(s, "great_lighthouse") > 0:
 		_lighthouse(ring2)

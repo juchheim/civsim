@@ -23,7 +23,19 @@ public sealed class War11FightersTests
         var match = MatchModel.Create(Seed, Pack.Value, WorldGenerator.Generate(Seed), Balanced, default, rules: rules);
         var runner = new SimRunner(match);
         foreach (string project in grants)
-            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, catalog.IndexOf(project), 0, 0));
+        {
+            int index = catalog.IndexOf(project);
+            if (rules.IsFief && catalog.Projects[index].Era == rules.LastResearchEra)
+            {
+                int key5 = catalog.IndexOf("KEY-5");
+                if (!match.Research.IsDone(0, key5))
+                {
+                    runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, key5, 0, 0));
+                    runner.Advance(1);
+                }
+            }
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, index, 0, 0));
+        }
         runner.Advance(1);
         int home = Enumerable.Range(0, match.Economy.SettlementCount)
             .First(s => match.Economy.SettlementLite(s).Civilization == 0 && !match.Politics.IsFreeFolk(s));

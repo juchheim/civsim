@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
@@ -42,15 +44,20 @@ public static class FogFairnessHarness
         }
     }
 
-    public static MatchModel NewMatch(CivControl[] controls, ulong seed = Seed) => MatchModel.Create(seed, TestPack.Pack, WorldOf(seed), Balanced, controls);
+    public static MatchModel NewMatch(CivControl[] controls, ulong seed = Seed, bool fief = false)
+        => MatchModel.Create(seed, TestPack.Pack, WorldOf(seed), Balanced, controls,
+            rules: fief ? ChapterRules.Fief : null);
 
     /// <summary>An exact copy of a match through its snapshot (the copy's checksum equals the source's).</summary>
-    public static MatchModel Clone(MatchModel source, CivControl[] controls, ulong seed = Seed)
+    public static MatchModel Clone(MatchModel source, CivControl[] controls, ulong seed = Seed, bool fief = false,
+        bool independentWorld = false)
     {
         using var stream = new MemoryStream();
         using (var w = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) source.WriteSnapshot(w);
         stream.Position = 0;
-        MatchModel copy = NewMatch(controls, seed);
+        GeneratedWorld world = independentWorld ? WorldGenerator.Generate(seed) : WorldOf(seed);
+        MatchModel copy = MatchModel.Create(seed, TestPack.Pack, world, Balanced, controls,
+            rules: fief ? ChapterRules.Fief : null);
         using (var r = new BinaryReader(stream)) copy.ReadSnapshot(r);
         return copy;
     }
@@ -63,9 +70,9 @@ public static class FogFairnessHarness
     /// runs on exactly as the live one, since research's season caches travel in the snapshot).
     /// </summary>
     public static (MatchModel Baseline, MatchModel Perturbed) RunPair(MatchModel baseline, long tick, CivControl[] controls,
-        Action<MatchModel, SimRunner> perturb, long ticks = 1)
+        Action<MatchModel, SimRunner> perturb, long ticks = 1, bool fief = false, bool independentWorld = false, ulong seed = Seed)
     {
-        MatchModel copy = Clone(baseline, controls);
+        MatchModel copy = Clone(baseline, controls, seed: seed, fief: fief, independentWorld: independentWorld);
         Assert.Equal(baseline.ComputeChecksum(), copy.ComputeChecksum());
         var copyRunner = new SimRunner(copy, SimRunner.DefaultChecksumInterval, tick);
         perturb(copy, copyRunner);
@@ -73,6 +80,104 @@ public static class FogFairnessHarness
         copyRunner.Advance(ticks);
         return (baseline, copy);
     }
+
+    /// <summary>Applies seeded changes to Fief state outside the observer's map and settlement sight.</summary>
+    public static int PerturbUnseenFief(MatchModel m, int observer, int margin, int randomSeed)
+    {
+        if (!m.Economy.FiefChain) throw new ArgumentException("Fief perturbations require Fief chapter rules.", nameof(m));
+        var random = new Random(randomSeed);
+        AiSeat seat = m.Ai!.SeatOf(observer)!;
+        MapKnowledge map = seat.Belief.Map;
+        TrueWorld world = m.Ai.World;
+        int changes = 0;
+
+        // Change deposits only in tiles outside the observer's current explored map and sight margin.
+        var hiddenTiles = new List<int>();
+        int routineSight = BeliefRules.RoutineSight(m.Politics.ReachOf(observer));
+        for (int tile = 0; tile < world.Generated.TileCount; tile++)
+        {
+            if (map.IsExplored(tile)) continue;
+            int distance = int.MaxValue;
+            for (int s = 0; s < m.Politics.SettlementTotal; s++)
+                if (m.Politics.SettlementCivOf(s) == observer && !m.Politics.IsFreeFolk(s))
+                    distance = Math.Min(distance, HexGrid.Distance(m.Politics.SettlementTileOf(s), tile, world.Generated.Width));
+            if (distance > routineSight + margin) hiddenTiles.Add(tile);
+        }
+        if (hiddenTiles.Count == 0) throw new InvalidOperationException("Fief fog fixture has no unseen deposit tiles.");
+        int[] unseenTilePool = hiddenTiles.ToArray();
+        int depositCount = Math.Min(8, hiddenTiles.Count);
+        for (int i = 0; i < depositCount; i++)
+        {
+            int pick = random.Next(hiddenTiles.Count);
+            int tileIndex = hiddenTiles[pick];
+            hiddenTiles.RemoveAt(pick);
+            WorldTile tile = world.Generated.TileAt(tileIndex);
+            tile.Deposit = (i & 1) == 0 ? DepositKind.Saltpeter : DepositKind.Sulfur;
+            tile.DepositAmount = (byte)random.Next(1, 4);
+            tile.DepositDepth = (byte)random.Next(1, 3);
+            GeneratedTiles(world.Generated)[tileIndex] = tile;
+            PoliticsTiles(m.Politics)[tileIndex] = tile;
+            changes++;
+        }
+
+        // Randomize siege stores at an entirely hidden rival town; rival stock is never part of this observer's own view.
+        int hiddenSettlement = -1;
+        for (int s = 0; s < m.Politics.SettlementTotal; s++)
+        {
+            int owner = m.Politics.SettlementCivOf(s);
+            if (owner == observer || m.Politics.IsFreeFolk(s) || m.Politics.SettlementPopulationOf(s) <= 0) continue;
+            if (BeliefBuilder.TilesOutOfSight(world, observer, s) > margin) { hiddenSettlement = s; break; }
+        }
+        if (hiddenSettlement < 0) throw new InvalidOperationException("Fief fog fixture has no rival town outside sight.");
+        SetGoodStock(m.Economy, hiddenSettlement, "G-CANNON", random.Next(0, 6));
+        SetGoodStock(m.Economy, hiddenSettlement, "G-POWDER", random.Next(0, 16));
+        changes += 2;
+
+        // A hidden port may have a fleet and crew even when its settlement is not visible.
+        m.Economy.FixtureBuildIronStructure(hiddenSettlement, "harbor");
+        m.Economy.FixtureBuildIronStructure(hiddenSettlement, "galley");
+        m.Economy.FixtureSetSoldiersSupplied(hiddenSettlement, random.Next(4, 13));
+        changes += 3;
+
+        // Move live horse herds only among unexplored tiles beyond routine sight + margin, and vary their counts.
+        int horseHerds = 0;
+        for (int i = 0; i < m.Economy.WildHerdCount; i++)
+        {
+            WildHerdView herd = m.Economy.WildHerd(i);
+            if (herd.Species != HerdSpecies.Horse) continue;
+            int tile = unseenTilePool[random.Next(unseenTilePool.Length)];
+            m.Economy.FixtureSetWildHerd(i, tile, Fix64.FromInt(random.Next(1, 20)));
+            horseHerds++;
+        }
+        if (horseHerds == 0) throw new InvalidOperationException("Fief fog fixture has no horse herd to perturb.");
+        changes += horseHerds;
+        return changes;
+    }
+
+    /// <summary>Changes the generated, political, and observer-map tile copies used by Fief observation.</summary>
+    public static void FixtureSetVisibleDeposit(MatchModel match, int observer, int tileIndex, DepositKind deposit)
+    {
+        WorldTile tile = match.Ai!.World.Generated.TileAt(tileIndex);
+        tile.Deposit = deposit;
+        tile.DepositAmount = deposit == DepositKind.None ? (byte)0 : (byte)3;
+        tile.DepositDepth = deposit == DepositKind.None ? (byte)0 : (byte)1;
+        GeneratedTiles(match.Ai.World.Generated)[tileIndex] = tile;
+        PoliticsTiles(match.Politics)[tileIndex] = tile;
+        MapTiles(match.Ai.SeatOf(observer)!.Belief.Map)[tileIndex] = tile;
+        match.Ai.SeatOf(observer)!.Belief.Map.RecordDepositKnowledge(tileIndex);
+    }
+
+    private static void SetGoodStock(LivingEconomyModel economy, int settlement, string good, int value)
+        => economy.FixtureStock(settlement, good, Fix64.FromInt(value) - economy.GoodStock(settlement, good));
+
+    private static WorldTile[] GeneratedTiles(GeneratedWorld world)
+        => (WorldTile[])typeof(GeneratedWorld).GetField("_tiles", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(world)!;
+
+    private static WorldTile[] PoliticsTiles(PoliticsSystem politics)
+        => (WorldTile[])typeof(PoliticsSystem).GetField("_tileArray", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(politics)!;
+
+    private static WorldTile[] MapTiles(MapKnowledge map)
+        => (WorldTile[])typeof(MapKnowledge).GetField("_tiles", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(map)!;
 
     // ---- what an observer's mind received and did ---------------------------------------------------------
 
@@ -116,9 +221,14 @@ public static class FogFairnessHarness
     public static void CompareBelief(Belief a, Belief b, List<string> diffs)
     {
         Check(diffs, "belief season", a.Season, b.Season);
+        Check(diffs, "horse source", a.HorseSource, b.HorseSource);
         for (int t = 0; t < a.Map.TileCount; t++)
         {
             if (a.Map.IsExplored(t) != b.Map.IsExplored(t) || a.Map.OwnerSeen(t) != b.Map.OwnerSeen(t)) { diffs.Add($"map tile {t}"); break; }
+            bool aKnown = a.Map.TryTile(t, out WorldTile aTile);
+            bool bKnown = b.Map.TryTile(t, out WorldTile bTile);
+            if (aKnown != bKnown || (aKnown && (aTile.Deposit, aTile.DepositAmount, aTile.DepositDepth) != (bTile.Deposit, bTile.DepositAmount, bTile.DepositDepth)))
+            { diffs.Add($"map deposit {t}"); break; }
         }
         for (int c = 0; c < a.Rivals.Length; c++)
         {
@@ -168,6 +278,7 @@ public static class FogFairnessHarness
         Check(diffs, "own", (a.Civ, a.Era, a.Season, a.Tick, a.Population, a.Adults, a.ClaimedTiles, a.BeaconAllowance, a.ReachTiles),
             (b.Civ, b.Era, b.Season, b.Tick, b.Population, b.Adults, b.ClaimedTiles, b.BeaconAllowance, b.ReachTiles));
         Check(diffs, "own insight", (a.InsightPerYear, a.Posture), (b.InsightPerYear, b.Posture));
+        Check(diffs, "own fleet", string.Join(",", a.CrewedGalleyHomes), string.Join(",", b.CrewedGalleyHomes));
         // Dominion and Legacy are public aggregate scores; an unseen rival's territory can change their denominator.
         // CompareMinds still checks the resulting decisions, so score movement only matters here if it changes behavior.
         Check(diffs, "own parties", (a.RaidsOnTheRoad, a.AssaultsOnTheRoad, a.GiftsOnTheRoad, a.Occupations),
@@ -178,9 +289,9 @@ public static class FogFairnessHarness
             OwnSettlement x = a.Settlements[i], y = b.Settlements[i];
             Check(diffs, $"own settlement {i}",
                 (x.Index, x.Tile, x.Population, x.Adults, x.Fighters, x.Warriors, x.DefendingStrength, x.AttackingStrength, x.FoodStores,
-                    x.FoodSecurity, x.LateWinterForecast, x.Cohesion, x.Defenses),
+                    x.FoodSecurity, x.LateWinterForecast, x.Cohesion, x.Defenses, x.CannonStock, x.PowderStock),
                 (y.Index, y.Tile, y.Population, y.Adults, y.Fighters, y.Warriors, y.DefendingStrength, y.AttackingStrength, y.FoodStores,
-                    y.FoodSecurity, y.LateWinterForecast, y.Cohesion, y.Defenses));
+                    y.FoodSecurity, y.LateWinterForecast, y.Cohesion, y.Defenses, y.CannonStock, y.PowderStock));
         }
         for (int i = 0; i < Math.Min(a.Others.Length, b.Others.Length); i++)
         {
@@ -202,7 +313,8 @@ public static class FogFairnessHarness
     /// lowered in settlements out of sight; and, for rivals it has never contacted and whose figures it cannot see,
     /// research granted that wins no First and moves no era. Returns how many changes were made.
     /// </summary>
-    public static int PerturbUnseen(MatchModel m, SimRunner runner, int observer, int margin, bool research = true)
+    public static int PerturbUnseen(MatchModel m, SimRunner runner, int observer, int margin, bool research = true,
+        IReadOnlySet<long>? excludedFigureIds = null)
     {
         TrueWorld world = m.Ai!.World;
         int changes = 0;
@@ -218,6 +330,7 @@ public static class FogFairnessHarness
             m.Economy.ListFigures(s, figures);
             for (int i = 0; i < figures.Count; i++)
             {
+                if (excludedFigureIds?.Contains(figures[i].Id) == true) continue;
                 if (i % 3 == 0) { m.Economy.KillFigure(figures[i].Id); changes++; }
                 else if (i % 3 == 1) { m.Economy.WoundFigure(figures[i].Id, 2); changes++; }
             }

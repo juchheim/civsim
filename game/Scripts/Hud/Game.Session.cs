@@ -39,7 +39,7 @@ public partial class Game
             if (_introDismissed) WriteIntroPreference();
             ReplaceSession(restored);
             RestoreSettlementNames(data.SettlementNames);
-            ShowToast("Game loaded", ToastKind.Info, $"Year {(_current?.Year ?? 0) + 1}.", key: "loaded");
+            ShowToast("Game loaded", ToastKind.Info, GameSaveMode.LoadDetail(restored.Mode, (_current?.Year ?? 0) + 1), key: "loaded");
         }
         catch (Exception ex) { ShowToast("Couldn't load", ToastKind.Warning, ex.Message, key: "load-failed"); }
     }
@@ -53,7 +53,7 @@ public partial class Game
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             string temporary = path + ".tmp";
             using (var stream = new FileStream(temporary, FileMode.Create, System.IO.FileAccess.Write, FileShare.None))
-                GameSave.WriteReplay(stream, _session.CreateReplay(), _session.Difficulty);
+                GameSave.WriteReplay(stream, _session.CreateReplay(), _session.Difficulty, _session.Mode);
             File.Move(temporary, path, overwrite: true);
             ShowToast("Replay saved", ToastKind.Info, "", key: "replay-saved");
         }
@@ -66,12 +66,13 @@ public partial class Game
         {
             if (_contentPack is null) throw new InvalidOperationException("The content pack is not loaded.");
             using var stream = new FileStream(GameSave.LatestReplayPath, FileMode.Open, System.IO.FileAccess.Read, FileShare.Read);
-            Replay replay = GameSave.ReadReplay(stream, out Difficulty difficulty);
-            SimulationSession watcher = SimulationSession.Watch(replay, _contentPack, difficulty, 0);
+            Replay replay = GameSave.ReadReplay(stream, out Difficulty difficulty, out ChapterMode mode);
+            SimulationSession watcher = SimulationSession.Watch(replay, _contentPack, difficulty, 0, mode);
             _onboardingSeen = 0;
             HideEndScreen();
             ReplaceSession(watcher);
-            ShowToast("Watching a replay", ToastKind.Info, $"{replay.TotalTicks / 600:N0} simulated minutes.", key: "replay-watch");
+            string duration = $"{replay.TotalTicks / 600:N0} simulated minutes.";
+            ShowToast("Watching a replay", ToastKind.Info, GameSaveMode.ReplayDetail(mode, duration), key: "replay-watch");
         }
         catch (Exception ex) { ShowToast("Couldn't load the replay", ToastKind.Warning, ex.Message, key: "replay-load-failed"); }
     }
@@ -82,6 +83,9 @@ public partial class Game
         if (_peopleOpen) ClosePeoplePanel();
         _session?.Dispose();
         _session = replacement;
+        DisplayServer.WindowSetTitle(_session.Mode == ChapterMode.Fief
+            ? $"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED"
+            : $"CivSim — {_look.Name}");
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)
             throw new InvalidOperationException("The replacement simulation did not publish its initial frame.");
         _previous = _session.Frames.Previous;
@@ -132,6 +136,7 @@ public partial class Game
     private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Iron)
     {
         if (_contentPack is null) return;
+        if (IsFiefPlaytestLaunch()) mode = ChapterMode.Fief;
         _onboardingSeen = 0;
         _matchSeed = seed;
         HideEndScreen();
@@ -141,7 +146,13 @@ public partial class Game
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        ShowToast("New match", ToastKind.Info, $"{(mode == ChapterMode.Iron ? "" : "Bronze Age. ")}Rivals: {DifficultyName(difficulty)}. Seed {seed}.", key: "new-match");
+        string detail = mode switch
+        {
+            ChapterMode.Fief => $"FIEF PLAYTEST · UNPROMOTED DRAFT VALUES. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            ChapterMode.Bronze => $"Bronze Age. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            _ => $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+        };
+        ShowToast(mode == ChapterMode.Fief ? "Unpromoted Fief playtest" : "New match", ToastKind.Info, detail, key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>

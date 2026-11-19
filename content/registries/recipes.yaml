@@ -2,23 +2,23 @@
 # `inputs`/`outputs` map good -> quantity; an input key "A|B" takes A first, then B.
 schema: 1
 recipes:
-  - {id: burn_charcoal, name: Burn charcoal, unlocked_by: [FIR-08], inputs: {G-WOOD: 6}, outputs: {G-CHAR: 1}, labor: 0.4, order: 10, practice: burn_charcoal, note: "wood from the standing stock of one forest tile in range or at a mining camp (23 §7.4)"}
-  - {id: smelt_copper, name: Smelt copper, unlocked_by: [MET-02], structure: [kiln, smelter], inputs: {G-CUORE: 2, G-CHAR: 2}, outputs: {G-COPPER: 0.5}, labor: 0.5, order: 20, practice: smelt, bellows: true}
-  - {id: cosmelt_arsenical, name: Co-smelt arsenical bronze, unlocked_by: [MET-04], structure: [kiln, smelter], inputs: {G-ASORE: 2, G-CHAR: 2}, outputs: {G-ABRONZE: 0.5}, labor: 0.5, order: 20, practice: smelt, bellows: true}
-  - {id: smelt_tin, name: Smelt tin, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-TINORE: 1, G-CHAR: 1}, outputs: {G-TIN: 0.5}, labor: 0.3, order: 20, practice: smelt}
-  - {id: bloomery, name: Bloomery iron, unlocked_by: [MET-08], structure: [smelter], inputs: {G-IRONORE: 2, G-CHAR: 3}, outputs: {G-IRON: 0.5}, labor: 0.8, order: 20, practice: smelt}
+  - {id: burn_charcoal, name: Burn charcoal, unlocked_by: [FIR-08], inputs: {G-WOOD: 4}, outputs: {G-CHAR: 1}, labor: 0.3, order: 10, practice: burn_charcoal, note: "wood from the standing stock of one forest tile in range or at a mining camp (23 §7.4)"}
+  - {id: smelt_copper, name: Smelt copper, unlocked_by: [MET-02], structure: [kiln, smelter], inputs: {G-CUORE: 2, G-CHAR: 2}, outputs: {G-COPPER: 1}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: cosmelt_arsenical, name: Co-smelt arsenical bronze, unlocked_by: [MET-04], structure: [kiln, smelter], inputs: {G-ASORE: 2, G-CHAR: 2}, outputs: {G-ABRONZE: 1}, labor: 0.5, order: 20, practice: smelt, bellows: true}
+  - {id: smelt_tin, name: Smelt tin, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-TINORE: 1, G-CHAR: 1}, outputs: {G-TIN: 1}, labor: 0.3, order: 20, practice: smelt}
+  - {id: bloomery, name: Bloomery iron, unlocked_by: [MET-08], structure: [smelter], inputs: {G-IRONORE: 2, G-CHAR: 3}, outputs: {G-IRON: 1}, labor: 0.8, order: 20, practice: smelt}
   - {id: alloy_bronze, name: Alloy tin bronze, unlocked_by: [MET-05], structure: [kiln, smelter], inputs: {G-COPPER: 0.9, G-TIN: 0.1, G-CHAR: 0.5}, outputs: {G-BRONZE: 1}, labor: 0.2, order: 30, practice: smelt}
   - {id: cast_t8, name: Cast copper kit, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.12}, outputs: {G-TOOL8: 1}, labor: 0.1, order: 40, practice: smelt}
   - {id: cast_t9, name: Cast arsenical bronze kit, unlocked_by: [MET-04], structure: [forge], inputs: {G-ABRONZE: 0.15}, outputs: {G-TOOL9: 1}, labor: 0.1, order: 40, practice: smelt}
   - {id: cast_t10, name: Cast tin bronze kit, unlocked_by: [MET-05], structure: [forge], inputs: {G-BRONZE: 0.15}, outputs: {G-TOOL10: 1}, labor: 0.1, order: 40, practice: smelt}
-  - {id: cast_arms1, name: Cast copper spear and dagger, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.2, G-WOOD: 0.5}, outputs: {G-ARMS1: 1}, labor: 0.2, order: 40, practice: smelt}
-  - {id: cast_arms2a, name: Cast arsenical bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-ABRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2A: 1}, labor: 0.3, order: 40, practice: smelt}
-  - {id: cast_arms2t, name: Cast tin bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-BRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2T: 1}, labor: 0.3, order: 40, practice: smelt}
+  - {id: cast_arms1, name: Cast copper spear and dagger, unlocked_by: [MET-03], structure: [forge], inputs: {G-COPPER: 0.2, G-WOOD: 0.5}, outputs: {G-ARMS1: 1}, labor: 0.2, order: 56, practice: smelt}
+  - {id: cast_arms2a, name: Cast arsenical bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-ABRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2A: 1}, labor: 0.3, order: 56, practice: smelt}
+  - {id: cast_arms2t, name: Cast tin bronze arms, unlocked_by: [WAR-05], structure: [forge], inputs: {G-BRONZE: 0.3, G-WOOD: 1, "G-LEATHER|G-HIDE": 1}, outputs: {G-ARMS2T: 1}, labor: 0.3, order: 56, practice: smelt}
   - {id: fine_bronze, name: Lost-wax casting, unlocked_by: [MET-06], structure: [forge], inputs: {"G-BRONZE|G-ABRONZE": 0.2, G-CLAY: 0.2, G-CHAR: 0.3}, outputs: {G-FINEBRONZE: 1}, labor: 0.5, order: 40, practice: craft}
   - {id: dress_stone, name: Dress stone, unlocked_by: [STN-11], inputs: {G-BLOCK: 1}, outputs: {G-ASHLAR: 1}, labor: 0.5, order: 50, practice: knap, note: "1.0 ws without a T8+ kit"}
-  - {id: make_wheel, name: Make a wheel, unlocked_by: [MEC-03], inputs: {G-WOOD: 1}, outputs: {G-WHEEL: 1}, labor: 1, order: 50, practice: craft, note: "×0.7 labor with WOD-06"}
+  - {id: make_wheel, name: Make a wheel, unlocked_by: [MEC-03], inputs: {G-WOOD: 1}, outputs: {G-WHEEL: 1}, labor: 1, order: 45, practice: craft, note: "×0.7 labor with WOD-06"}
   - {id: build_cart, name: Build an ox cart, unlocked_by: [TRN-05], inputs: {G-WHEEL: 2, G-WOOD: 2}, outputs: {G-CART: 1}, labor: 1, order: 50, practice: craft, note: "×0.7 labor with WOD-06"}
-  - {id: build_chariot, name: Build a chariot, unlocked_by: [WAR-06], structure: [forge], inputs: {G-WHEEL: 2, G-WOOD: 2, "G-BRONZE|G-ABRONZE": 0.2, "G-LEATHER|G-HIDE": 1}, outputs: {G-CHARIOT: 1}, labor: 2, order: 50, practice: craft}
+  - {id: build_chariot, name: Build a chariot, unlocked_by: [WAR-06], structure: [forge], inputs: {G-WHEEL: 2, G-WOOD: 2, "G-BRONZE|G-ABRONZE": 0.2, "G-LEATHER|G-HIDE": 1}, outputs: {G-CHARIOT: 1}, labor: 2, order: 55, practice: craft}
   - {id: turned_goods, name: Turn wood, unlocked_by: [WOD-06], inputs: {G-WOOD: 0.5}, outputs: {G-TURNED: 1}, labor: 0.2, order: 50, practice: craft}
   - {id: faience, name: Glaze faience, unlocked_by: [CER-05], structure: [kiln], inputs: {G-STONE: 0.5, G-LIME: 0.2, G-COPPER: 0.02, G-CHAR: 0.5}, outputs: {G-FAIENCE: 1}, labor: 0.3, order: 50, practice: clay}
   - {id: glass, name: Make glass, unlocked_by: [CER-06], structure: [smelter], inputs: {G-STONE: 0.5, G-LIME: 0.2, G-CHAR: 1}, outputs: {G-GLASS: 1}, labor: 0.4, order: 50, practice: craft}
@@ -35,23 +35,23 @@ recipes:
   - {id: spin_yarn, name: Spin yarn, unlocked_by: [FIB-06], inputs: {"G-WOOL|G-FIBER": 0.5}, outputs: {G-YARN: 1}, labor: 0.3, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}
   - {id: weave_cloth, name: Weave cloth, unlocked_by: [FIB-07], inputs: {G-YARN: 2}, outputs: {G-CLOTH: 1}, labor: 0.5, order: 45, practice: fiber, note: "docs/MVP/10 §5.3"}
   # E4 Iron additions (docs/MVP/26 §2.3); all quantities/labor are provisional.
-  - {id: forge_wrought, name: Forge wrought iron, unlocked_by: [MET-09], structure: [forge], inputs: {G-IRON: 0.5, G-CHAR: 0.25}, outputs: {G-WROUGHT: 0.4}, labor: 0.4, order: 40, practice: smelt}
-  - {id: carburize_steel, name: Carburize steel, unlocked_by: [MET-10], structure: [forge], inputs: {G-WROUGHT: 0.4, G-CHAR: 0.2}, outputs: {G-STEEL: 0.4}, labor: 0.4, order: 41, practice: smelt}
+  - {id: forge_wrought, name: Forge wrought iron, unlocked_by: [MET-09], structure: [forge], inputs: {G-IRON: 0.5, G-CHAR: 0.25}, outputs: {G-WROUGHT: 0.4}, labor: 0.32, order: 40, practice: smelt}
+  - {id: carburize_steel, name: Carburize steel, unlocked_by: [MET-10], structure: [forge], inputs: {G-WROUGHT: 0.4, G-CHAR: 0.2}, outputs: {G-STEEL: 0.4}, labor: 0.32, order: 41, practice: smelt}
   - {id: make_tool11, name: Make T11 kit, unlocked_by: [MET-09], structure: [forge], inputs: {G-WROUGHT: 0.08, G-CHAR: 0.08}, outputs: {G-TOOL11: 1}, labor: 0.2, order: 42, practice: smelt}
   - {id: make_tool12, name: Make T12 kit, unlocked_by: [MET-10], structure: [forge], inputs: {G-STEEL: 0.15, G-CHAR: 0.1}, outputs: {G-TOOL12: 1}, labor: 0.3, order: 42, practice: smelt}
-  - {id: make_iron_arms, name: Make iron arms, unlocked_by: [WAR-08], structure: [forge], inputs: {G-WROUGHT: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS3: 1}, labor: 0.4, order: 42, practice: smelt}
-  - {id: make_steel_arms, name: Make steel arms, unlocked_by: [MET-10, WAR-08], structure: [forge], inputs: {G-STEEL: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS4: 1}, labor: 0.5, order: 42, practice: smelt}
+  - {id: make_iron_arms, name: Make iron arms, unlocked_by: [WAR-08], structure: [forge], inputs: {G-WROUGHT: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS3: 1}, labor: 0.4, order: 56, practice: smelt}
+  - {id: make_steel_arms, name: Make steel arms, unlocked_by: [MET-10, WAR-08], structure: [forge], inputs: {G-STEEL: 0.25, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS4: 1}, labor: 0.5, order: 56, practice: smelt}
   - {id: blow_glass, name: Blow glass, unlocked_by: [CER-07], structure: [smelter], inputs: {G-GLASS: 0.5, G-CHAR: 0.5}, outputs: {G-BLOWNGLASS: 4}, labor: 0.3, order: 50, practice: craft}
   - {id: saw_planks, name: Saw planks, unlocked_by: [WOD-08], inputs: {G-WOOD: 1}, outputs: {G-PLANK: 2}, labor: 0.2, order: 50, practice: craft, note: "T12 saw required"}
   - {id: fire_brick_tile, name: Fire brick and tile, unlocked_by: [CER-08], structure: [kiln], inputs: {G-CLAY: 1, G-CHAR: 0.2}, outputs: {G-FBRICK: 0.8, G-TILE: 0.2}, labor: 0.3, order: 50, practice: clay}
   - {id: press_wine, name: Press wine, unlocked_by: [FOR-08, MEC-05], structure: [press], inputs: {G-GRAPE: 2}, outputs: {G-WINE: 1}, labor: 0.2, order: 50, practice: craft}
   - {id: press_oil, name: Press olive oil, unlocked_by: [FOR-08, MEC-05], structure: [press], inputs: {G-OLIVE: 2}, outputs: {G-OILPLANT: 1}, labor: 0.2, order: 50, practice: craft}
-  - {id: make_siege_engine, name: Make siege engine, unlocked_by: [WAR-09], structure: [forge], inputs: {G-WOOD: 8, G-BLOCK: 4, G-WROUGHT: 0.4}, outputs: {G-ENGINE: 1}, labor: 24, order: 45, practice: craft}
+  - {id: make_siege_engine, name: Make siege engine, unlocked_by: [WAR-09], structure: [forge], inputs: {G-WOOD: 8, G-BLOCK: 4, G-WROUGHT: 0.4}, outputs: {G-ENGINE: 1}, labor: 24, order: 59, practice: craft}
   - {id: make_barrel, name: Make barrel, unlocked_by: [WOD-07], inputs: {G-WOOD: 1, "G-IRON|G-BRONZE": 0.1}, outputs: {G-BARREL: 1}, labor: 0.4, order: 50, practice: craft}
   # E5 Faith & Fief additions (docs/MVP/27 §5, e5_power_oracle / e5_combat_oracle); all quantities and labor are provisional.
-  - {id: cast_iron_goods, name: Cast iron goods, unlocked_by: [MET-12], structure: [blast_furnace], inputs: {G-IRON: 1, G-CLAY: 0.2}, outputs: {G-CAST: 1}, labor: 0.4, order: 61, practice: smelt}
-  - {id: cast_cannon, name: Cast a cannon, unlocked_by: [WAR-12], structure: [blast_furnace], inputs: {G-IRON: 2, G-WOOD: 6}, outputs: {G-CANNON: 1}, labor: 30, order: 62, practice: smelt}
-  - {id: crucible_steel, name: Crucible steel, unlocked_by: [MET-11], structure: [forge], inputs: {G-STEEL: 0.4, G-CLAY: 0.3, G-CHAR: 0.4}, outputs: {G-CSTEEL: 0.3}, labor: 0.6, order: 63, practice: smelt}
+  - {id: cast_iron_goods, name: Cast iron goods, unlocked_by: [MET-12], structure: [blast_furnace], inputs: {G-IRON: 1, G-CLAY: 0.2}, outputs: {G-CAST: 1}, labor: 0.32, order: 61, practice: smelt}
+  - {id: cast_cannon, name: Cast a cannon, unlocked_by: [WAR-12], structure: [blast_furnace], inputs: {G-CAST: 2, G-WOOD: 6}, outputs: {G-CANNON: 1}, labor: 30, order: 62, practice: smelt}
+  - {id: crucible_steel, name: Crucible steel, unlocked_by: [MET-11], structure: [forge], inputs: {G-STEEL: 0.4, G-CLAY: 0.3, G-CHAR: 0.4}, outputs: {G-CSTEEL: 0.3}, labor: 0.48, order: 63, practice: smelt}
   - {id: make_crucible_arms, name: Make crucible-steel arms, unlocked_by: [MET-11], structure: [forge], inputs: {G-CSTEEL: 0.2, G-WOOD: 0.4, "G-LEATHER|G-HIDE": 0.3}, outputs: {G-ARMS5: 1}, labor: 0.5, order: 64, practice: smelt}
   - {id: make_powder, name: Make gunpowder, unlocked_by: [CHM-07], structure: [powder_mill], inputs: {G-SALTPETER: 0.75, G-SULFUR: 0.1, G-CHAR: 0.15}, outputs: {G-POWDER: 1}, labor: 0.4, order: 65, practice: craft}
   - {id: make_crossbow, name: Make a crossbow, unlocked_by: [WAR-11], structure: [forge], inputs: {G-WOOD: 1, "G-WROUGHT|G-IRON": 0.1, G-CORD: 0.2}, outputs: {G-CROSSBOW: 1}, labor: 0.6, order: 66, practice: craft, note: "bolts folded into the weapon (docs/MVP/36)"}

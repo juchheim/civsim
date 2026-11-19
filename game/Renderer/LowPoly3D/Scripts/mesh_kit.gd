@@ -72,6 +72,7 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_props.gd"),
 	# Faith & Fief (E5), docs/MVP/32: new meshes only, none replaces an older one
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_power.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_fief_arsenal.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_faith.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_war.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_land.gd"),

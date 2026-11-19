@@ -194,6 +194,29 @@ public class CombatTests
     }
 
     [Fact]
+    public void A_kit_replaces_the_base_only_when_its_expected_casualty_exchange_improves()
+    {
+        Fix64 baseBow = Fix64.FromRatio(27, 10);
+        Fix64 tin = Combat.E3WeaponStrength("tin");
+        Fix64 shield = Combat.ShieldCasualtyFactor(Fix64.One);
+
+        // In a symmetric one-round exchange, damage inflicted is K*C²/B and own losses are
+        // K*B²/C*q. Tin's 30% shield benefit still cannot offset dropping 2.7 attack to 2.3.
+        Assert.False(Combat.ImprovesCombatExchange(tin, shield, baseBow));
+        Assert.False(Combat.ImprovesCombatExchange(tin, shield, baseBow, Fix64.One));
+        Assert.False(Combat.ImprovesCombatExchange(Combat.E3WeaponStrength("arsenical"), shield, baseBow));
+        Assert.False(Combat.ImprovesCombatExchange(Combat.IronWeaponStrength(steelEdge: false), Fix64.One, baseBow));
+        Assert.False(Combat.ImprovesCombatExchange(Combat.E3WeaponStrength("copper"), Fix64.One, baseBow));
+        Assert.True(Combat.ImprovesCombatExchange(Combat.IronWeaponStrength(steelEdge: true), Fix64.One, baseBow));
+
+        // Tin's shield makes it worthwhile against a 2.5 baseline, while a no-shield kit must
+        // strictly beat the base. The comparison is strict, so equal-valued kits stay in store.
+        Assert.True(Combat.ImprovesCombatExchange(tin, shield, Fix64.FromRatio(25, 10)));
+        Assert.False(Combat.ImprovesCombatExchange(Combat.E3WeaponStrength("copper"), Fix64.One,
+            Combat.E3WeaponStrength("copper")));
+    }
+
+    [Fact]
     public void Bronze_barriers_replace_each_other_and_walls_cannot_be_assaulted()
     {
         var hillfort = Defenses.None with { Hillfort = true };

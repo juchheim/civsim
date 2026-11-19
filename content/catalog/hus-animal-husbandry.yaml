@@ -41,7 +41,7 @@ projects:
     gates: [{kind: seen, target: Wild goats or sheep}]
     effects:
       - {kind: unlock_action, action: herd, note: "tame 0.5 ws per animal; pasture carries 6"}
-      - {kind: rule, text: "meat 0.8 R, hide 0.2 per animal per yr"}
+      - {kind: rule, text: "meat 0.8 R, hide 0.3 per animal per yr"}
       - {kind: gate, text: "[Seen: Wild goats or sheep]"}
       - {kind: build, structure: pasture, note: "holds the herd; a pasture tile carries 6 goats or sheep"}
     practice: [{action: herd, share: 100}]
@@ -55,7 +55,7 @@ projects:
     requires: [HUS-03, AGR-01]
     effects:
       - {kind: unlock_action, action: herd}
-      - {kind: rule, text: "cattle 2.5 R + 0.3 hide/yr; pigs 1.2 R, eat waste"}
+      - {kind: rule, text: "cattle 2.5 R + 0.45 hide/yr; pigs 1.2 R, eat waste"}
       - {kind: unlock, project: NRG-01, text: NRG-01}
     practice: [{action: herd, share: 100}]
     flavor: "The wild bull, tamed."

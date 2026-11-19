@@ -42,8 +42,36 @@ public class BronzeFingerprintCompatibilityTests
         Assert.NotEqual(BronzeChecksum(baseline), BronzeChecksum(changed));
     }
 
+    [Fact]
+    public void Later_chapters_fingerprint_the_content_their_mode_can_use_without_changing_legacy_streams()
+    {
+        ContentPack baseline = BuildPack(ContentFixture.Files());
+
+        var changedE5Files = ContentFixture.Files();
+        Replace(changedE5Files, "catalog/agr-agriculture.yaml",
+            "value: 1.5, note: \"rotated fields: cropped share 1/2 to 2/3 (x1.333) with a legume yield x1.125 (P, e5_economy_oracle)\"",
+            "value: 1.6, note: \"rotated fields: cropped share 1/2 to 2/3 (x1.333) with a legume yield x1.125 (P, e5_economy_oracle)\"");
+        ContentPack changedE5 = BuildPack(changedE5Files);
+
+        Assert.Equal(ModeChecksum(baseline, ChapterRules.Bronze), ModeChecksum(changedE5, ChapterRules.Bronze));
+        Assert.Equal(ModeChecksum(baseline, ChapterRules.Iron), ModeChecksum(changedE5, ChapterRules.Iron));
+        Assert.NotEqual(ModeChecksum(baseline, ChapterRules.Fief), ModeChecksum(changedE5, ChapterRules.Fief));
+
+        var changedE4Files = ContentFixture.Files();
+        Replace(changedE4Files, "catalog/bel-belief-ritual.yaml",
+            "stat: scholar_insight, op: pct, value: 0.10",
+            "stat: scholar_insight, op: pct, value: 0.11");
+        ContentPack changedE4 = BuildPack(changedE4Files);
+
+        Assert.Equal(ModeChecksum(baseline, ChapterRules.Iron), ModeChecksum(changedE4, ChapterRules.Iron));
+        Assert.NotEqual(ModeChecksum(baseline, ChapterRules.Fief), ModeChecksum(changedE4, ChapterRules.Fief));
+    }
+
     private static ulong BronzeChecksum(ContentPack pack)
         => MatchModel.Create(ViewKit.Seed, pack, ViewKit.World.Value, ViewKit.Balanced).ComputeChecksum();
+
+    private static ulong ModeChecksum(ContentPack pack, ChapterRules rules)
+        => MatchModel.Create(ViewKit.Seed, pack, ViewKit.World.Value, ViewKit.Balanced, default, rules: rules).ComputeChecksum();
 
     private static ContentPack BuildPack(List<(string Path, string Text)> files)
     {

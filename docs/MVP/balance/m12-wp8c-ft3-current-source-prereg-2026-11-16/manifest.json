@@ -1,0 +1,78 @@
+{
+  "protocol": "WP-E5-5/F-T3",
+  "preregistration_id": "F-T3-current-source-40-2026-11-16",
+  "preregistered_at_utc": "2026-11-16T12:06:27Z",
+  "sampling": {
+    "method": "Simple random sample without replacement, then sort ascending for execution.",
+    "rng": "Python random.Random",
+    "rng_seed": 20261116,
+    "candidate_frame": {
+      "inclusive_min": 36000000,
+      "inclusive_max": 36999999
+    },
+    "screening": "No outcome, geography, or other seed-level screening; exact collisions against every committed seed/manifest file were excluded before sampling."
+  },
+  "seeds": [
+    36006879,
+    36013794,
+    36038398,
+    36198005,
+    36220586,
+    36224360,
+    36235061,
+    36256869,
+    36269804,
+    36337339,
+    36353720,
+    36374148,
+    36381763,
+    36424177,
+    36455818,
+    36458344,
+    36526346,
+    36526678,
+    36528733,
+    36530505,
+    36546304,
+    36546720,
+    36584754,
+    36588619,
+    36590850,
+    36600613,
+    36602302,
+    36602611,
+    36658659,
+    36666311,
+    36678525,
+    36721004,
+    36740819,
+    36797034,
+    36872838,
+    36898494,
+    36916907,
+    36975618,
+    36984612,
+    36992143
+  ],
+  "fixture": {
+    "seasons": 64,
+    "people": 200
+  },
+  "arms": {
+    "treatment": "fief-low-wood-furnace",
+    "control": "fief-low-wood-no-furnace"
+  },
+  "gate": {
+    "mature_window_rule": "Every rolling 12-season window from first kit output plus 12 seasons through season 64.",
+    "metal_work_share_max": 0.15,
+    "no_exposure": "Incomplete, never a pass."
+  },
+  "pins": {
+    "source_commit": "fb2d5ced1d16920203adf238d1c459538bd55894",
+    "source_tree_sha256": "PENDING_FINAL_SOURCE_TREE_SHA256",
+    "pack_sha256": "PENDING_FINAL_PACK_SHA256",
+    "release_harness_sha256": "PENDING_FINAL_RELEASE_HARNESS_SHA256",
+    "adjacent_sim_sha256": "PENDING_FINAL_ADJACENT_SIM_SHA256",
+    "runner_sha256": "PENDING_FINAL_RUNNER_SHA256"
+  }
+}

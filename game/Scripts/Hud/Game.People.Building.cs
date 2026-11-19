@@ -34,6 +34,8 @@ public partial class Game
     private int _buildShownExistingKey = int.MinValue;
 
     private BuildNames? _buildNamesCache;
+    private LineEdit? _buildLocationSearch;
+    private VBoxContainer? _buildLocationResults;
 
     private BuildNames BuildNamesForUi => _buildNamesCache ??= new BuildNames(
         UiText.StructureName, UiText.GoodName,
@@ -75,6 +77,20 @@ public partial class Game
         _buildFocusRow = focus;
         now.Body.AddChild(focus);
 
+        PeopleSection locations = NewPeopleSection("Find a building", "BuildingLocations",
+            "Search buildings already standing across your settlements, then open the town that has one.");
+        _buildLocationSearch = new LineEdit
+        {
+            PlaceholderText = "Find a building: Arsenal, Granary…",
+            ClearButtonEnabled = true,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, UiTokens.ControlS),
+        };
+        _buildLocationSearch.TextChanged += _ => { if (_current is not null) RefreshBuildLocations(_current); };
+        locations.Body.AddChild(_buildLocationSearch);
+        _buildLocationResults = UiKit.Column(UiTokens.Sp1);
+        locations.Body.AddChild(_buildLocationResults);
+
         PeopleSection existing = NewPeopleSection("Already built in this town", "BuildingExisting",
             "Researched buildings and works standing here. Choose another town above to inspect it.");
         _buildExistingBox = UiKit.Column(UiTokens.Sp1);
@@ -104,7 +120,7 @@ public partial class Game
         unbuilt.Body.AddChild(_buildNotBuiltBox);
 
         var body = UiKit.Row(UiTokens.Sp3);
-        body.AddChild(PeopleColumn(0.56f, now, existing, waiting, blocked));
+        body.AddChild(PeopleColumn(0.56f, now, locations, existing, waiting, blocked));
         body.AddChild(PeopleColumn(0.44f, alternatives, unbuilt));
         ScrollContainer scroll = PeopleScroll(body);
         _buildScroll = scroll;
@@ -119,6 +135,7 @@ public partial class Game
     private void RefreshPeopleBuilding(MatchFrame frame)
     {
         if (_buildPicker is null) return;
+        RefreshBuildLocations(frame);
         // The towns that can be asked: the viewer's own, in frame order. A single town picked in the sheet's scope selector wins.
         var ids = new List<int>();
         var rows = new Dictionary<int, int>();
@@ -168,6 +185,59 @@ public partial class Game
         _buildShownCanIssue = canIssue;
         _buildShownPendingCode = pendingCode;
         RenderBuildOutlook(outlook, canIssue, frame, selectedRow);
+    }
+
+    private void RefreshBuildLocations(MatchFrame frame)
+    {
+        if (_buildLocationResults is null || _buildLocationSearch is null) return;
+        ClearChildren(_buildLocationResults);
+        string query = _buildLocationSearch.Text.Trim();
+        if (query.Length == 0)
+        {
+            _buildLocationResults.AddChild(UiKit.Text("Type a building name to find every town where it stands.", "CaptionTertiary", wrap: true));
+            return;
+        }
+
+        int matches = 0;
+        for (int rowIndex = 0; rowIndex < frame.SettlementCount; rowIndex++)
+        {
+            if (!IsOwnPeopleSettlement(frame, rowIndex)) continue;
+            int settlement = frame.SettlementIndex[rowIndex];
+            int structureBase = rowIndex * MatchFrame.StructureKinds;
+            for (int kind = 0; kind < MatchFrame.StructureKinds; kind++)
+                AddBuildLocationMatch(settlement, UiText.StructureName(LivingEconomyModel.StructureName(kind)), frame.SettlementStructures[structureBase + kind], query, ref matches);
+            int civicBase = rowIndex * MatchFrame.CivicStructureKinds;
+            for (int kind = 0; kind < MatchFrame.CivicStructureKinds; kind++)
+                AddBuildLocationMatch(settlement, UiText.StructureName(LivingEconomyModel.CivicStructureName(kind + 1)), frame.SettlementCivicStructures[civicBase + kind], query, ref matches);
+            if (frame.Iron.Active && frame.Iron.WorkKinds > 0)
+            {
+                int ironBase = rowIndex * frame.Iron.WorkKinds;
+                for (int kind = 0; kind < frame.Iron.WorkKinds; kind++)
+                    AddBuildLocationMatch(settlement, UiText.StructureName(LivingEconomyModel.IronWorkId(kind)), frame.Iron.Works[ironBase + kind], query, ref matches);
+            }
+        }
+        if (matches == 0) _buildLocationResults.AddChild(UiKit.Text($"No built buildings match “{query}”.", "CaptionTertiary", wrap: true));
+    }
+
+    private void AddBuildLocationMatch(int settlement, string building, int count, string query, ref int matches)
+    {
+        if (count <= 0 || building.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) return;
+        matches++;
+        var row = UiKit.Row(UiTokens.Sp2);
+        var label = UiKit.Text($"{building} · {SettlementLabel(settlement)} · ×{count}", "BodySecondary", wrap: true);
+        label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(label);
+        int capturedSettlement = settlement;
+        row.AddChild(UiKit.Secondary("Open town", () => SelectBuildLocation(capturedSettlement), "Show this settlement in the building panel.", UiGlyph.ChevronRight, UiTokens.ControlS));
+        _buildLocationResults!.AddChild(row);
+    }
+
+    private void SelectBuildLocation(int settlement)
+    {
+        _peopleScopeSelected = -1;
+        _buildSelected = settlement;
+        _buildShown = null;
+        if (_current is not null) RefreshPeoplePanel(_current);
     }
 
     private static bool SameList(List<int> a, List<int> b)

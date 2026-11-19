@@ -67,6 +67,44 @@ can be captured after startup with:
 godot-mono --path game -- --screenshot=/tmp/civsim-m7a.png
 ```
 
+### Opt-in Fief core playtest (Debug only)
+
+To exercise the current Fief systems in the core game before WP-E5-11 acceptance,
+use an audited numeric-status pack pair built from a pinned, clean D source snapshot.
+The ordinary `build-pack --out civsim.pack` command leaves all E5 rows in draft
+status, so a Fief launch using that pack will not have its E5 projects. The status
+pair helper is deliberately strict: its run requires the expected HEAD, tree,
+content/source hashes, and .NET/CLI hashes for that pinned snapshot. Do not run it
+against a dirty working tree or omit those pins. Use the numeric pack from a
+successful pinned-helper audit (for example, the isolated audit recorded in
+`docs/MVP/balance/m12-wp10-fief-view-audit-2026-11-15.md`); if rebuilding it, use
+the exact pin values recorded for that clean source snapshot.
+
+The scratch pack changes only the 50 E5 project status fields; it does not promote
+repository content. After creating the pack, build/import and launch with:
+
+```bash
+godot-mono --headless --editor --path game --quit
+dotnet build game/CivSim.Game.csproj -c Debug
+CIVSIM_PACK="/absolute/path/to/pinned-playtest-packs/numeric-e5.pack" \
+  godot-mono --path game -- --fief-playtest --seed=12345
+```
+
+Run the headless editor import after pulling or adding visual assets, before
+launching the game. A normal game launch does not refresh Godot's imported asset
+cache. Keep `CIVSIM_PACK` set on the launch command so the game uses the audited
+numeric E5 pack instead of the draft `civsim.pack` in the repository.
+
+The output directory must not already exist. The flag starts a new Fief match
+immediately, keeps the normal opening research hold, and makes subsequent New
+Match actions in that process start another Fief match. The window title and age
+chip identify it as an **unpromoted draft playtest**. Debug builds preserve Fief
+mode in quick-saves and replays, and loading one restores that mode. A normal
+launch has no Fief selector and continues to start Iron; the flag is ignored by
+Release builds. The scratch numeric-status pack is only for testing core systems
+and UI continuity, not balance acceptance or release. Do not use it to claim
+WP-E5-11 promotion or copy its statuses back into repository content.
+
 A new match starts with the human player's Auto-fill (the Council) off and opens the
 research web to what is ready now. The focus bar is always on screen: three cards sized
 1 : 0.618 : 0.382 (Primary, Secondary, Tertiary) with live share, progress and ETA; an

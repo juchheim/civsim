@@ -44,7 +44,7 @@ public enum BuildWhy : byte
     OnePerCivilization, WonderHeldElsewhere, AcademyLimit, MarketsGoToLargest, NotLargestTown, NotMember,
     HousingEnough, PlannerOnlyOne, WaterNotLimiting, CraneNoLargeWork, FlatFieldsRemain, CloseToCapital,
     // Faith & Fief (appended).
-    MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle,
+    MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle, MillCoverageMet, PowderNotNeeded, NeedsMasterMason,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -257,6 +257,36 @@ public sealed partial class LivingEconomyModel
                 if (!Done(civ, "DEF-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-09");
                 if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
                 return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
+            case IronStructure.PowderMill:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "CHM-07")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "CHM-07");
+                if (includeAppetite && !Done(civ, "WAR-12")) return Stop(BuildCause.NotNeeded, BuildWhy.PowderNotNeeded);
+                return BuildGate.Pass;
+            case IronStructure.PrintShop:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                return Done(civ, "COM-10") ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "COM-10");
+            case IronStructure.ClockTower:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!Done(civ, "MEC-08")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "MEC-08");
+                if (!(gate = Town()).Open) return gate;
+                return Built();
+            case IronStructure.GothicCathedral:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "BLD-11")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "BLD-11");
+                if (!Done(civ, "STN-13")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "STN-13");
+                if (WonderOwnerCiv(kind) >= 0) return Stop(BuildCause.Taken, BuildWhy.WonderHeldElsewhere);
+                if (!WonderWanted(s, kind)) return Stop(BuildCause.Taken, BuildWhy.NotLargestTown);
+                return MasterMasonHeads(s.Id) > 0 ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsMasterMason);
+            case IronStructure.CathedralSchool:
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                return Town();
             case IronStructure.Press:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
@@ -268,11 +298,13 @@ public sealed partial class LivingEconomyModel
                 if (!_nearRiver[s.SiteTile]) return Stop(BuildCause.Site, BuildWhy.NoRiver);
                 return s.FieldTiles.Count >= MillFields ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsFields, MillFields);
             case IronStructure.Windmill:
-                // Milling without a river (NRG-05): wanted by a town that has no water mill and enough worked fields to grind for.
+                // Milling without a river (NRG-05): an additional source, including one beside a water mill, is wanted only while the existing mix misses the draft 60% grain-capacity screen. Built(2) caps windmills at two.
                 if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
-                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Built(2)).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
-                if (IronWorksCount(s, IronStructure.WaterMill) > 0) return Stop(BuildCause.NotNeeded, BuildWhy.MillAlready);
+                if (includeAppetite && IronWorksCount(s, IronStructure.WaterMill) + IronWorksCount(s, IronStructure.Windmill) > 0 &&
+                    MillPower(s).GrainCoverage >= Fix64.FromRatio(60, 100))
+                    return Stop(BuildCause.NotNeeded, BuildWhy.MillCoverageMet);
                 return s.FieldTiles.Count >= MillFields ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsFields, MillFields);
             case IronStructure.Sawmill:
                 // A water-powered sawmill (WOD-09) on a river, in a town big enough to saw planks for.

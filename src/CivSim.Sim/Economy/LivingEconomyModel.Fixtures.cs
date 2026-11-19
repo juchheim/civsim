@@ -81,6 +81,43 @@ public sealed partial class LivingEconomyModel
         EnsureCivic(_settlements[settlementIndex]).PeopleLastYear = people;
     }
 
+    internal void FixtureSetFigureAge(long figureId, int age)
+    {
+        if (age < 0) throw new ArgumentOutOfRangeException(nameof(age));
+        int index = FigureIndex(figureId);
+        if (index < 0) throw new ArgumentOutOfRangeException(nameof(figureId));
+        _figures[index].Age = age;
+    }
+
+    internal void FixtureSetMonks(int settlementIndex, int count)
+    {
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        List<FigureState> residents = Residents(_settlements[settlementIndex].Id);
+        foreach (FigureState figure in residents) figure.Role = Role.None;
+        int assigned = 0;
+        foreach (FigureState figure in residents)
+        {
+            if (assigned >= count) break;
+            if (figure.Age is < 14 or >= 60 || figure.Role != Role.None) continue;
+            figure.Role = Role.Monk;
+            assigned++;
+        }
+        if (assigned != count) throw new InvalidOperationException("Fixture does not have enough unassigned adults for monks.");
+    }
+
+    /// <summary>Creates a real removal plus the same last-season death record consumed by Fief politics.</summary>
+    internal void FixtureKillFigureForSuccession(long figureId)
+    {
+        int index = FigureIndex(figureId);
+        if (index < 0) throw new ArgumentOutOfRangeException(nameof(figureId));
+        FigureState figure = _figures[index];
+        var death = new EconomyDeathEvent(figure.Id, figure.Civilization, figure.SettlementId, figure.Age, figure.Female,
+            figure.PregnancySeasons, EconomyDeathCause.Senescence, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero,
+            Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.Zero);
+        if (!KillFigure(figureId)) throw new InvalidOperationException("Fixture figure could not be removed.");
+        _lastDeathEvents.Add(death);
+    }
+
     /// <summary>Adds (or with a negative amount removes) a good in a settlement's stores.</summary>
     internal void FixtureStock(int settlementIndex, string goodId, Fix64 amount)
     {
@@ -238,7 +275,23 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureSetCivilization(int settlementIndex, int civ) => _settlements[settlementIndex].Civilization = civ;
+    internal void FixtureSetCivilizationAndResidents(int settlementIndex, int civ)
+    {
+        _settlements[settlementIndex].Civilization = civ;
+        foreach (FigureState figure in _figures)
+            if (figure.SettlementId == settlementIndex) figure.Civilization = civ;
+    }
     internal void FixtureSetStoredCohesion(int settlementIndex, Fix64 value) => _settlements[settlementIndex].Cohesion = value;
+    internal void FixtureSetCivicWorkMult(int settlementIndex, Fix64 value)
+        => EnsureCivic(_settlements[settlementIndex]).WorkMult = value;
+    internal void FixtureSetCareWork(int figureIndex, byte roles, Fix64 careWork, Fix64 totalWork)
+    {
+        FigureState figure = _figures[figureIndex];
+        figure.CareRolesThisSeason = roles;
+        figure.CareWorkThisSeason = careWork;
+        figure.WorkThisSeason = totalWork;
+        figure.Job = EconomyJob.Craft;
+    }
     internal void FixtureSetStructureCount(int settlementIndex, string structure, int count)
     {
         int kind = StructureIndex(structure);
@@ -277,6 +330,12 @@ public sealed partial class LivingEconomyModel
     {
         CivicBuild kind = CivicOf(structure) ?? throw new ArgumentException($"Unknown civic structure '{structure}'.", nameof(structure));
         EnsureCivic(_settlements[settlementIndex]).BuildKind = kind;
+    }
+
+    internal Fix64 FixtureCivicBuildLabor(int settlementIndex, string structure)
+    {
+        CivicBuild kind = CivicOf(structure) ?? throw new ArgumentException($"Unknown civic structure '{structure}'.", nameof(structure));
+        return CivicLabor(_settlements[settlementIndex], kind);
     }
 
     internal void FixtureSetScoutPolicy(int settlementIndex, ScoutPolicy policy)
@@ -398,6 +457,12 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         return $"tier {(s.Civic?.Tier ?? 255)} kind {s.Metal?.IronBuildKind} progress {s.Metal?.IronBuildProgress.ToDoubleForDisplay():F2} block {(s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero).ToDoubleForDisplay():F1} wood {s.Stores[(int)Good.Wood].ToDoubleForDisplay():F1} pop {Population(s.Id)}";
     }
+    internal int FixtureIronKindOf(string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++) if (IronSpecs[k].Name == name) return k;
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
     internal int FixtureIronBuildKind(int settlementIndex) => _settlements[settlementIndex].Metal?.IronBuildKind ?? -1;
 
     /// <summary>The extra effective farm work a figure's scythe gives for a stated amount of farm work (zero without AGR-09 and a T11 or T12 kit).</summary>
@@ -427,6 +492,117 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureSetSoldiersSupplied(int settlementIndex, int count) => EnsureMetal(_settlements[settlementIndex]).IronSoldiersSupplied = count;
+
+    internal void FixtureSetSoldierRoles(int settlementIndex, int count)
+    {
+        int remaining = Math.Max(0, count);
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id))
+        {
+            if (f.Age >= 14 && remaining > 0) { f.Role = Role.Soldier; remaining--; }
+            else if (f.Role == Role.Soldier) f.Role = Role.None;
+        }
+    }
+
+    internal Fix64 FixtureProfessionalArmsWant(int settlementIndex, string goodId)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        IronArmsWant(settlement, EnsureMetal(settlement), plan);
+        int slot = SlotOf(goodId);
+        return slot == NoSlot ? Fix64.Zero : plan.Terminal[slot];
+    }
+
+    internal Fix64 FixtureEngineWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        IronEngineWant(settlement, metal, plan);
+        return plan.Terminal[IronSlot(IronGood.Engine)];
+    }
+
+    internal Fix64 FixtureChariotWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        SecondaryWants(settlement, metal, plan, Population(settlement.Id));
+        return plan.Terminal[MetalSlot(MetalGood.Chariot)];
+    }
+
+    internal (Fix64 Crossbows, Fix64 Longbows) FixtureFiefBowWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        FiefBowWants(settlement, metal, plan);
+        return (plan.Terminal[BowSlot(BowGood.Crossbow)], plan.Terminal[BowSlot(BowGood.Longbow)]);
+    }
+
+    internal Fix64 FixtureBaselineArmsWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { Tier = BestCastTier(settlement) };
+        WantBaselineArms(settlement, metal, plan);
+        Fix64 total = Fix64.Zero;
+        foreach (MetalGood good in new[] { MetalGood.Arms1, MetalGood.Arms2A, MetalGood.Arms2T }) total += plan.Terminal[MetalSlot(good)];
+        return total;
+    }
+
+    internal Fix64 FixtureMakeLevyBows(int settlementIndex, Fix64 work)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        Fix64 remaining = work;
+        MakeLevyBows(settlement, ref remaining);
+        return remaining;
+    }
+
+    internal Fix64 FixturePlanMilitaryAssemblyNeed(int settlementIndex, Fix64 totalWork)
+        => PlanMetal(_settlements[settlementIndex], totalWork).MilitaryAssemblyNeed;
+
+    internal (bool MilitaryAssembly, bool DeferredAsDiscretionary) FixtureFinishingRecipePolicy(string recipeId)
+    {
+        foreach (CompiledRecipe recipe in _compiledRecipes)
+            if (recipe.Def.Id == recipeId)
+                return (IsMilitaryAssemblyRecipe(recipe.OutputSlot), IsDiscretionaryFinishingRecipe(recipe));
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    internal Fix64 FixturePlannedMilitaryRecipeBatches(int settlementIndex, string recipeId)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { Tier = BestCastTier(settlement) };
+        SecondaryWants(settlement, metal, plan, Population(settlement.Id));
+        IronArmsWant(settlement, metal, plan);
+        IronEngineWant(settlement, metal, plan);
+        ExpandWants(settlement, plan);
+        for (int i = 0; i < _compiledRecipes.Length; i++)
+            if (_compiledRecipes[i].Def.Id == recipeId) return plan.Batches[i];
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    internal void FixtureRunMetalPlan(int settlementIndex, Fix64 totalWork, Fix64 craftWork)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalPlan plan = PlanMetal(settlement, totalWork);
+        RunMetal(settlement, plan, craftWork, new Fix64[_figures.Count], checked((int)_seasonsCompleted));
+    }
+
+    internal (Fix64 Remaining, Fix64 Reserved, Fix64 Tool1Stock) FixtureCraftToolsWithAssemblyReserve(int settlementIndex, Fix64 work, Fix64 reserve)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        Fix64 remaining = CraftTools(settlement, work, reserve, out Fix64 protectedAssembly);
+        return (remaining, protectedAssembly, settlement.Stores[(int)Good.Tool1]);
+    }
+
+    internal void FixtureWearMilitaryStockBeforePlanning(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        WearLevyArms(settlement);
+        WearMilitaryGoodsBeforePlanning(settlement);
+    }
     /// <summary>Runs the completion step of an Iron structure (counts it, earns a Wonder's Legacy, claims a terrace tile) as a finished build would.</summary>
     internal void FixtureCompleteIron(int settlementIndex, string name)
     {
@@ -440,6 +616,26 @@ public sealed partial class LivingEconomyModel
     {
         for (int k = 0; k < IronSpecs.Length; k++)
             if (IronSpecs[k].Name == name) { MetalState m = EnsureMetal(_settlements[settlementIndex]); m.IronBuildKind = k; m.IronBuildProgress = Fix64.Zero; return; }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal bool FixtureTryPayIronBuild(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name)
+            {
+                SettlementState s = _settlements[settlementIndex];
+                MetalState m = EnsureMetal(s);
+                m.IronBuildKind = k;
+                return TryPayIronBuild(s, m, IronSpecs[k]);
+            }
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
+    internal int FixtureIronStructureCount(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronWorksCount(_settlements[settlementIndex], (IronStructure)k);
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
@@ -549,6 +745,13 @@ public sealed partial class LivingEconomyModel
         throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
     }
 
+    internal bool FixtureIronBuildFeasible(int settlementIndex, string name)
+    {
+        for (int k = 0; k < IronSpecs.Length; k++)
+            if (IronSpecs[k].Name == name) return IronBuildFeasible(_settlements[settlementIndex], (IronStructure)k);
+        throw new ArgumentException($"Unknown Iron structure '{name}'.", nameof(name));
+    }
+
     /// <summary>Runs one public-grain transfer for a civilization and returns the grain units moved.</summary>
     internal Fix64 FixtureSharePublicGrain(int civ) => SharePublicGrain(civ, Math.Max(0, ShareReach(civ)));
     internal Fix64 FixtureGrainUnits(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Grain];
@@ -568,7 +771,7 @@ public sealed partial class LivingEconomyModel
         byte id = role switch
         {
             "administrator" => Role.Administrator, "governor" => Role.Governor,
-            "physician" => Role.Physician, "attendant" => Role.Attendant,
+            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason,
             _ => throw new ArgumentException(role, nameof(role))
         };
         int n = 0;
@@ -585,6 +788,9 @@ public sealed partial class LivingEconomyModel
         civic.CfrScale = Fix64.One;
         foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) f.Infected = outbreak != OutbreakClass.None;
     }
+
+    internal Fix64 FixtureInterSettlementOutbreakChance(int settlementIndex)
+        => InterSettlementOutbreakChance(_settlements[settlementIndex]);
 
     internal Fix64 FixtureInfectedHazard(int figureIndex) => InfectedHazard(_figures[figureIndex]);
     internal bool FixtureHospitalStaffed(int settlementIndex) => HospitalStaffed(_settlements[settlementIndex]);
@@ -641,7 +847,7 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureKitBreakLeft(int tier) => KitBreakLeft(tier);
 
     /// <summary>The litres a deposit held at the start (by kind, tier and depth).</summary>
-    internal static Fix64 FixtureOreLitres(WorldDeposit deposit) => OreLitres(deposit);
+    internal static Fix64 FixtureOreLitres(WorldDeposit deposit, bool includeFiefResources = false) => OreLitres(deposit, includeFiefResources);
 
     /// <summary>Whether a civilization can dig a deposit now (unlocked, and depth 2 needs Shaft Mining).</summary>
     internal bool FixtureWorkable(int civ, int tile) => DepositWorkable(civ, tile);
@@ -684,6 +890,14 @@ public sealed partial class LivingEconomyModel
         SettlementState s = _settlements[settlementIndex];
         MetalPlan plan = PlanMetal(s, totalWork);
         return (plan.BuildNeed, plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed);
+    }
+
+    internal Fix64 FixtureRecipePlannedBatches(int settlementIndex, string recipeId, Fix64 totalWork)
+    {
+        MetalPlan plan = PlanMetal(_settlements[settlementIndex], totalWork);
+        for (int i = 0; i < _compiledRecipes.Length; i++)
+            if (_compiledRecipes[i].Def.Id == recipeId) return plan.Batches[i];
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
     }
 
     /// <summary>Whether the settlement can obtain an ore this season (stock, a positive-rate deposit, or an own-land camp site).</summary>
@@ -785,7 +999,19 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureDomesticHerdWorkNeed(int settlementIndex)
         => DomesticHerdWorkNeed(_settlements[settlementIndex]);
 
+    /// <summary>Runs one full-maintenance domestic-herd byproduct pass for yield regressions.</summary>
+    internal void FixtureRunDomesticHerdByproducts(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        HerdAnimals(settlement, Fix64.FromInt(100), Fix64.FromInt(100), checked((int)(_seasonsCompleted / 4)));
+    }
+
+    internal void FixtureApplyAggregateHuntByproducts(int settlementIndex, Fix64 meatYield)
+        => AddAggregateHuntByproducts(_settlements[settlementIndex], meatYield);
+
     internal bool FixtureCanTameFromRange(int settlementIndex) => CanTameFromRange(_settlements[settlementIndex]);
+
+    internal Fix64 FixtureAdminWasteSavings(int civ, Fix64 administrationWork) => AdminWasteSavings(civ, administrationWork);
 
     internal void FixtureSetWildHerd(int herdIndex, int tile, Fix64 animals)
     {
@@ -911,6 +1137,8 @@ public sealed partial class LivingEconomyModel
                 NearestForeignDistance(s) <= CastleReach,
             IronStructure.ConcentricCastle => FiefChain && Done(s.Civilization, "DEF-09") && s.Civic is { Tier: >= 1 } &&
                 IronWorksCount(s, IronStructure.ConcentricCastle) == 0 && CastleGarrisoned(s.Id),
+            IronStructure.PowderMill => FiefChain && Done(s.Civilization, "CHM-07") && s.Civic is { Tier: >= 1 } &&
+                IronWorksCount(s, IronStructure.PowderMill) == 0,
             _ => false,
         };
 

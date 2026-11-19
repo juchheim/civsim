@@ -221,7 +221,11 @@ public partial class Startup : Control
 
     private static bool IsDevelopmentPresentationRun()
     {
-        return OS.GetCmdlineUserArgs().Any(arg =>
+        string[] args = OS.GetCmdlineUserArgs();
+#if DEBUG
+        if (args.Contains("--fief-playtest", StringComparer.Ordinal)) return true;
+#endif
+        return args.Any(arg =>
             arg.StartsWith("--benchmark-", StringComparison.Ordinal) ||
             arg.StartsWith("--start-minute=", StringComparison.Ordinal) ||
             arg.StartsWith("--research-era=", StringComparison.Ordinal) ||

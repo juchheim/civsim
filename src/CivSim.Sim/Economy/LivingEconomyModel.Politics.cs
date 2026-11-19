@@ -382,6 +382,7 @@ public sealed partial class LivingEconomyModel
     {
         if ((uint)newCiv >= (uint)_completedProjects.Length) throw new ArgumentOutOfRangeException(nameof(newCiv));
         SettlementState s = _settlements[settlementIndex];
+        if (s.Civilization != newCiv) RemoveFiefKnowHowOnOwnerExit(s);
         s.Civilization = newCiv;
         // Tool durability depends on the owner's research (wooden, hafted and Tool5 modifiers), and the work left in the
         // stock may not exceed what the stock can hold (the snapshot validator's rule). A captor with less research
@@ -397,6 +398,7 @@ public sealed partial class LivingEconomyModel
     public void RazeSettlement(int settlementIndex)
     {
         SettlementState s = _settlements[settlementIndex];
+        RemoveFiefKnowHowOnOwnerExit(s);
         for (int i = _figures.Count - 1; i >= 0; i--)
             if (_figures[i].SettlementId == s.Id)
             {
@@ -405,7 +407,7 @@ public sealed partial class LivingEconomyModel
             }
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
-        if (s.FiefGoods is { } fief) Array.Clear(fief);
+        if (s.FiefGoods is { } bows) Array.Clear(bows);
         if (s.Metal is { } metal)
         {
             if (metal.IronGoods is { } iron)

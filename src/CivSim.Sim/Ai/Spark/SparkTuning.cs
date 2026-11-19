@@ -24,8 +24,10 @@ public static class SparkTuning
     /// <summary>Children tried per beam node: half the beam width plus this, capped at 6 except Legend's first search expansion.</summary>
     public const int ExtraCandidates = 3;
     public const int MaxCandidates = 6;
-    /// <summary>Legend's first search expansion may spend two extra rollouts per decision within its fixed relative budget.</summary>
-    public const int LegendFirstExpansionCandidates = 8;
+    /// <summary>Legend trades some beam width for one extra candidate at every deeper expansion.</summary>
+    public const int LegendMaxCandidates = 7;
+    /// <summary>Legend's first search expansion may spend four extra rollouts per decision within its fixed relative budget.</summary>
+    public const int LegendFirstExpansionCandidates = 12;
     /// <summary>Slots plus the research queue: the plan written each decision, so slots never idle between decisions.</summary>
     public const int PlanLength = 11;
     /// <summary>The shortest horizon, in seasons (14 §4.1: "at least 2 years of sim time").</summary>
@@ -74,6 +76,10 @@ public static class SparkTuning
     public static readonly Fix64 FrontierBonus = Fix64.FromInt(8);
     /// <summary>Legacy-equivalent value of GOV-02's posture lever while an open frontier can still be expanded.</summary>
     public static readonly Fix64 PostureUnlockBonus = Fix64.FromInt(36);
+    /// <summary>Warlord step toward GOV-02 when open land remains; the A2 Grower cohort spent 344/512 seasons frontier-open but locked.</summary>
+    public static readonly Fix64 WarlordPostureUnlockBonus = Fix64.FromInt(46);
+    /// <summary>Legend step toward GOV-02, keeping its frontier valuation ahead of Warlord.</summary>
+    public static readonly Fix64 LegendPostureUnlockBonus = Fix64.FromInt(80);
     /// <summary>Modest value for food and lean-season capabilities while settlements are food insecure.</summary>
     public static readonly Fix64 FoodNeedBonus = Fix64.FromInt(10);
     public static readonly Fix64 LeanNeedBonus = Fix64.FromInt(12);

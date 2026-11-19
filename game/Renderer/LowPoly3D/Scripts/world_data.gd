@@ -137,10 +137,14 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"windmills": int(s.get("fiefWindmillSources", 0)),
 		"power_hours_raw": int(s.get("fiefAvailablePowerHours", 0)),
 		"grain_coverage_raw": int(s.get("fiefGrainCoverage", 0)),
+		"sawing_used_raw": int(s.get("fiefSawingUsed", 0)),
+		"craft_used_raw": int(s.get("fiefCraftUsed", 0)),
 		"monks": int(s.get("fiefMonks", 0)),
 		"monasteries": int(s.get("fiefMonasteries", 0)),
 		"universities": int(s.get("fiefUniversities", 0)),
 		"hospitals": int(s.get("fiefHospitals", 0)),
+		"scholars": int(s.get("fiefScholars", 0)),
+		"hospital_staffed": bool(s.get("fiefHospitalStaffed", false)),
 		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
 	}
 

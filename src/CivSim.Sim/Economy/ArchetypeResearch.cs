@@ -25,8 +25,8 @@ public static class ArchetypeResearch
     /// ×1.3 already gives the Grower 5 settlements to the others' 3 and its Kin Leaning favours the research engine.
     /// </summary>
     public static readonly Scales Grower = new(Fix64.FromRatio(93, 100), Fix64.FromRatio(90, 100), Fix64.FromRatio(95, 100));
-    /// <summary>Efficient core: practice turns into Know-how 30% faster (unchanged from 07).</summary>
-    public static readonly Scales Builder = new(Fix64.One, Fix64.One, Fix64.FromRatio(130, 100));
+    /// <summary>Efficient core: practice turns into Know-how 23% faster, trimmed again after the E5 FFA over-share.</summary>
+    public static readonly Scales Builder = new(Fix64.One, Fix64.One, Fix64.FromRatio(123, 100));
     /// <summary>
     /// Travellers who learn from everything they meet: ×1.15 Insight and Know-how ×1.1. Pays for the Era Boons taken as
     /// Beacons and for a Reach Leaning that keeps the planner off the Kin research engine (07 had ×0.95 against a Territory
@@ -39,10 +39,10 @@ public static class ArchetypeResearch
     /// </summary>
     public static readonly Scales Warlord = new(Fix64.FromRatio(115, 100), Fix64.One, Fix64.One);
     /// <summary>
-    /// Institutions: specialists (Elder, Shaman and later roles) give 10% more Insight, commons ×0.97. 07's ×1.1 and ×1.4
+    /// Institutions: specialists (Elder, Shaman and later roles) give 8% more role output, commons ×0.97. 07's ×1.1 and ×1.4
     /// stacked on a Kin Leaning with the LRN/BEL signature won 78% of free-for-alls.
     /// </summary>
-    public static readonly Scales Sage = new(Fix64.FromRatio(97, 100), Fix64.FromRatio(110, 100), Fix64.One);
+    public static readonly Scales Sage = new(Fix64.FromRatio(97, 100), Fix64.FromRatio(108, 100), Fix64.One);
 
     public static Scales Of(EconomyArchetype archetype) => archetype switch
     {

@@ -56,7 +56,9 @@ internal sealed class FixedSource : IResearchSource
 {
     private readonly ResearchCatalog _catalog;
     public Fix64 Adults = Fix64.FromInt(8), Elders = Fix64.FromInt(2);
+    public Fix64 SpectacleHolders;
     public Fix64 PeoplePerSettlement = Fix64.FromInt(12);
+    public Fix64[]? RoleHeadsOverride;
     public int Settlements = 1;
     public Fix64 InsightScale = Fix64.One;
     public ulong Seen;
@@ -85,8 +87,8 @@ internal sealed class FixedSource : IResearchSource
 
     public InsightInputs GetInsightInputs(int civ) => new()
     {
-        Adults = Adults, Elders = Elders, Settlements = Settlements,
-        RoleHeads = new Fix64[_catalog.Roles.Count].Select(_ => Fix64.One).ToArray(),
+        Adults = Adults, Elders = Elders, SpectacleHolders = SpectacleHolders, Settlements = Settlements,
+        RoleHeads = RoleHeadsOverride ?? new Fix64[_catalog.Roles.Count].Select(_ => Fix64.One).ToArray(),
         StructureOutput = Fix64.Zero, HearthShare = Fix64.One,
         InsightScale = InsightScale, RolesScale = Fix64.One, KnowHowScale = Fix64.One,
     };

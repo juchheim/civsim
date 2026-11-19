@@ -197,13 +197,13 @@ public sealed class WorldEconomyInput
                 (int)source.Biome, (int)source.Climate, soil, yearlyPlantYield * 2, springYield * Fix64.FromRatio(2, 5),
                 summerYield * Fix64.FromRatio(2, 5), autumnYield * Fix64.FromRatio(2, 5),
                 winterYield * Fix64.FromRatio(2, 5), herdInitial, herdGrowth,
-                wood, Fix64.FromInt(6), fishPerSeason * 2, fishPerSeason * 4, Fix64.FromInt(4) * soil,
+                wood, Fix64.FromInt(wood >= Fix64.FromInt(15) ? 9 : 6), fishPerSeason * 2, fishPerSeason * 4, Fix64.FromInt(4) * soil,
                 fresh, source.Deposit == DepositKind.Clay,
                 source.Deposit is DepositKind.Stone or DepositKind.Flint,
                 source.Deposit == DepositKind.Flint,
-                source.IsLand ? Fix64.FromInt(2) + (source.Deposit == DepositKind.Stone ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero) : Fix64.Zero,
-                source.Deposit == DepositKind.Clay ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero,
-                source.Deposit == DepositKind.Flint ? Fix64.FromInt(source.DepositAmount) : Fix64.Zero,
+                source.IsLand ? Fix64.FromInt(3 * (2 + (source.Deposit == DepositKind.Stone ? source.DepositAmount : 0))) : Fix64.Zero,
+                source.Deposit == DepositKind.Clay ? Fix64.FromInt(3 * source.DepositAmount) : Fix64.Zero,
+                source.Deposit == DepositKind.Flint ? Fix64.FromInt(3 * source.DepositAmount) : Fix64.Zero,
                 salmonRun, river, lake, coast, (source.Flags & TileFlags.WildGrain) != 0, source.Elevation);
         }
 
@@ -334,13 +334,13 @@ public sealed class WorldEconomyInput
 
     private static Fix64 WoodStock(Biome biome) => biome switch
     {
-        Biome.TemperateForest => Fix64.FromInt(30),
-        Biome.OpenWoodland => Fix64.FromInt(15),
+        Biome.TemperateForest => Fix64.FromInt(60),
+        Biome.OpenWoodland => Fix64.FromInt(30),
         Biome.GrasslandSteppe => Fix64.FromInt(2),
         Biome.Savanna => Fix64.FromInt(4),
-        Biome.TropicalForest => Fix64.FromInt(40),
+        Biome.TropicalForest => Fix64.FromInt(80),
         Biome.Wetland => Fix64.FromInt(5),
-        Biome.Taiga => Fix64.FromInt(25),
+        Biome.Taiga => Fix64.FromInt(50),
         Biome.Mountain => Fix64.FromInt(10),
         _ => Fix64.Zero,
     };

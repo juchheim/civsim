@@ -57,10 +57,6 @@ public partial class Game
         UpdateAgePath(frame);
         UpdateStrip(frame);
         UpdateQueueChip(frame);
-        _updatingFocusBar = true;
-        _webAutoFill?.SetPressedNoSignal(EffectiveCouncil(frame));
-        if (_webAutoFill is not null) _webAutoFill.Disabled = frame.FocusCiv != frame.ViewerCiv || (_session?.IsReplay ?? false);
-        _updatingFocusBar = false;
         _navCards.Clear();
         if (_webView == ViewChoose) RefreshChooseView(frame);
         else RefreshMapView(frame);
@@ -680,7 +676,6 @@ public partial class Game
     {
         if (_queuePopover is null || _current is null || _catalog is null || _queueChip is null) return;
         if (_queuePopover.Visible) { CloseQueuePopover(); return; }
-        CloseLeaningPopover();
         PopulateQueuePopover();
         Vector2 pos = _queueChip.GlobalPosition;
         _queuePopover.OpenRightAligned(pos.X + _queueChip.Size.X, pos.Y + _queueChip.Size.Y + 6, 377);
@@ -751,57 +746,9 @@ public partial class Game
         if (_session.Paused) ShowFooterNote("Removing that project is queued until you resume.");
     }
 
-    private void ToggleLeaningPopover()
-    {
-        if (_leaningPopover is null || _current is null) return;
-        if (_leaningPopover.Visible) { CloseLeaningPopover(); return; }
-        CloseQueuePopover();
-        int[] leanings = EffectiveLeanings(_current);
-        for (int i = 0; i < 3; i++)
-        {
-            if (_leaningSliders[i] is HSlider slider) slider.Value = leanings[i];
-            if (_leaningValues[i] is Label label) label.Text = $"{leanings[i]}%";
-        }
-        _leaningPopover.Open(new Vector2(UiTokens.Sp4 + 8, _webStageApplied ? _stageDockTop : _logicalSize.Y - 330), 377);
-        _leaningLayer = RegisterLayer("leaning", false, () => { CloseLeaningPopover(); return true; });
-        _ui.Push(_leaningLayer);
-    }
-
-    private int[] EffectiveLeanings(MatchFrame frame)
-    {
-        int[] values = { frame.FocusLeaning[0], frame.FocusLeaning[1], frame.FocusLeaning[2] };
-        if (_session is null) return values;
-        foreach (Command command in _session.PendingCommands)
-            if (command.Civ == frame.FocusCiv && command.Kind == CommandKind.SetLeaning && (uint)command.A < 3u && command.B is >= 0 and <= 100)
-                values[command.A] = command.B;
-        return values;
-    }
-
-    private void CloseLeaningPopover()
-    {
-        _leaningPopover?.Close();
-        if (_leaningLayer is not null) _ui.Remove(_leaningLayer);
-        _leaningLayer = null;
-    }
-
-    private void ApplyLeanings()
-    {
-        if (_session is null || _current is null) return;
-        var values = new int[3];
-        int total = 0;
-        for (int i = 0; i < 3; i++) { values[i] = (int)Math.Round(_leaningSliders[i]?.Value ?? 0); total += values[i]; }
-        if (total == 0) { values[0] = 34; values[1] = 33; values[2] = 33; total = 100; }
-        int assigned = 0;
-        for (int i = 0; i < 3; i++) { values[i] = values[i] * 100 / total; assigned += values[i]; }
-        for (int i = 0; assigned < 100; i = (i + 1) % 3, assigned++) values[i]++;
-        for (int i = 0; i < 3; i++)
-        {
-            if (_leaningSliders[i] is HSlider slider && (int)slider.Value != values[i]) slider.Value = values[i];
-            if (_leaningValues[i] is Label label) label.Text = $"{values[i]}%";
-            QueueCommand(PlayerCommands.SetLeaning(_session.Tick, _current.FocusCiv, i, values[i]));
-        }
-        ShowFooterNote(_session.Paused ? "The elders' leaning is queued until you resume." : "The elders' leaning is set.");
-    }
+    // Kept as no-ops for legacy UI scenario hooks; the elders controls are no longer part of the research screen.
+    private void ToggleLeaningPopover() { }
+    private void CloseLeaningPopover() { }
 
     // ---- inspector ---------------------------------------------------------------------------
 
@@ -1513,9 +1460,6 @@ public partial class Game
                 return true;
             case Key.Pagedown or Key.Bracketleft when _webView == ViewMap:
                 _mapView?.StepEra(-1);
-                return true;
-            case Key.I when _webStageApplied && !key.CtrlPressed && !key.MetaPressed:
-                ToggleInspectorCard();
                 return true;
             case Key.F when !key.CtrlPressed && !key.MetaPressed && !key.AltPressed:
                 ToggleWebExpanded();

@@ -340,7 +340,7 @@ public partial class Game
 
     /// <summary>The map is frozen while the research web, a modal, the menu or a popover is open: no zoom, pan, turn or pick.</summary>
     private bool MapInputLocked
-        => _researchWebVisible || _ui.AnyModal || _gameMenuOpen || _queueLayer is not null || _leaningLayer is not null || _slotMenuLayer is not null;
+        => _researchWebVisible || _ui.AnyModal || _gameMenuOpen || _queueLayer is not null || _slotMenuLayer is not null;
 
     public override void _UnhandledInput(InputEvent input)
     {

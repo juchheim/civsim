@@ -84,6 +84,8 @@ public sealed class CivResearch
     public Fix64[] ModFlat;
     public Fix64[] HazardMult = new Fix64[ResearchCatalog.CauseCount];
     public Fix64 AdoptMult = Fix64.One;
+    /// <summary>CER-10's Elder Insight multiplier, applied only to elders who hold spectacles (Fief); the generic <c>elder_insight</c> modifier excludes it.</summary>
+    public Fix64 SpectacleElderMult = Fix64.One;
     public Fix64 KnowHowGain = Fix64.One;
     public Fix64[] KnowHowLineageGain;
     public Fix64[] CapMult = new Fix64[3];

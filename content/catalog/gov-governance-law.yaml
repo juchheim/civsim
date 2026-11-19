@@ -147,6 +147,8 @@ projects:
     era: 5
     type: I
     status: draft
+    cost: 19200
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x I 1.5."
     requires: [GOV-10, TRD-08]
     effects:
       - {kind: admin, span: 1, note: "taxes accepted by representative bodies"}

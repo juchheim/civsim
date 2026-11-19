@@ -74,7 +74,7 @@ projects:
     effects:
       - {kind: good, id: "G-SPIRITS"}
       - {kind: rule, text: "Spirits are a trade and medicine good (recipe distill_spirits from wine). A hospital holding spirits cuts its epidemic deaths by 25% instead of 20% (P)."}
-    practice: [{action: preserve, share: 100}]
+    practice: [{action: craft, share: 100}]
     flavor: "The essence of the wine is caught in a cool vessel."
     moment: "Clear spirit drips from a still."
   - id: CHM-07

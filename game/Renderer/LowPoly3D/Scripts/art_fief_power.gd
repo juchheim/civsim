@@ -16,7 +16,7 @@
 ##                    running off its village side: a log on a carriage, a saw frame driven from the wheel by a connecting rod, a log ramp, and stacks of logs
 ##                    and fresh planks. Told from the water mill by its long, low timber silhouette.
 ##   sawmill_idle     the same with the saw stopped, no log on the carriage and the wheel's flume dry (no power unit, no logs)
-##   powder_mill      CHM-07: a low timber shed behind earth banks on three sides (the blast goes out the open front), a stamp mill on a leat beside it, a
+##   powder_mill      CHM-07 (retired in Faith & Fief; powder is made at the Arsenal, docs/MVP/37): a low timber shed behind earth banks on three sides (the blast goes out the open front), a stamp mill on a leat beside it, a
 ##                    powder barrel stack and a red danger flag; stands apart from houses
 ##   powder_mill_idle the same with the stamps still and no barrels
 extends RefCounted

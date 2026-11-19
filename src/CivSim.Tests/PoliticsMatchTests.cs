@@ -425,6 +425,14 @@ public class PoliticsMatchTests
         rig.Minutes(24);
         rig.Grant(0, "GOV-02", "HNT-02", "HNT-03", "WAR-01", "WAR-02", "HNT-04");
         rig.Politics.ForceContact(0, 1);
+        // Keep this policy test focused on whether Raid posture launches when the forecast is favorable; the current balanced
+        // seed's intact 9-11-person neighbor correctly deters an unprovoked raid under the revised combat-value model.
+        int targetSettlement = rig.SettlementOf(1);
+        var targetFighters = new List<LivingEconomyModel.FighterRecord>();
+        rig.Economy.ListFightingAge(targetSettlement, targetFighters);
+        foreach (LivingEconomyModel.FighterRecord defender in targetFighters.Skip(1))
+            rig.Economy.FixtureKillFigureForSuccession(defender.Id);
+        rig.Politics.Diplomacy.Set(0, 1, -100);
         rig.Runner.Submit(new Command(rig.Runner.Tick, 0, CommandKind.SetPosture, (int)Posture.Raid, 0, 0));
         var trace = new List<string>();
         rig.Politics.Trace = trace.Add;

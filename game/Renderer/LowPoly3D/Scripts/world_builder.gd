@@ -514,6 +514,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 	h = h * 31 + hash(String(s.get("coreGallery", "")))
 	h = h * 31 + hash(String(s.get("coreStage", "")))
 	h = h * 31 + (w.civ_looks[civ] if civ >= 0 and civ < w.civ_looks.size() else 0)
+	h = h * 31 + (1 if w.fief_active else 0)
 	if not bool(s.get("remembered")):
 		h = h * 31 + core.stage_of(s)
 		h = h * 31 + _dwelling_signature(s.structures, int(s.get("halls", 0)), core.dwelling_capacity(s))
@@ -525,6 +526,16 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 		h = h * 31 + castle_stage(s) * 7 + w.iron_works(s, "gatehouse") + mini(int(s.get("soldiers", 0)), 6) * 3
 		for wid in ["academy", "theatre_arena", "bathhouse", "crane", "aqueduct", "great_dome", "great_library", "great_lighthouse", "press", "windlass_well", "frontier_wall_segment", "galley", "water_mill", "temple_tier2"]:
 			h = h * 31 + w.iron_works(s, wid)
+		if w.fief_active:
+			for wid in ["monastery", "university", "hospital", "windmill", "sawmill", "blast_furnace", "powder_mill", "print_shop", "cathedral_school", "gothic_cathedral", "arsenal", "concentric_castle"]:
+				h = h * 31 + w.iron_works(s, wid)
+			h = h * 31 + (1 if bool(w.fief_settlement(s).get("concentric_castle", false)) else 0)
+			var fief := w.fief_settlement(s)
+			h = h * 31 + int(fief.get("monks", 0)) * 3 + int(fief.get("scholars", 0)) * 5
+			h = h * 31 + (1 if bool(fief.get("hospital_staffed", false)) else 0)
+			h = h * 31 + (1 if int(fief.get("power_hours_raw", 0)) > 0 else 0)
+			h = h * 31 + (1 if int(fief.get("sawing_used_raw", 0)) > 0 else 0)
+			h = h * 31 + (1 if int(fief.get("craft_used_raw", 0)) > 0 else 0)
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
@@ -1622,7 +1633,7 @@ const MILL_BANK := 0.2           # from the river's middle to the mill's middle:
 
 ## The water mill (NRG-03) on the bank of the nearest river reach beyond the village (outside `outer` + 0.3, within a short ride of it), on the side toward
 ## the hearth, its wheel (+X) toward the water and its door toward the village. Nothing if there is no river or no level, clear ground beside one.
-func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, tint: Color, claimed: Dictionary = {}, avoid_footprints: Array = []) -> void:
+func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float, placed: Array, tint: Color, claimed: Dictionary = {}, avoid_footprints: Array = [], mesh_name: String = "water_mill") -> void:
 	if w.iron_works(s, "water_mill") <= 0:
 		return
 	var best_d := 1e9
@@ -1659,7 +1670,7 @@ func _water_mill(s: Dictionary, c: Vector2, h0: float, seed: float, outer: float
 			best_n = n
 	if best_d >= 1e9:
 		return
-	props.add("water_mill", _xf(best_p, w.height_at(best_p), atan2(best_n.y, -best_n.x), MILL_SCALE), tint)
+	props.add(mesh_name, _xf(best_p, w.height_at(best_p), atan2(best_n.y, -best_n.x), MILL_SCALE), tint)
 	_record_visual_occupancy(best_p, 0.3)
 	placed.append(best_p)
 

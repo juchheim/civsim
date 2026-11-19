@@ -36,6 +36,52 @@ public sealed class FiefUniversityTests
     }
 
     [Fact]
+    public void LRN_07_adds_a_real_scholar_post_per_monastery_only_in_Fief()
+    {
+        BronzeFixture ready = Fief("KEY-5", "LRN-05", "BEL-10", "LRN-07");
+        ready.Economy.FixtureSetTier(0, 1);
+        ready.Economy.FixtureBuildIronStructure(0, "monastery");
+        ready.RunSeasons(1);
+        Assert.Equal(1, ready.Economy.ScholarHeads(0));
+        Assert.Equal(4, ready.Economy.MonkHeads(0));
+
+        BronzeFixture before = Fief("KEY-5", "LRN-05", "BEL-10");
+        before.Economy.FixtureSetTier(0, 1);
+        before.Economy.FixtureBuildIronStructure(0, "monastery");
+        before.RunSeasons(1);
+        Assert.Equal(0, before.Economy.ScholarHeads(0));
+
+        BronzeFixture iron = BronzeFixture.CreateIron(TestPack.Pack, Seed, 100, "KEY-5", "LRN-05", "BEL-10", "LRN-07");
+        iron.Economy.FixtureSetTier(0, 1);
+        iron.Economy.FixtureBuildIronStructure(0, "monastery");
+        iron.RunSeasons(1);
+        Assert.Equal(0, iron.Economy.ScholarHeads(0));
+        Assert.Equal(0, iron.Economy.MonkHeads(0));
+    }
+
+    [Fact]
+    public void Monastery_and_LRN_07_scholar_cap_continue_deterministically_from_Fief_snapshot()
+    {
+        BronzeFixture live = Fief("KEY-5", "LRN-05", "BEL-10", "LRN-07");
+        live.Economy.FixtureSetTier(0, 1);
+        live.Economy.FixtureBuildIronStructure(0, "monastery");
+        live.RunSeasons(2);
+        Assert.Equal(2, live.Economy.ScholarHeads(0));
+        byte[] saved = Snapshot(live.Economy);
+
+        BronzeFixture resumed = Fief("KEY-5", "LRN-05", "BEL-10", "LRN-07");
+        resumed.Economy.FixtureSetTier(0, 1);
+        resumed.Economy.FixtureBuildIronStructure(0, "monastery");
+        resumed.RunSeasons(2);
+        Restore(resumed.Economy, saved);
+        Assert.Equal(2, resumed.Economy.ScholarHeads(0));
+        live.RunSeasons(3);
+        resumed.RunSeasons(3);
+        Assert.Equal(Snapshot(live.Economy), Snapshot(resumed.Economy));
+        Assert.Equal(live.Economy.ComputeChecksum(), resumed.Economy.ComputeChecksum());
+    }
+
+    [Fact]
     public void Only_scholars_at_a_Fief_university_get_the_extra_half_Insight_head()
     {
         BronzeFixture f = Fief("KEY-5", "LRN-05", "LRN-08");

@@ -1,0 +1,26 @@
+# Frozen before any F-T1 8,600-candidate match was run.
+# Selection: 20 distinct seeds sampled without replacement from [20400000, 20499999]
+# by Python Random(20261115), then sorted. No generated world or pacing outcome was screened.
+# Disjoint by range from the 20300000–20399999 7,900 fit cohort, 202610xx probes,
+# the earlier 20270403–20279994 F-T4 holdout, and the 20291001–20296000 F-T4 cohort.
+# Four seats per seed: Builder, Grower, Warlord, Sage. 130-minute natural, no-grant horizon.
+20403321
+20406066
+20412445
+20421164
+20423249
+20425212
+20431432
+20439431
+20446087
+20459281
+20462350
+20467669
+20479299
+20482415
+20486650
+20491412
+20491923
+20492058
+20494130
+20497132

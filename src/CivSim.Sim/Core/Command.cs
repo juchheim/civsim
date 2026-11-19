@@ -81,6 +81,8 @@ public enum CommandKind : ushort
     SetBuildFocus = 27,
     /// <summary>A = <see cref="CivilizationDirection"/>; a persistent preference for future autonomous decisions.</summary>
     SetCivilizationDirection = 28,
+    /// <summary>A = own origin settlement; B = own destination settlement: order a BEL-11 pilgrimage over completed connected roads.</summary>
+    Pilgrimage = 29,
 }
 
 /// <summary>How an alerted settlement responds to an ordinary raid. Surprise always forces a normal fight.</summary>

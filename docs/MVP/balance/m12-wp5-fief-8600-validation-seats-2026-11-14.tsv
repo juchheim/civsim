@@ -1,0 +1,81 @@
+seed	civ	archetype	KEY5_minute	KEY5_to_KEY6_min	status	observed_after_KEY5_min	censor_reason	match_simulated_min	match_end_reason	match_end_season	ended
+20403321	0	Builder	86.7	19.4	complete	19.4		130.0	None	none	False
+20403321	1	Grower	86.7	19.4	complete	19.4		130.0	None	none	False
+20403321	2	Warlord	102.6	17.9	complete	17.9		130.0	None	none	False
+20403321	3	Sage	96.1	22.9	complete	22.9		130.0	None	none	False
+20406066	0	Builder	94.6	20.7	complete	20.7		130.0	None	none	False
+20406066	1	Grower	98.5	20.8	complete	20.8		130.0	None	none	False
+20406066	2	Warlord	96.5	20.6	complete	20.6		130.0	None	none	False
+20406066	3	Sage	96.5	22.4	complete	22.4		130.0	None	none	False
+20412445	0	Builder	88.5	18.9	complete	18.9		130.0	None	none	False
+20412445	1	Grower	113.9		right_censored_after_KEY5	16.1	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20412445	2	Warlord	90.8	21.9	complete	21.9		130.0	None	none	False
+20412445	3	Sage	87.0	21.1	complete	21.1		130.0	None	none	False
+20421164	0	Builder	93.1	24.6	complete	24.6		130.0	None	none	False
+20421164	1	Grower	92.9	25.0	complete	25.0		130.0	None	none	False
+20421164	2	Warlord	97.7	23.1	complete	23.1		130.0	None	none	False
+20421164	3	Sage	92.9	21.9	complete	21.9		130.0	None	none	False
+20423249	0	Builder	89.4	21.0	complete	21.0		130.0	None	none	False
+20423249	1	Grower	91.5	26.7	complete	26.7		130.0	None	none	False
+20423249	2	Warlord	108.9		right_censored_after_KEY5	21.1	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20423249	3	Sage	103.8	21.8	complete	21.8		130.0	None	none	False
+20425212	0	Builder	94.5	22.1	complete	22.1		130.0	None	none	False
+20425212	1	Grower	94.7	24.7	complete	24.7		130.0	None	none	False
+20425212	2	Warlord	96.9	24.4	complete	24.4		130.0	None	none	False
+20425212	3	Sage	96.1	22.8	complete	22.8		130.0	None	none	False
+20431432	0	Builder	92.4	23.4	complete	23.4		130.0	None	none	False
+20431432	1	Grower	91.3	25.7	complete	25.7		130.0	None	none	False
+20431432	2	Warlord	96.1	19.9	complete	19.9		130.0	None	none	False
+20431432	3	Sage	89.5	20.5	complete	20.5		130.0	None	none	False
+20439431	0	Builder	95.9	23.3	complete	23.3		130.0	None	none	False
+20439431	1	Grower	91.6	28.7	complete	28.7		130.0	None	none	False
+20439431	2	Warlord	95.2	23.9	complete	23.9		130.0	None	none	False
+20439431	3	Sage	96.2	24.4	complete	24.4		130.0	None	none	False
+20446087	0	Builder	94.7	25.3	complete	25.3		130.0	None	none	False
+20446087	1	Grower	-		KEY5_not_reached		KEY-5 not reached by 130-minute horizon	130.0	None	none	False
+20446087	2	Warlord	117.6		right_censored_after_KEY5	12.4	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20446087	3	Sage	104.9	21.1	complete	21.1		130.0	None	none	False
+20459281	0	Builder	90.3	19.5	complete	19.5		130.0	None	none	False
+20459281	1	Grower	93.2	27.6	complete	27.6		130.0	None	none	False
+20459281	2	Warlord	94.1	23.0	complete	23.0		130.0	None	none	False
+20459281	3	Sage	111.1		right_censored_after_KEY5	18.9	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20462350	0	Builder	87.7	19.1	complete	19.1		130.0	None	none	False
+20462350	1	Grower	97.7	25.3	complete	25.3		130.0	None	none	False
+20462350	2	Warlord	91.7	24.8	complete	24.8		130.0	None	none	False
+20462350	3	Sage	98.7	21.6	complete	21.6		130.0	None	none	False
+20467669	0	Builder	93.2	26.8	complete	26.8		130.0	None	none	False
+20467669	1	Grower	94.4	27.8	complete	27.8		130.0	None	none	False
+20467669	2	Warlord	99.7	23.2	complete	23.2		130.0	None	none	False
+20467669	3	Sage	94.4	25.7	complete	25.7		130.0	None	none	False
+20479299	0	Builder	92.1	18.3	complete	18.3		130.0	None	none	False
+20479299	1	Grower	96.7	17.5	complete	17.5		130.0	None	none	False
+20479299	2	Warlord	95.3	23.1	complete	23.1		130.0	None	none	False
+20479299	3	Sage	100.9	18.1	complete	18.1		130.0	None	none	False
+20482415	0	Builder	92.3	19.8	complete	19.8		130.0	None	none	False
+20482415	1	Grower	88.5	27.5	complete	27.5		130.0	None	none	False
+20482415	2	Warlord	96.1	20.1	complete	20.1		130.0	None	none	False
+20482415	3	Sage	96.1	23.6	complete	23.6		130.0	None	none	False
+20486650	0	Builder	88.4	22.4	complete	22.4		130.0	None	none	False
+20486650	1	Grower	88.6	21.3	complete	21.3		130.0	None	none	False
+20486650	2	Warlord	93.6	24.4	complete	24.4		130.0	None	none	False
+20486650	3	Sage	92.2	20.9	complete	20.9		130.0	None	none	False
+20491412	0	Builder	93.5	24.5	complete	24.5		130.0	None	none	False
+20491412	1	Grower	92.0	24.0	complete	24.0		130.0	None	none	False
+20491412	2	Warlord	94.0	21.9	complete	21.9		130.0	None	none	False
+20491412	3	Sage	91.4	20.9	complete	20.9		130.0	None	none	False
+20491923	0	Builder	100.4	19.0	complete	19.0		130.0	None	none	False
+20491923	1	Grower	128.2		right_censored_after_KEY5	1.8	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20491923	2	Warlord	98.4	25.1	complete	25.1		130.0	None	none	False
+20491923	3	Sage	93.1	24.8	complete	24.8		130.0	None	none	False
+20492058	0	Builder	86.8	21.5	complete	21.5		130.0	None	none	False
+20492058	1	Grower	104.1	19.5	complete	19.5		130.0	None	none	False
+20492058	2	Warlord	90.3	21.4	complete	21.4		130.0	None	none	False
+20492058	3	Sage	89.9	19.4	complete	19.4		130.0	None	none	False
+20494130	0	Builder	99.8	19.8	complete	19.8		130.0	None	none	False
+20494130	1	Grower	122.1		right_censored_after_KEY5	7.9	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20494130	2	Warlord	112.3		right_censored_after_KEY5	17.7	KEY-6 not reached by 130-minute horizon	130.0	None	none	False
+20494130	3	Sage	101.6	22.4	complete	22.4		130.0	None	none	False
+20497132	0	Builder	93.7	21.9	complete	21.9		130.0	None	none	False
+20497132	1	Grower	90.8	22.7	complete	22.7		130.0	None	none	False
+20497132	2	Warlord	91.4	22.1	complete	22.1		130.0	None	none	False
+20497132	3	Sage	85.7	25.6	complete	25.6		130.0	None	none	False

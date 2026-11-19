@@ -1013,7 +1013,144 @@ public class StrategistDecisionTests
         noDistress.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
         (_, ActionRecorder rejected) = Decide(noDistress);
         Assert.DoesNotContain(rejected.Orders, o => o.StartsWith("war", StringComparison.Ordinal));
-        Assert.Contains(noDistress.Notes("WarRejected"), n => n.Reason.Contains("no distress evidence"));
+        Assert.Contains(noDistress.Notes("WarRejected"), n => n.Reason.Contains("no distress or siege-stock evidence"));
+    }
+
+    [Fact]
+    public void Strategist_uses_its_own_cannon_and_powder_stock_to_choose_a_walled_target()
+    {
+        Scene MakeScene(bool fief, Fix64 cannon, Fix64 powder)
+        {
+            var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+            scene.Own.FiefChapter = fief;
+            OwnSettlement origin = scene.Own.Settlements[0];
+            origin.Fighters = 30;
+            origin.Adults = 30;
+            origin.AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+            origin.CannonStock = cannon;
+            origin.PowderStock = powder;
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+            scene.ExploreAll();
+            scene.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
+            return scene;
+        }
+
+        Scene scene = MakeScene(fief: true, Fix64.One, Fix64.FromRatio(1, 4));
+        (_, ActionRecorder ready) = Decide(scene);
+        Assert.Contains("assault 6", ready.Orders);
+        Assert.Contains(scene.Notes("War"), note => note.Reason.Contains("own cannon and powder stock support a breach"));
+
+        (_, ActionRecorder shortOnPowder) = Decide(MakeScene(fief: true, Fix64.One, Fix64.FromRatio(249, 1000)));
+        Assert.DoesNotContain(shortOnPowder.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+        (_, ActionRecorder nonFief) = Decide(MakeScene(fief: false, Fix64.One, Fix64.One));
+        Assert.DoesNotContain(nonFief.Orders, order => order.StartsWith("war ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Siege_campaign_trace_is_report_only_and_explains_each_walled_target_gate()
+    {
+        Scene MakeScene(bool explore = true)
+        {
+            var scene = new Scene { Archetype = EconomyArchetype.Warlord };
+            scene.Own.FiefChapter = true;
+            OwnSettlement origin = scene.Own.Settlements[0];
+            origin.Fighters = 30;
+            origin.Adults = 30;
+            origin.AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+            origin.CannonStock = Fix64.One;
+            origin.PowderStock = Fix64.FromRatio(1, 4);
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+            if (explore) scene.ExploreAll();
+            scene.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
+            return scene;
+        }
+
+        SiegeCampaignDiagnostic Evaluate(Scene scene)
+        {
+            var rows = new List<SiegeCampaignDiagnostic>();
+            var mind = new Strategist(new AiSpec(scene.Level, scene.Archetype), DifficultyProfile.From(TestPack.Pack, scene.Level))
+                { SiegeCampaignObserverForDiagnostics = rows.Add };
+            mind.Decide(scene.View(), new ActionRecorder());
+            return Assert.Single(rows, row => row.Settlement == 6);
+        }
+
+        Scene complete = MakeScene();
+        SiegeCampaignDiagnostic eligible = Evaluate(complete);
+        Assert.True(eligible.Fresh);
+        Assert.True(eligible.WallsSeen);
+        Assert.True(eligible.Selected);
+        Assert.True(eligible.Evaluated);
+        Assert.True(eligible.ForceEligible && eligible.SupplyEligible && eligible.DistressOrStockEligible &&
+                    eligible.ReliefEligible && eligible.WinterEligible);
+        Assert.Equal("eligible", eligible.RejectionReason);
+
+        Scene weak = MakeScene();
+        weak.Own.Settlements[0].AttackingStrength = Fix64.FromInt(5);
+        Assert.Equal("force", Evaluate(weak).RejectionReason);
+
+        Scene unsupplied = MakeScene(explore: false);
+        Assert.Equal("path_supply", Evaluate(unsupplied).RejectionReason);
+
+        Scene noSignal = MakeScene();
+        noSignal.Own.Settlements[0].CannonStock = Fix64.Zero;
+        noSignal.Own.Settlements[0].PowderStock = Fix64.Zero;
+        Assert.Equal("distress_stock", Evaluate(noSignal).RejectionReason);
+
+        Scene relieved = MakeScene();
+        relieved.Site(1, settlement: 7, tile: T(35, 40), fighters: 120);
+        Assert.Equal("relief", Evaluate(relieved).RejectionReason);
+
+        Scene winter = MakeScene();
+        winter.Season = 98;
+        winter.Own.Settlements[0].LateWinterForecast = Fix64.Zero;
+        Assert.Equal("winter", Evaluate(winter).RejectionReason);
+
+        Scene unseen = MakeScene();
+        unseen.Belief.Rivals[1].Settlements[0].StoneWallsSeen = false;
+        SiegeCampaignDiagnostic visibility = Evaluate(unseen);
+        Assert.False(visibility.WallsSeen);
+        Assert.False(visibility.Evaluated);
+        Assert.Equal("target_visibility_stone_walls_not_seen", visibility.RejectionReason);
+    }
+
+    [Fact]
+    public void Siege_campaign_trace_does_not_change_strategist_orders_or_hashed_state()
+    {
+        Scene plainScene = new() { Archetype = EconomyArchetype.Warlord };
+        Scene tracedScene = new() { Archetype = EconomyArchetype.Warlord };
+        foreach (Scene scene in new[] { plainScene, tracedScene })
+        {
+            scene.Own.FiefChapter = true;
+            OwnSettlement origin = scene.Own.Settlements[0];
+            origin.Fighters = 30;
+            origin.Adults = 30;
+            origin.AttackingStrength = Fix64.FromInt(30) * Fix64.FromRatio(27, 10);
+            origin.CannonStock = Fix64.One;
+            origin.PowderStock = Fix64.FromRatio(1, 4);
+            scene.Own.Others[1].Relations = scene.Belief.Rivals[1].Relations = -60;
+            scene.ExploreAll();
+            scene.Site(1, settlement: 6, tile: T(34, 40), fighters: 6, stoneWalls: true);
+        }
+
+        var plain = new Strategist(new AiSpec(plainScene.Level, plainScene.Archetype), DifficultyProfile.From(TestPack.Pack, plainScene.Level));
+        var traced = new Strategist(new AiSpec(tracedScene.Level, tracedScene.Archetype), DifficultyProfile.From(TestPack.Pack, tracedScene.Level));
+        int rows = 0;
+        traced.SiegeCampaignObserverForDiagnostics = _ => rows++;
+        var plainActions = new ActionRecorder();
+        var tracedActions = new ActionRecorder();
+        plain.Decide(plainScene.View(), plainActions);
+        traced.Decide(tracedScene.View(), tracedActions);
+
+        static ulong StateHash(Strategist mind)
+        {
+            var hasher = new StateHasher();
+            mind.Hash(ref hasher);
+            return hasher.Finish();
+        }
+
+        Assert.True(rows > 0);
+        Assert.Equal(plainActions.Orders, tracedActions.Orders);
+        Assert.Equal(StateHash(plain), StateHash(traced));
     }
 
     [Fact]

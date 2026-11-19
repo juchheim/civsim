@@ -115,12 +115,14 @@ projects:
     era: 5
     type: M
     status: draft
+    cost: 12800
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [TRD-08, NUM-09]
     effects:
       - {kind: mod, stat: trade_profit, op: mult, value: 1.2}
       - {kind: mod, stat: admin_waste, op: mult, value: 0.9}
       - {kind: rule, text: "KEY-6 prerequisite."}
-    practice: [{action: count_stores, share: 100}]
+    practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
     flavor: "Every debit finds its twin."
     moment: "A clerk enters a sum on both pages of a ledger."
   - id: TRD-10

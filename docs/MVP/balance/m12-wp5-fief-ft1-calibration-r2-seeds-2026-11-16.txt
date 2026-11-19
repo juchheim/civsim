@@ -1,0 +1,27 @@
+# F-T1 calibration rerun 2 seed manifest.
+# Replaces consumed seed from the original calibration block after a failed provenance attempt.
+# One fresh seed sampled without replacement from [20500000, 20599999] using random.Random(20261117)
+# after excluding numeric seeds in local WP balance seed/manifest files and the consumed seed.
+# No world, geography, or pacing outcome screening was performed.
+# Calibration only; not acceptance evidence or the final holdout.
+# 20 whole-match worlds x four seats each; 130-minute natural Fief matches.
+20501724
+20519098
+20524750
+20527573
+20528045
+20542167
+20544215
+20547720
+20553022
+20565793
+20566091
+20566313
+20568340
+20575287
+20575326
+20582332
+20583288
+20584815
+20590125
+20599629

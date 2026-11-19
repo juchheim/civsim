@@ -30,6 +30,9 @@ internal static class IT6FuelGate
 /// </summary>
 internal static class IronFuelCheck
 {
+    /// <summary>Fit screen only (F-T3): overrides the Fief furnace's bloomery labor factor at full coverage for every run in this process.</summary>
+    private static Fix64? LaborFactorOverride;
+
     /// <summary>I-T6's ceiling on the share of civilian work the metal chain may take.</summary>
     private static readonly Fix64 ShareCeiling = Fix64.FromRatio(15, 100);
     private sealed record Scenario(string Name, bool Iron, bool Coppice, int ForestTiles, bool LoseIronAtMidpoint,
@@ -82,6 +85,8 @@ internal static class IronFuelCheck
         public Fix64 MaxTwelveSeasonLabor, MaxTwelveSeasonMetalLabor;
         public int MaxTwelveSeasonEnd;
         public int TwelveSeasonWindows;
+        public int MatureTwelveSeasonCandidates;
+        public int TwelveSeasonNoExposureWindows;
         public Fix64 FirstTwelveSeasonShare, FirstTwelveSeasonLabor, FirstTwelveSeasonMetalLabor;
         public int FirstTwelveSeasonEnd;
         public Fix64 MaxLateTwelveSeasonShare, MaxLateTwelveSeasonLabor, MaxLateTwelveSeasonMetalLabor;
@@ -90,11 +95,16 @@ internal static class IronFuelCheck
         public int IronEraFuelDemandSeasons, IronEraFuelShortSeasons;
         public Fix64 IronEraCharcoalPlan, IronEraCharcoalUnmet;
         public Fix64 ForestRegrowth, MetalCharcoalWood, MetalStandingRemoval, TotalStandingRemoval, WoodBalanceResidual;
+        public Fix64 FiefBloomeryIronProduced, FiefWroughtProduced, FiefOreMined;
         public int IronCampBuiltSeason, IronToolsUnlockedSeason, IronRouteActivatedSeason, IronFirstKitSeason;
         public int ForestClearThresholdCrossings;
         public int T12UnlockSeason;
         public int T11ToT12Upgrades;
         public IT3WearDistribution? WearAtRoute12, WearAfterT12Unlock, WearAtEnd;
+        public readonly List<string> FiefSeasonTrace = new();
+        public readonly List<string> FiefT3Windows = new();
+        public readonly List<bool> FiefNoFuelBySeason = new();
+        public Fix64 FurnaceCharcoalFactor;
         public ulong Seed;
     }
 
@@ -114,6 +124,8 @@ internal static class IronFuelCheck
         bool spatialOnly = false;
         bool it3Wear = false;
         bool fief = false;
+        bool traceFiefSeasons = false;
+        var furnaceCharcoalCandidates = new List<Fix64>();
         string? scenarioName = null;
         for (int i = 0; i < args.Length; i++)
         {
@@ -123,6 +135,17 @@ internal static class IronFuelCheck
                 case "--spatial-only": spatialOnly = true; break;
                 case "--it3-wear": it3Wear = true; break;
                 case "--fief": fief = true; break;
+                case "--furnace-labor-factor": LaborFactorOverride = Fix64.Parse(args[++i]); break;
+                case "--trace-fief-seasons": traceFiefSeasons = true; break;
+                case "--furnace-charcoal-candidates":
+                    foreach (string value in args[++i].Split(','))
+                    {
+                        Fix64 factor = Fix64.Parse(value);
+                        if (factor < Fix64.One || factor >= Fix64.FromInt(2))
+                            throw new ArgumentException("Furnace charcoal candidate factors must be at least 1 and less than 2.");
+                        furnaceCharcoalCandidates.Add(factor);
+                    }
+                    break;
                 case "--scenario": scenarioName = args[++i]; break;
                 case "--seeds":
                     seeds.Clear();
@@ -134,17 +157,27 @@ internal static class IronFuelCheck
             }
         }
         if (packPath is null) throw new ArgumentException("iron-fuel needs --pack FILE (civsim build-pack --out FILE).");
+        if (traceFiefSeasons && !fief) throw new ArgumentException("--trace-fief-seasons requires --fief.");
+        if (furnaceCharcoalCandidates.Count > 0 && !fief)
+            throw new ArgumentException("--furnace-charcoal-candidates requires --fief.");
         if (fief && !peopleSpecified) people = 200; // A mature Fief smelting town avoids startup-only camp overhead dominating the work-share gate.
         if (it3Wear && !seasonsSpecified) seasons = 240;
         else if (fief && !seasonsSpecified) seasons = 64;
         if (seasons < 8 || seasons % 2 != 0) throw new ArgumentException("--seasons must be an even number of at least 8.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName, it3Wear: it3Wear, fief: fief));
+        if (furnaceCharcoalCandidates.Count == 0)
+            Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName,
+                it3Wear: it3Wear, fief: fief, traceFiefSeasons: traceFiefSeasons));
+        else
+            foreach (Fix64 factor in furnaceCharcoalCandidates)
+                Console.Write(Report(pack, seeds, seasons, people, spatialOnly: spatialOnly, scenarioName: scenarioName,
+                    it3Wear: it3Wear, fief: fief, traceFiefSeasons: traceFiefSeasons, furnaceCharcoalFactor: factor));
         return 0;
     }
 
     internal static string Report(ContentPack pack, IReadOnlyList<ulong> seeds, int seasons, int people,
-        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null, bool it3Wear = false, bool fief = false)
+        int scenarioLimit = int.MaxValue, bool spatialOnly = false, string? scenarioName = null, bool it3Wear = false,
+        bool fief = false, bool traceFiefSeasons = false, Fix64? furnaceCharcoalFactor = null)
     {
         Scenario[] selectedScenarios = (fief ? FiefScenarios : Scenarios)
             .Where(sc => scenarioName is null || string.Equals(sc.Name, scenarioName, StringComparison.OrdinalIgnoreCase))
@@ -155,6 +188,8 @@ internal static class IronFuelCheck
         void L(string text = "") => sb.Append(text).Append('\n');
         int window = seasons / 2;
         L($"iron-fuel{(fief ? " --fief" : spatialOnly ? " --spatial-only" : "")}: {seeds.Count} seeds, {seasons} seasons ({window}-season steady-state window), fixed {people}-person fixture settlement");
+        if (fief)
+            L($"Fief furnace charcoal factor at full powered coverage: {(furnaceCharcoalFactor?.ToDoubleForDisplay() ?? 1d):F2}; batch output, ore input, bloomery labor multiplier, power allocation, and denominator formulas unchanged. Actual cumulative production may respond to fuel availability.");
         L(fief
             ? $"F-T3: Fief furnace versus matched no-effect control on low wood; 12-season work share <= {Pct(ShareCeiling)}, fuel short <= 5%, no furnace-attributed clearing."
             : spatialOnly
@@ -175,7 +210,7 @@ internal static class IronFuelCheck
             int skipped = 0;
             foreach (ulong seed in seeds)
             {
-                try { rows.Add(RunOne(pack, seed, sc, seasons, people)); }
+                try { rows.Add(RunOne(pack, seed, sc, seasons, people, traceFiefSeasons, furnaceCharcoalFactor)); }
                 catch (InvalidOperationException) { skipped++; } // the fixture needs 16 land tiles in range and land four tiles out
             }
             if (rows.Count == 0) { L($"{sc.Name,-19} no usable seeds"); continue; }
@@ -197,8 +232,41 @@ internal static class IronFuelCheck
             Fix64 meanKits = Mean(rows, r => r.IronKitShare);
             Fix64 meanBloom = Mean(rows, r => r.Bloom + r.Wrought);
             L($"{sc.Name,-19} {rows.Count + (skipped > 0 ? "/" + seeds.Count : ""),5}  {Pct(meanShare),7} / {Pct(maxShare),-7}       {meanWood.ToDoubleForDisplay(),5:F2} L       {meanRegrowth.ToDoubleForDisplay(),5:F2} L       {meanAllCuts.ToDoubleForDisplay(),5:F2} L      {meanResidual.ToDoubleForDisplay(),6:F3} L       {meanMetalCharcoal.ToDoubleForDisplay(),5:F2} L         {meanMetalCut.ToDoubleForDisplay(),5:F2} L          {meanRatio.ToDoubleForDisplay(),5:F2} / {minRatio.ToDoubleForDisplay(),-5:F2}        {meanSteady.ToDoubleForDisplay(),5:F2}     {Pct(meanShort),5}/{Pct(maxShort),-5}      {Pct(meanKitsAt12),4}/{Pct(meanKitsAfter12Route),4}/{Pct(meanKits),4}     {meanBloom.ToDoubleForDisplay():F2}");
+            if (sc.Fief && sc.Furnace)
+                foreach (Row row in rows.OrderBy(r => r.Seed))
+                {
+                    int first = Math.Max(1, row.MaxTwelveSeasonEnd - 11);
+                    int noFuel = row.FiefNoFuelBySeason.Skip(first - 1).Take(12).Count(value => value);
+                    L($"  T3 candidate seed={row.Seed} factor={row.FurnaceCharcoalFactor.ToDoubleForDisplay():F2}; " +
+                      $"max-window s{first}–{row.MaxTwelveSeasonEnd} work={Pct(row.MaxTwelveSeasonShare)} " +
+                      $"({row.MaxTwelveSeasonMetalLabor.ToDoubleForDisplay():F2}/{row.MaxTwelveSeasonLabor.ToDoubleForDisplay():F2}); " +
+                      $"NoFuel={noFuel}/12 ({Pct(Fix64.FromRatio(noFuel, 12))}); full-run forest crossings={row.ForestClearThresholdCrossings}; " +
+                      $"late-window material residual={row.WoodBalanceResidual.ToDoubleForDisplay():F3} L; " +
+                      $"cumulative bloomery iron/wrought output={row.FiefBloomeryIronProduced.ToDoubleForDisplay():F2}/{row.FiefWroughtProduced.ToDoubleForDisplay():F2}; " +
+                      $"ore mined={row.FiefOreMined.ToDoubleForDisplay():F2} L; " +
+                      $"final iron/wrought stock={row.Bloom.ToDoubleForDisplay():F2}/{row.Wrought.ToDoubleForDisplay():F2}");
+                }
             bool shareOk = maxShare <= ShareCeiling;
             workVerdicts.Add($"{sc.Name}: work share {(shareOk ? "within" : "ABOVE")} {Pct(ShareCeiling)} on every seed (max {Pct(maxShare)})");
+            if (traceFiefSeasons && sc.Fief)
+            {
+                L();
+                foreach (Row traced in rows.OrderBy(row => row.Seed))
+                {
+                    foreach (string windowLine in traced.FiefT3Windows) L(windowLine);
+                    L($"F_T3_ARM scenario={sc.Name} seed={traced.Seed} first_kit_season={traced.IronFirstKitSeason} " +
+                      $"mature_candidates={traced.MatureTwelveSeasonCandidates} measured_windows={traced.TwelveSeasonWindows} " +
+                      $"no_exposure_windows={traced.TwelveSeasonNoExposureWindows} fuel_demand_seasons={traced.IronEraFuelDemandSeasons} " +
+                      $"fuel_short_seasons={traced.IronEraFuelShortSeasons} fuel_short_rate_raw={FuelShortRate(traced).Raw} " +
+                      $"planned_charcoal_raw={traced.IronEraCharcoalPlan.Raw} unmet_charcoal_raw={traced.IronEraCharcoalUnmet.Raw} " +
+                      $"fuel_unmet_share_raw={FuelUnmetShare(traced).Raw} no_fuel_share_raw={traced.FuelShortShare.Raw} " +
+                      $"forest_clear_crossings={traced.ForestClearThresholdCrossings} wood_balance_residual_raw={traced.WoodBalanceResidual.Raw}");
+                }
+                L();
+                L($"Fief seasonal causal trace ({sc.Name}; full-coverage charcoal factor={rows[0].FurnaceCharcoalFactor.ToDoubleForDisplay():F2}): seed season labor=total/metal; assigned mine/fuel/smelt/camp; idle subtraction; actual bloomery labor; explicit fuel/ore haul; furnace-active craft-coverage; bloomery/wrought outputs; stocks start->end (ore,charcoal,iron,wrought,steel,T11,T12)");
+                foreach (Row traced in rows.OrderBy(row => row.Seed))
+                    foreach (string traceLine in traced.FiefSeasonTrace) L($"  {traceLine}");
+            }
         }
         L();
         L("I-T6 planned-charcoal shortfall (final half; demand-seasons count only seasons with a positive charcoal-production plan after existing charcoal stock):");
@@ -448,7 +516,8 @@ internal static class IronFuelCheck
         return sb.ToString();
     }
 
-    private static Row RunOne(ContentPack pack, ulong seed, Scenario sc, int seasons, int people)
+    private static Row RunOne(ContentPack pack, ulong seed, Scenario sc, int seasons, int people, bool traceFiefSeasons,
+        Fix64? furnaceCharcoalFactor)
     {
         var projects = new List<string> { "MET-08", "MET-09" };
         if (sc.Carts) projects.Add("TRN-05");
@@ -467,11 +536,15 @@ internal static class IronFuelCheck
         LivingEconomyModel e = f.Economy;
         e.B13WoodTraceEnabled = true;
         e.IT6AccountingTraceEnabled = sc.Iron;
+        e.IT6FiefSeasonTraceEnabled = traceFiefSeasons && sc.Fief;
         if (sc.Fief)
         {
             e.FixtureSetIronWork(BronzeFixture.Settlement, "water_mill", 1);
             e.FixtureSetIronWork(BronzeFixture.Settlement, "blast_furnace", 1);
             e.FurnaceEffectEnabled = sc.Furnace;
+            if (sc.Furnace && LaborFactorOverride is { } laborFactor) e.FurnaceLaborFactorOverride = laborFactor;
+            if (sc.Furnace && furnaceCharcoalFactor is { } factor)
+                e.FurnaceCharcoalFactorOverride = factor;
         }
         if (sc.MixedT12) e.FixtureStock(BronzeFixture.Settlement, "G-TOOL11", Fix64.FromInt(40));
         int window = seasons / 2;
@@ -479,12 +552,15 @@ internal static class IronFuelCheck
         HashSet<int> outerForestTiles = new();
         ForestTrace woodStart = CaptureReachableWood(e, -1, outerForestTiles, charcoalReach);
         var row = new Row { Seed = seed, WoodStart = woodStart.Standing };
+        row.FurnaceCharcoalFactor = furnaceCharcoalFactor ?? Fix64.One;
         MetalStatistics mid = default;
         IT6AccountingSnapshot fuelMid = default;
         ForestTrace woodMid = default!, woodEnd = default!;
         int fuelShort = 0;
         int ironCampBuiltSeason = 0, ironToolsUnlockedSeason = 0, ironRouteActivatedSeason = 0, ironFirstKitSeason = 0;
         MetalStatistics precedingStats = e.MetalStats(0);
+        IT6AccountingSnapshot precedingTrace = traceFiefSeasons ? e.CaptureIT6Accounting(0) : default;
+        IT6FiefMaterialStocks precedingStocks = traceFiefSeasons ? e.CaptureIT6FiefMaterialStocks(BronzeFixture.Settlement) : default;
         Fix64 twelveSeasonLabor = Fix64.Zero, twelveSeasonMetalLabor = Fix64.Zero;
         Fix64[] seasonLabor = new Fix64[12], seasonMetalLabor = new Fix64[12];
         for (int s = 0; s < seasons; s++)
@@ -492,6 +568,19 @@ internal static class IronFuelCheck
             if (sc.LoseIronAtMidpoint && s == window && f.IronTile >= 0) e.FixtureExhaust(f.IronTile);
             f.RunSeasons(1);
             MetalStatistics currentStats = e.MetalStats(0);
+            if (sc.Fief) row.FiefNoFuelBySeason.Add(e.Metal(BronzeFixture.Settlement).Reason == MethodFallbackReason.NoFuel);
+            IT6AccountingSnapshot currentTrace = traceFiefSeasons ? e.CaptureIT6Accounting(0) : default;
+            IT6FiefMaterialStocks currentStocks = traceFiefSeasons ? e.CaptureIT6FiefMaterialStocks(BronzeFixture.Settlement) : default;
+            if (traceFiefSeasons && sc.Fief)
+            {
+                row.FiefBloomeryIronProduced += currentTrace.BloomeryIronOutput - precedingTrace.BloomeryIronOutput;
+                row.FiefWroughtProduced += currentTrace.ForgeWroughtOutput - precedingTrace.ForgeWroughtOutput;
+                row.FiefOreMined += currentTrace.IronOreMined - precedingTrace.IronOreMined;
+                (bool furnaceActive, Fix64 craftCoverage) = e.CaptureFiefFurnaceDiagnostic(BronzeFixture.Settlement);
+                row.FiefSeasonTrace.Add(FormatFiefSeasonTrace(seed, s + 1, currentStats.Labor - precedingStats.Labor,
+                    currentStats.MetalLabor - precedingStats.MetalLabor, currentTrace, precedingTrace,
+                    currentStocks, precedingStocks, furnaceActive, craftCoverage, row.FurnaceCharcoalFactor));
+            }
             int slot = s % seasonLabor.Length;
             if (s >= seasonLabor.Length)
             {
@@ -503,6 +592,8 @@ internal static class IronFuelCheck
             twelveSeasonLabor += seasonLabor[slot];
             twelveSeasonMetalLabor += seasonMetalLabor[slot];
             precedingStats = currentStats;
+            precedingTrace = currentTrace;
+            precedingStocks = currentStocks;
             if (sc.MixedT12 && s == seasons / 2 - 1)
             {
                 e.FixtureComplete(0, "MET-10");
@@ -524,33 +615,45 @@ internal static class IronFuelCheck
             row.IronRouteActivatedSeason = ironRouteActivatedSeason;
             if (sc.Fief && s >= seasonLabor.Length - 1 && ironFirstKitSeason > 0 && s + 1 >= ironFirstKitSeason + 12)
             {
-                Fix64 share = twelveSeasonLabor > Fix64.Zero ? twelveSeasonMetalLabor / twelveSeasonLabor : Fix64.Zero;
-                if (row.TwelveSeasonWindows == 0)
+                row.MatureTwelveSeasonCandidates++;
+                string windowStatus = twelveSeasonLabor > Fix64.Zero ? "measured" : "no_exposure";
+                int noFuelSeasons = row.FiefNoFuelBySeason.Skip(s + 1 - seasonLabor.Length).Take(seasonLabor.Length).Count(x => x);
+                row.FiefT3Windows.Add($"F_T3_WINDOW scenario={sc.Name} seed={seed} start={s + 1 - seasonLabor.Length + 1} end={s + 1} " +
+                    $"status={windowStatus} labor_raw={twelveSeasonLabor.Raw} metal_raw={twelveSeasonMetalLabor.Raw} no_fuel_seasons={noFuelSeasons}");
+                if (twelveSeasonLabor <= Fix64.Zero)
                 {
-                    row.FirstTwelveSeasonShare = share;
-                    row.FirstTwelveSeasonLabor = twelveSeasonLabor;
-                    row.FirstTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
-                    row.FirstTwelveSeasonEnd = s + 1;
+                    row.TwelveSeasonNoExposureWindows++;
                 }
-                if (row.TwelveSeasonWindows == 0 || share > row.MaxTwelveSeasonShare)
+                else
                 {
-                    row.MaxTwelveSeasonShare = share;
-                    row.MaxTwelveSeasonLabor = twelveSeasonLabor;
-                    row.MaxTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
-                    row.MaxTwelveSeasonEnd = s + 1;
-                }
-                if (s + 1 >= window + 12)
-                {
-                    if (row.LateTwelveSeasonWindows == 0 || share > row.MaxLateTwelveSeasonShare)
+                    Fix64 share = twelveSeasonMetalLabor / twelveSeasonLabor;
+                    if (row.TwelveSeasonWindows == 0)
                     {
-                        row.MaxLateTwelveSeasonShare = share;
-                        row.MaxLateTwelveSeasonLabor = twelveSeasonLabor;
-                        row.MaxLateTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
-                        row.MaxLateTwelveSeasonEnd = s + 1;
+                        row.FirstTwelveSeasonShare = share;
+                        row.FirstTwelveSeasonLabor = twelveSeasonLabor;
+                        row.FirstTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                        row.FirstTwelveSeasonEnd = s + 1;
                     }
-                    row.LateTwelveSeasonWindows++;
+                    if (row.TwelveSeasonWindows == 0 || share > row.MaxTwelveSeasonShare)
+                    {
+                        row.MaxTwelveSeasonShare = share;
+                        row.MaxTwelveSeasonLabor = twelveSeasonLabor;
+                        row.MaxTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                        row.MaxTwelveSeasonEnd = s + 1;
+                    }
+                    if (s + 1 >= window + 12)
+                    {
+                        if (row.LateTwelveSeasonWindows == 0 || share > row.MaxLateTwelveSeasonShare)
+                        {
+                            row.MaxLateTwelveSeasonShare = share;
+                            row.MaxLateTwelveSeasonLabor = twelveSeasonLabor;
+                            row.MaxLateTwelveSeasonMetalLabor = twelveSeasonMetalLabor;
+                            row.MaxLateTwelveSeasonEnd = s + 1;
+                        }
+                        row.LateTwelveSeasonWindows++;
+                    }
+                    row.TwelveSeasonWindows++;
                 }
-                row.TwelveSeasonWindows++;
             }
             if (s == window - 1)
             {
@@ -604,6 +707,35 @@ internal static class IronFuelCheck
         row.Bloom = e.GoodStock(BronzeFixture.Settlement, "G-IRON");
         row.Wrought = e.GoodStock(BronzeFixture.Settlement, "G-WROUGHT");
         return row;
+    }
+
+    private static string FormatFiefSeasonTrace(ulong seed, int season, Fix64 totalLabor, Fix64 metalLabor,
+        IT6AccountingSnapshot current, IT6AccountingSnapshot previous,
+        IT6FiefMaterialStocks stocks, IT6FiefMaterialStocks priorStocks, bool furnaceActive, Fix64 craftCoverage, Fix64 charcoalFactor)
+    {
+        static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F3", CultureInfo.InvariantCulture);
+        Fix64 dMine = current.MineLabor - previous.MineLabor;
+        Fix64 dFuel = current.CharcoalLabor - previous.CharcoalLabor;
+        Fix64 dSmelt = current.SmeltLabor - previous.SmeltLabor;
+        Fix64 dCamp = current.CampLabor - previous.CampLabor;
+        Fix64 dIdle = current.IdleMetalLabor - previous.IdleMetalLabor;
+        Fix64 dBloomeryLabor = current.BloomeryLabor - previous.BloomeryLabor;
+        Fix64 dCharcoalHaul = current.CharcoalHaulLabor - previous.CharcoalHaulLabor;
+        Fix64 dOreHaul = current.IronOreHaulLabor - previous.IronOreHaulLabor;
+        Fix64 dIronOreMined = current.IronOreMined - previous.IronOreMined;
+        Fix64 dRecipeCharcoal = current.IronRecipeCharcoal - previous.IronRecipeCharcoal;
+        Fix64 dBloomeryIron = current.BloomeryIronOutput - previous.BloomeryIronOutput;
+        Fix64 dWrought = current.ForgeWroughtOutput - previous.ForgeWroughtOutput;
+        return $"seed={seed} s{season} factor={F(charcoalFactor)} labor={F(totalLabor)}/{F(metalLabor)} " +
+               $"assigned(mine/fuel/smelt/camp)={F(dMine)}/{F(dFuel)}/{F(dSmelt)}/{F(dCamp)} idle-sub={F(dIdle)} " +
+               $"bloomery-labor={F(dBloomeryLabor)} explicit-haul(fuel/ore)={F(dCharcoalHaul)}/{F(dOreHaul)} " +
+               $"ore-mined={F(dIronOreMined)} recipe-charcoal={F(dRecipeCharcoal)} " +
+               $"furnace={furnaceActive} craft-coverage={F(craftCoverage)} output(iron/wrought)={F(dBloomeryIron)}/{F(dWrought)} " +
+               $"stock(ore,charcoal,iron,wrought,steel,T11,T12)=" +
+               $"{F(priorStocks.IronOre)}->{F(stocks.IronOre)},{F(priorStocks.Charcoal)}->{F(stocks.Charcoal)}," +
+               $"{F(priorStocks.Iron)}->{F(stocks.Iron)},{F(priorStocks.Wrought)}->{F(stocks.Wrought)}," +
+               $"{F(priorStocks.Steel)}->{F(stocks.Steel)},{F(priorStocks.Kit11)}->{F(stocks.Kit11)}," +
+               $"{F(priorStocks.Kit12)}->{F(stocks.Kit12)}";
     }
 
     private static ForestTrace CaptureReachableWood(LivingEconomyModel economy, int season, HashSet<int> outerForestTiles, int reach)

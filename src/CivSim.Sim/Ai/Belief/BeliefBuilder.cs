@@ -151,6 +151,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
         foreach (int s in _own) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(s), routine, season, countClaims: true);
         ExploreWithScouts(belief, pol);
         UpdateKnownDeposits(belief.Civ, belief.Map, world.Generated, pol, res, season);
+        if (world.Economy.FiefChain)
+            belief.HorseSource = ObserveHorseSourceKnowledge(belief.Map, world.Economy, belief.HorseSource);
 
         // ---- public record and diplomacy ---------------------------------------------------------------------
         Array.Clear(_firsts);
@@ -416,6 +418,24 @@ public sealed class BeliefBuilder : IBeliefBuilder
             if (!ownComputed) { ownWeapon = ComputeOwn(pol, civ); ownComputed = true; }
             Estimate(r, pol, season, details, rivals, ownWeapon, ownEra, width);
         }
+    }
+
+    /// <summary>Observes only live wild horse herds whose current tile is already explored.</summary>
+    public static HorseSourceKnowledge ObserveHorseSourceKnowledge(MapKnowledge map, LivingEconomyModel economy,
+        HorseSourceKnowledge previous)
+    {
+        if (previous == HorseSourceKnowledge.Seen) return previous;
+        bool allExplored = true;
+        for (int tile = 0; tile < map.TileCount; tile++)
+            if (!map.IsExplored(tile)) { allExplored = false; break; }
+        for (int i = 0; i < economy.WildHerdCount; i++)
+        {
+            WildHerdView herd = economy.WildHerd(i);
+            if (!map.IsExplored(herd.CurrentTile)) continue;
+            if (herd.Species == HerdSpecies.Horse && herd.AnimalCount > Fix64.Zero)
+                return HorseSourceKnowledge.Seen;
+        }
+        return allExplored ? HorseSourceKnowledge.ConfirmedAbsent : HorseSourceKnowledge.Unknown;
     }
 
     private void UpdateKnownDeposits(int civ, MapKnowledge map, GeneratedWorld generated, PoliticsSystem politics,

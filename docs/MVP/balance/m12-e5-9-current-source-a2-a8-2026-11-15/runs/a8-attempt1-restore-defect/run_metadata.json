@@ -1,0 +1,110 @@
+{
+  "gate": "a8-whole-match",
+  "command": [
+    "dotnet",
+    "test",
+    "src/CivSim.Tests/CivSim.Tests.csproj",
+    "-c",
+    "Release",
+    "--no-build",
+    "--filter",
+    "FullyQualifiedName~FiefWholeMatchFogFairnessTests"
+  ],
+  "env": {
+    "CIVSIM_A8_PACK": "/private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/frozen/numeric-e5.pack",
+    "CIVSIM_A8_OUT": "/private/tmp/claude-501/-Users-ejuchheim--claude-spares-spare-CuLIlA/5b70c709-f986-4985-b1f7-c35ad1083c59/scratchpad/runs/a8-whole-match",
+    "CIVSIM_A8_SEEDS": "20261019,20261024,20261029,20261034,20261039,20261044,20261049,20261054",
+    "CIVSIM_A8_INTERVAL": "16",
+    "CIVSIM_A8_MINUTES": "64",
+    "CIVSIM_A8_DOP": "3"
+  },
+  "preflight": {
+    "snapshot": {
+      "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+      "mismatchedFiles": [],
+      "contentSrcGameAggregateSha256": "7decf87ac45f924efeedb8fb28cd87c8f8d0476b93b438344c931c07fa4947d6",
+      "contentSrcGameFileCount": 1040,
+      "contentSrcAggregateSha256": "bee3fb3a8f45d68010a649f76b71ecb1b191a884742eeb8118d2b90c64a69dba",
+      "contentSrcFileCount": 446,
+      "ok": true
+    },
+    "binaries": {
+      "harnessDll": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f",
+      "simDll": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+      "pack": "f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a",
+      "binDirFiles": {
+        "CivSim.Harness": "603ddd409fb915d91ea2d5cf3ff1a2022a57b4d9740ff7f673295d88ce5f6745",
+        "CivSim.Harness.deps.json": "d034d78b5295f7a7e7b87ff68d1ef015a086352d129dcb75148483ceb8578247",
+        "CivSim.Harness.dll": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f",
+        "CivSim.Harness.pdb": "b261a58c45b7da161fb78b596ce5e8a495f91d38de5c749d506906b1e3f5d928",
+        "CivSim.Harness.runtimeconfig.json": "52eccff0b97c55480c64b3a6d8dcb244f5fd098d0645dba8581d3e2190d4ea4a",
+        "CivSim.Sim.dll": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+        "CivSim.Sim.pdb": "ccc475db979571bcb5e8417193d35e88c689374ae6edf5e93da36430170a4897"
+      },
+      "ok": true
+    },
+    "liveSharedTree": {
+      "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+      "contentSrcGameAggregateSha256": "7decf87ac45f924efeedb8fb28cd87c8f8d0476b93b438344c931c07fa4947d6",
+      "contentSrcAggregateSha256": "bee3fb3a8f45d68010a649f76b71ecb1b191a884742eeb8118d2b90c64a69dba",
+      "equalsFrozen": true
+    },
+    "checkedAt": "2026-11-15T18:10:42.405645-06:00"
+  },
+  "testBinaries": {
+    "CivSim.Tests.dll": "e9f49a405a5a918256e55572d6ffdf6634cc7328595f9b85feb13c294edf17ee",
+    "CivSim.Sim.dll": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+    "CivSim.Harness.dll": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f"
+  },
+  "testSourceSha256": "d913722117bf0e0f9b6098ec67834237fb8dac29a73a73bb92138a61ea51e8d3",
+  "seeds": [
+    20261019,
+    20261024,
+    20261029,
+    20261034,
+    20261039,
+    20261044,
+    20261049,
+    20261054
+  ],
+  "status": "completed",
+  "postrun": {
+    "snapshot": {
+      "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+      "mismatchedFiles": [],
+      "contentSrcGameAggregateSha256": "7decf87ac45f924efeedb8fb28cd87c8f8d0476b93b438344c931c07fa4947d6",
+      "contentSrcGameFileCount": 1040,
+      "contentSrcAggregateSha256": "bee3fb3a8f45d68010a649f76b71ecb1b191a884742eeb8118d2b90c64a69dba",
+      "contentSrcFileCount": 446,
+      "ok": true
+    },
+    "binaries": {
+      "harnessDll": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f",
+      "simDll": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+      "pack": "f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a",
+      "binDirFiles": {
+        "CivSim.Harness": "603ddd409fb915d91ea2d5cf3ff1a2022a57b4d9740ff7f673295d88ce5f6745",
+        "CivSim.Harness.deps.json": "d034d78b5295f7a7e7b87ff68d1ef015a086352d129dcb75148483ceb8578247",
+        "CivSim.Harness.dll": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f",
+        "CivSim.Harness.pdb": "b261a58c45b7da161fb78b596ce5e8a495f91d38de5c749d506906b1e3f5d928",
+        "CivSim.Harness.runtimeconfig.json": "52eccff0b97c55480c64b3a6d8dcb244f5fd098d0645dba8581d3e2190d4ea4a",
+        "CivSim.Sim.dll": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+        "CivSim.Sim.pdb": "ccc475db979571bcb5e8417193d35e88c689374ae6edf5e93da36430170a4897"
+      },
+      "ok": true
+    },
+    "liveSharedTree": {
+      "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+      "contentSrcGameAggregateSha256": "7decf87ac45f924efeedb8fb28cd87c8f8d0476b93b438344c931c07fa4947d6",
+      "contentSrcAggregateSha256": "bee3fb3a8f45d68010a649f76b71ecb1b191a884742eeb8118d2b90c64a69dba",
+      "equalsFrozen": true
+    },
+    "checkedAt": "2026-11-15T18:19:16.753757-06:00"
+  },
+  "elapsedSeconds": 514.3,
+  "unchangedDuringRun": true,
+  "output": {
+    "exitCode": 1,
+    "sha256": "118918fd40d888765ce72346b0ba6dd6a7068be29e7fcc6dd7bd15d6c7c5c887"
+  }
+}

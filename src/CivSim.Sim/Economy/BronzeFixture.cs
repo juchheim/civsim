@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Research;
 using CivSim.Sim.World;
 
 namespace CivSim.Sim.Economy;
@@ -42,6 +43,8 @@ internal sealed class BronzeFixture
     public int CopperTile { get; }
     public int TinTile { get; }
     public int ArsenicTile { get; }
+    public int SaltpeterTile { get; private set; } = -1;
+    public int SulfurTile { get; private set; } = -1;
     /// <summary>A surface copper deposit beyond the range (5–6 tiles out), for mining camps; -1 when the map has no land there.</summary>
     public int CampTile { get; }
     public int[] ForestTiles { get; }
@@ -88,6 +91,22 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
             extraProjects, fiefChain: true);
 
+    public static BronzeFixture CreateFiefWithPowderDeposits(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true,
+            ironCamp: true, extraProjects, fiefChain: true, fiefChemistryDeposits: true);
+
+    public static BronzeFixture CreateFiefWithPowderCamp(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true,
+            ironCamp: true, extraProjects, fiefChain: true, fiefChemistryDeposits: true, fiefChemistryCamp: true);
+
+    public static BronzeFixture CreateIronWithPowderDeposits(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false,
+            ironChain: true, ironCamp: true, extraProjects, fiefChemistryDeposits: true);
+
+    public static BronzeFixture CreateBronzeWithPowderDeposits(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false,
+            ironChain: false, ironCamp: false, extraProjects, fiefChemistryDeposits: true);
+
     /// <summary>A controlled Fief food fixture with one of the five land and water profiles used by F-T4.</summary>
     public static BronzeFixture CreateFiefLandGeography(ContentPack pack, ulong seed, int people, FiefLandGeography geography,
         params string[] extraProjects)
@@ -133,7 +152,7 @@ internal sealed class BronzeFixture
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
         bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false,
-        FiefLandGeography? landGeography = null)
+        FiefLandGeography? landGeography = null, bool fiefChemistryDeposits = false, bool fiefChemistryCamp = false)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -159,6 +178,11 @@ internal sealed class BronzeFixture
         deposits[copper] = new WorldDeposit(DepositKind.CopperOre, 2, 1);
         if (tin) deposits[tinTile] = new WorldDeposit(DepositKind.Tin, 2, 1);
         if (arsenic) deposits[arsenicTile] = new WorldDeposit(DepositKind.ArsenicalCopper, 2, 2);
+        if (fiefChemistryDeposits)
+        {
+            deposits[range[3]] = new WorldDeposit(DepositKind.Saltpeter, 2, 1);
+            deposits[range[4]] = new WorldDeposit(DepositKind.Sulfur, 2, 1);
+        }
         int campTile = -1;
         for (int t = 0; t < source.TileCount && campTile < 0; t++)
         {
@@ -167,6 +191,8 @@ internal sealed class BronzeFixture
                 campTile = t;
         }
         if (campTile >= 0) deposits[campTile] = new WorldDeposit(DepositKind.CopperOre, 2, 1);
+        if (fiefChemistryDeposits && fiefChemistryCamp && campTile >= 0)
+            deposits[campTile] = new WorldDeposit(DepositKind.Saltpeter, 2, 1);
         int ironTile = -1;
         if (ironCamp)
         {
@@ -239,7 +265,9 @@ internal sealed class BronzeFixture
         for (int c = 0; c < starts.Length; c++) starts[c] = source.StartingTile(c);
         var world = new WorldEconomyInput(source.Width, source.Height, tiles, starts, source.Herds, deposits);
         var content = EconomyContent.FromPack(pack);
-        var economy = new LivingEconomyModel(seed, content, world)
+        ChapterMode contentFingerprintMode = fiefChain ? ChapterMode.Fief : ironChain ? ChapterMode.Iron : ChapterMode.Bronze;
+        var economy = new LivingEconomyModel(seed, content, world, ReadOnlySpan<EconomyArchetype>.Empty,
+            contentFingerprintMode: contentFingerprintMode)
         {
             FixtureHoldSettlements = true,
             FixtureHoldPopulation = holdPopulation,
@@ -275,7 +303,12 @@ internal sealed class BronzeFixture
         economy.FixtureStock(Settlement, "G-CLAY", Fix64.FromInt(12));
         economy.FixtureStock(Settlement, "G-LEATHER", Fix64.FromInt(4));
         economy.FixtureStock(Settlement, "G-WOOD", Fix64.FromInt(20));
-        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray()) { IronTile = ironTile, TerraceTile = terraceTile };
+        return new BronzeFixture(economy, copper, tinTile, arsenicTile, campTile, forest.ToArray())
+        {
+            IronTile = ironTile, TerraceTile = terraceTile,
+            SaltpeterTile = fiefChemistryDeposits ? (fiefChemistryCamp && campTile >= 0 ? campTile : range[3]) : -1,
+            SulfurTile = fiefChemistryDeposits ? range[4] : -1,
+        };
     }
 
     private static void ConfigureFiefLandGeography(WorldEconomyTile[] tiles, List<int> range, FiefLandGeography geography)

@@ -1,0 +1,21 @@
+# WP-E5-6 F-T6/F-T7 held-out natural cohort; 20 seeds selected unscreened with random.Random(20261122), sorted after sampling. Keep outcomes unopened until calibration candidate and all pins are frozen.
+42018344
+42037967
+42065435
+42179594
+42237860
+42249514
+42403301
+42405531
+42457965
+42516143
+42522089
+42529452
+42597395
+42647091
+42656881
+42658513
+42662123
+42700733
+42752669
+42843240

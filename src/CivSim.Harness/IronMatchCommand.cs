@@ -68,11 +68,13 @@ internal static class IronMatchCommand
         public required int StartSeason;
         public int SensitivityWaterSources, SensitivityWindSources;
         public int Samples;
+        public int WaterGateOpenSeasons, WaterMaterialsReadySeasons, WindGateOpenSeasons, WindMaterialsReadySeasons;
         public int WaterSources, WindSources;
         public Fix64 PopulationSeasons, GrainMilledPeopleSeasons;
         public Fix64 AvailablePowerHours, GrindingUsed, SawingUsed, CraftUsed, UnusedPowerHours;
         public Fix64 SensitivityGrainMilledPeopleSeasons;
         public Fix64 SensitivityAvailablePowerHours, SensitivityGrindingUsed, SensitivitySawingUsed, SensitivityCraftUsed;
+        public MillPowerLedgerSnapshot LastSnapshot;
 
         public void Add(MillPowerLedgerSnapshot row, MillPowerLedgerSnapshot sensitivity)
         {
@@ -92,6 +94,13 @@ internal static class IronMatchCommand
             SensitivityGrindingUsed += sensitivity.GrindingUsed;
             SensitivitySawingUsed += sensitivity.SawingUsed;
             SensitivityCraftUsed += sensitivity.CraftUsed;
+            LastSnapshot = row;
+            if (row.WaterMillHardGate.Open) WaterGateOpenSeasons++;
+            if (row.WoodStock >= Fix64.FromInt(8) && row.BlockStock >= Fix64.FromInt(6) && row.WheelStock >= Fix64.One)
+                WaterMaterialsReadySeasons++;
+            if (row.WindmillHardGate.Open) WindGateOpenSeasons++;
+            if (row.WoodStock >= Fix64.FromInt(14) && row.BlockStock >= Fix64.FromInt(4) && row.WheelStock >= Fix64.One)
+                WindMaterialsReadySeasons++;
         }
 
         public Fix64 GrainCoverage => PopulationSeasons > Fix64.Zero ? GrainMilledPeopleSeasons / PopulationSeasons : Fix64.Zero;
@@ -117,11 +126,16 @@ internal static class IronMatchCommand
         Fix64 CivilizationFoodCap, Fix64 CivilizationSustainableCapacity, Fix64 CivilizationGrainIncome,
         Fix64 CivilizationTotalFoodIncome, int Fields);
 
-    public static int Run(string[] args)
+    public static int Run(string[] args) => RunCore(args, fiefCommand: false);
+
+    public static int RunFief(string[] args) => RunCore(args.Append("--fief").ToArray(), fiefCommand: true);
+
+    private static int RunCore(string[] args, bool fiefCommand)
     {
-        string? packPath = null;
+        string? packPath = null, recordDirectory = null, checkpointDirectory = null, seedsFile = null;
         ulong first = 20261019;
         int seeds = 1, minutes = 110, countdown = ChapterRules.IronCountdownSeasons;
+        bool seedGiven = false, seedsGiven = false;
         bool grantE4 = false;
         bool it6Accounting = false;
         bool it6SupplyDiagnostic = false;
@@ -132,6 +146,15 @@ internal static class IronMatchCommand
         bool bronzeControl = false;
         bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false, fiefPowerLedger = false;
         bool fiefLandAnchor = false, fiefLandControl = false, fiefLandLongHorizon = false;
+        bool fiefHealthTrace = false;
+        bool fiefArmsLifecycleTrace = FiefArmsLifecycleTrace.IsRequested(args);
+        bool fiefInstitutionTrace = false;
+        bool fiefSiegeTrace = false;
+        bool fiefSiegeStrategistTrace = false;
+        bool fiefWp7Trace = false;
+        bool fiefWp7Paired = false;
+        bool fiefTerritoryTrace = false;
+        bool fiefSea10Trace = false;
         int fiefLandFocusCiv = -1;
         int ironFuelReachBufferOverride = -1;
         for (int i = 0; i < args.Length; i++)
@@ -139,9 +162,12 @@ internal static class IronMatchCommand
             switch (args[i])
             {
                 case "--pack": packPath = args[++i]; break;
-                case "--seed": first = ulong.Parse(args[++i], CultureInfo.InvariantCulture); break;
-                case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--seed": first = ulong.Parse(args[++i], CultureInfo.InvariantCulture); seedGiven = true; break;
+                case "--seeds": seeds = int.Parse(args[++i], CultureInfo.InvariantCulture); seedsGiven = true; break;
+                case "--seeds-file": seedsFile = args[++i]; break;
                 case "--minutes": minutes = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--record-dir": recordDirectory = args[++i]; break;
+                case "--checkpoint-continuation": checkpointDirectory = args[++i]; break;
                 case "--countdown": countdown = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--grant-e4": grantE4 = true; break;
                 case "--no-build-wood": noBuildWood = true; break;
@@ -151,6 +177,15 @@ internal static class IronMatchCommand
                 case "--no-furnace": noFurnace = true; break;
                 case "--grant-e5": grantE5 = true; break;
                 case "--fief-power-ledger": fiefPowerLedger = true; break;
+                case "--fief-health-trace": fiefHealthTrace = true; break;
+                case "--fief-arms-lifecycle-trace": fiefArmsLifecycleTrace = true; break;
+                case "--fief-institution-trace": fiefInstitutionTrace = true; break;
+                case "--fief-siege-trace": fiefSiegeTrace = true; break;
+                case "--fief-siege-strategist-trace": fiefSiegeStrategistTrace = true; break;
+                case "--fief-wp7-trace": fiefWp7Trace = true; break;
+                case "--fief-wp7-paired": fiefWp7Paired = true; fiefWp7Trace = true; break;
+                case "--fief-territory-trace": fiefTerritoryTrace = true; break;
+                case "--fief-sea10-trace": fiefSea10Trace = true; break;
                 case "--fief-land-anchor": fiefLandAnchor = true; break;
                 case "--fief-land-control": fiefLandAnchor = true; fiefLandControl = true; break;
                 case "--fief-land-focus-civ": fiefLandFocusCiv = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
@@ -169,27 +204,70 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine("usage: civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-land-anchor|--fief-land-control] [--fief-land-focus-civ N] [--fief-land-long-horizon] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine($"usage: civsim-harness {(fiefCommand ? "fief-match" : "iron-match")} --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-health-trace] [--fief-arms-lifecycle-trace] [--fief-institution-trace] [--fief-siege-trace] [--fief-siege-strategist-trace] [--fief-wp7-trace|--fief-wp7-paired] [--fief-territory-trace] [--fief-sea10-trace] [--fief-land-anchor|--fief-land-control] [--fief-land-focus-civ N] [--fief-land-long-horizon] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
         if (fiefPowerLedger && !fief) throw new ArgumentException("--fief-power-ledger requires --fief.");
+        if (fiefTerritoryTrace && !fief) throw new ArgumentException("--fief-territory-trace requires --fief.");
         if (fiefLandAnchor && (!fief || !grantE5)) throw new ArgumentException("--fief-land-anchor and --fief-land-control require --fief --grant-e5.");
         if (fiefLandFocusCiv >= 0 && !fiefLandAnchor) throw new ArgumentException("--fief-land-focus-civ requires --fief-land-anchor or --fief-land-control.");
         if (fiefLandLongHorizon && fiefLandFocusCiv < 0) throw new ArgumentException("--fief-land-long-horizon requires --fief-land-focus-civ.");
         if (fiefLandFocusCiv is < -1 or >= 4) throw new ArgumentOutOfRangeException(nameof(fiefLandFocusCiv), "The Fief land focus seat must be 0–3.");
         if (ironFuelReachBufferOverride is < -1 or > 100) throw new ArgumentOutOfRangeException(nameof(ironFuelReachBufferOverride));
         if (packPath is null) throw new ArgumentException("iron-match needs --pack FILE.");
+        if (recordDirectory is not null && !fiefCommand)
+            throw new ArgumentException("--record-dir is currently supported only by fief-match.");
+        if (checkpointDirectory is not null && !fiefCommand)
+            throw new ArgumentException("--checkpoint-continuation is currently supported only by fief-match.");
+        if (recordDirectory is not null && Directory.Exists(recordDirectory))
+            throw new ArgumentException("--record-dir must name a directory that does not already exist.");
+        if (checkpointDirectory is not null && Directory.Exists(checkpointDirectory))
+            throw new ArgumentException("--checkpoint-continuation must name a directory that does not already exist.");
+        if (seedsFile is not null && (seedGiven || seedsGiven))
+            throw new ArgumentException("--seeds-file cannot be combined with --seed or --seeds.");
+        if (checkpointDirectory is not null && (grantE4 || grantE5 || noBuildWood || noChopReach || noStoneShare || noFurnace || fiefPowerLedger || fiefArmsLifecycleTrace ||
+            fiefLandAnchor || fiefHealthTrace || fiefInstitutionTrace || fiefSiegeTrace || fiefSiegeStrategistTrace || fiefWp7Trace || fiefTerritoryTrace || fiefSea10Trace || it6Accounting || ironHubFuelSharing || ironFissionCoveragePreserving || ironFuelReachBufferOverride >= 0 || bronzeControl))
+            throw new ArgumentException("--checkpoint-continuation requires the standard Fief match configuration without diagnostic overrides.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Console.Write(Play(first + (ulong)n, pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
+        if ((fiefHealthTrace || fiefArmsLifecycleTrace || fiefInstitutionTrace || fiefSiegeTrace || fiefSiegeStrategistTrace || fiefWp7Trace || fiefTerritoryTrace || fiefSea10Trace) && !fiefCommand && !fief) throw new ArgumentException("Fief traces require fief-match or --fief.");
+        if (fiefWp7Paired && (!fief || bronzeControl || grantE4 || grantE5 || noBuildWood || noChopReach || noStoneShare || noFurnace ||
+            ironHubFuelSharing || ironFissionCoveragePreserving || ironFuelReachBufferOverride >= 0 ||
+            fiefLandControl || fiefLandFocusCiv >= 0 || fiefLandLongHorizon))
+            throw new ArgumentException("--fief-wp7-paired requires a natural Fief match without project grants or simulation overrides.");
+        ulong[] runSeeds = seedsFile is null
+            ? Enumerable.Range(0, seeds).Select(n => checked(first + (ulong)n)).ToArray()
+            : ReadSeedFile(seedsFile);
+        if (seeds <= 0) throw new ArgumentOutOfRangeException(nameof(seeds), "The seed count must be positive.");
+        if (recordDirectory is not null) Directory.CreateDirectory(recordDirectory);
+        if (checkpointDirectory is not null) Directory.CreateDirectory(checkpointDirectory);
+        for (int n = 0; n < runSeeds.Length; n++) Console.Write(Play(runSeeds[n], pack, minutes, countdown, grantE4, it6Accounting, it6SupplyDiagnostic, it2KitTrace,
             ironKitTraceSettlement, ironKitTraceFromSeason, ironKitTraceThroughSeason,
-            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger, fiefLandAnchor, fiefLandControl, fiefLandFocusCiv, fiefLandLongHorizon));
+            ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger, fiefLandAnchor, fiefLandControl, fiefLandFocusCiv, fiefLandLongHorizon,
+            fiefCommand ? "fief-match" : bronzeControl ? "bronze-control" : "iron-match", fiefHealthTrace, fiefInstitutionTrace, fiefSiegeTrace, fiefSiegeStrategistTrace, fiefWp7Trace, fiefTerritoryTrace, fiefSea10Trace,
+            recordDirectory is null ? null : Path.Combine(recordDirectory, $"{runSeeds[n]}.replay"),
+            checkpointDirectory is null ? null : Path.Combine(checkpointDirectory, $"{runSeeds[n]}.continuation.csv"), fiefWp7Paired, fiefArmsLifecycleTrace));
         return 0;
+    }
+
+    private static ulong[] ReadSeedFile(string path)
+    {
+        string[] lines = File.ReadAllLines(path);
+        if (lines.Length == 0) throw new InvalidDataException("The seed file is empty.");
+        var values = new ulong[lines.Length];
+        var seen = new HashSet<ulong>();
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (!ulong.TryParse(lines[i], NumberStyles.None, CultureInfo.InvariantCulture, out values[i]))
+                throw new InvalidDataException($"Invalid unsigned seed on line {i + 1} of '{path}'.");
+            if (!seen.Add(values[i])) throw new InvalidDataException($"Duplicate seed {values[i]} on line {i + 1} of '{path}'.");
+        }
+        return values;
     }
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false, int fiefLandFocusCiv = -1, bool fiefLandLongHorizon = false)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false, int fiefLandFocusCiv = -1, bool fiefLandLongHorizon = false, string matchLabel = "iron-match", bool fiefHealthTrace = false, bool fiefInstitutionTrace = false, bool fiefSiegeTrace = false, bool fiefSiegeStrategistTrace = false, bool fiefWp7Trace = false, bool fiefTerritoryTrace = false, bool fiefSea10Trace = false, string? replayPath = null, string? continuationPath = null, bool fiefWp7Paired = false, bool fiefArmsLifecycleTrace = false)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -197,6 +275,17 @@ internal static class IronMatchCommand
         ChapterRules rules = fief ? ChapterRules.Fief : bronzeControl ? ChapterRules.Bronze :
             countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+        var fiefWp7Rows = fiefWp7Trace ? new StringBuilder() : null;
+        var fiefTerritoryRows = fiefTerritoryTrace ? new StringBuilder() : null;
+        var fiefSea10Rows = fiefSea10Trace ? new StringBuilder() : null;
+        if (fiefSea10Rows is not null) match.Politics.FiefSea10TraceObserverForDiagnostics = row => fiefSea10Rows.AppendLine(row);
+        var fiefTerritoryState = fiefTerritoryTrace ? new FiefTerritoryTrace.State(match.Politics.Territory, Archetypes.Length) : null;
+        if (fiefWp7Rows is not null)
+        {
+            match.Politics.FiefWp7TraceObserverForDiagnostics = row => fiefWp7Rows.AppendLine(row);
+            match.Economy.FiefWp7TraceObserverForDiagnostics = row => fiefWp7Rows.AppendLine(row);
+        }
+        if (fiefHealthTrace) match.Economy.EnableFiefHealthTraceForDiagnostics();
         match.Economy.IronBuildWoodProcurementEnabled = !noBuildWood;
         match.Economy.IronChopReachEnabled = !noChopReach;
         match.Economy.FurnaceEffectEnabled = !noFurnace;
@@ -218,8 +307,76 @@ internal static class IronMatchCommand
         FissionSiteDiagnostics? fissionDiagnostics = ironFissionCoveragePreserving ? new FissionSiteDiagnostics() : null;
         if (fissionDiagnostics is not null) match.Economy.FissionSiteDiagnosticsForDiagnostics = fissionDiagnostics;
         var runner = new SimRunner(match);
+        MatchModel? continuationMatch = null;
+        SimRunner? continuationRunner = null;
+        StreamWriter? continuationReport = null;
+        int continuationChecksumCursor = 0;
+        if (continuationPath is not null)
+        {
+            continuationReport = new StreamWriter(new FileStream(continuationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None));
+            continuationReport.WriteLine("kind,seed,tick,snapshotFile,snapshotSha256,expectedChecksum,restoredChecksum,matchChecksum");
+            CaptureContinuationCheckpoint();
+        }
+
+        void CaptureContinuationCheckpoint()
+        {
+            using var snapshotStream = new MemoryStream();
+            using (var snapshotWriter = new BinaryWriter(snapshotStream, System.Text.Encoding.UTF8, leaveOpen: true))
+                match.WriteSnapshot(snapshotWriter);
+            byte[] snapshot = snapshotStream.ToArray();
+            ulong expected = match.ComputeChecksum();
+            string snapshotName = $"{seed}-{runner.Tick}.snapshot";
+            string snapshotPath = Path.Combine(Path.GetDirectoryName(continuationPath!)!, snapshotName);
+            using (FileStream snapshotFile = new(snapshotPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                snapshotFile.Write(snapshot);
+            string snapshotHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(snapshot)).ToLowerInvariant();
+
+            continuationMatch = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+            using var restoreStream = new MemoryStream(snapshot, writable: false);
+            using (var restoreReader = new BinaryReader(restoreStream, System.Text.Encoding.UTF8, leaveOpen: true))
+                continuationMatch.ReadSnapshot(restoreReader);
+            ulong restored = continuationMatch.ComputeChecksum();
+            if (restored != expected)
+                throw new InvalidDataException($"Fief checkpoint restore mismatch for seed {seed} at tick {runner.Tick}: expected {expected:x16}, got {restored:x16}.");
+            continuationRunner = new SimRunner(continuationMatch, runner.ChecksumInterval, runner.Tick);
+            continuationChecksumCursor = 0;
+            continuationReport!.WriteLine($"checkpoint,{seed},{runner.Tick},{snapshotName},{snapshotHash},{expected:x16},{restored:x16},{expected:x16}");
+            continuationReport.Flush();
+        }
+
+        MatchModel CreateWp7ControlBranch()
+        {
+            using var snapshotStream = new MemoryStream();
+            using (var snapshotWriter = new BinaryWriter(snapshotStream, System.Text.Encoding.UTF8, leaveOpen: true))
+                match.WriteSnapshot(snapshotWriter);
+            byte[] snapshot = snapshotStream.ToArray();
+            MatchModel controlBranch = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+            using var restoreStream = new MemoryStream(snapshot, writable: false);
+            using (var restoreReader = new BinaryReader(restoreStream, System.Text.Encoding.UTF8, leaveOpen: true))
+                controlBranch.ReadSnapshot(restoreReader);
+
+            controlBranch.Economy.IronBuildWoodProcurementEnabled = !noBuildWood;
+            controlBranch.Economy.IronChopReachEnabled = !noChopReach;
+            controlBranch.Economy.FurnaceEffectEnabled = !noFurnace;
+            controlBranch.Economy.IronBuildStoneSharingEnabled = !noStoneShare;
+            controlBranch.Economy.B13WoodTraceEnabled = it6Accounting;
+            controlBranch.Economy.IT6AccountingTraceEnabled = it6Accounting;
+            controlBranch.Economy.IT2KitShareTraceEnabled = it2KitTrace;
+            controlBranch.Economy.IronHubFuelSharingEnabled = ironHubFuelSharing;
+            controlBranch.Economy.IronFissionCoveragePreservingForDiagnostics = ironFissionCoveragePreserving;
+            controlBranch.Economy.IronFuelReachBufferOverride = ironFuelReachBufferOverride;
+            controlBranch.Economy.FiefWp7SuppressGov11GrowthForDiagnostics = true;
+
+            ulong sourceChecksum = match.ComputeChecksum();
+            ulong controlChecksum = controlBranch.ComputeChecksum();
+            if (sourceChecksum != controlChecksum)
+                throw new InvalidDataException($"WP7 counterfactual clone changed starting state at tick {runner.Tick}: source {sourceChecksum:x16}, clone {controlChecksum:x16}.");
+            return controlBranch;
+        }
+
         int civs = Archetypes.Length;
         ResearchSystem research = match.Research;
+        FiefWp7Trace.State? fiefWp7State = fiefWp7Rows is null ? null : FiefWp7Trace.CaptureStart(match.Economy, research);
         int met09 = research.Catalog.IndexOf("MET-09");
         ForestLedger startForest = it6Accounting ? CaptureForest(match.Economy) : default;
         LocalWoodLedger startWood = it6Accounting ? CaptureLocalWood(match.Economy, 0) : default;
@@ -229,6 +386,40 @@ internal static class IronMatchCommand
         Array.Fill(steadySeason, -1);
         var routeStats = new MetalStatistics[civs];
         var routeTrace = new IT6AccountingSnapshot[civs];
+        var fiefHealthRows = fiefHealthTrace ? new StringBuilder() : null;
+        var fiefArmsLifecycleRows = fiefArmsLifecycleTrace ? new StringBuilder() : null;
+        FiefArmsLifecycleTrace? armsLifecycleTrace = fiefArmsLifecycleTrace ? new FiefArmsLifecycleTrace() : null;
+        var fiefInstitutionRows = fiefInstitutionTrace ? new StringBuilder() : null;
+        var fiefSiegeRows = fiefSiegeTrace ? new StringBuilder() : null;
+        var fiefSiegeStrategistRows = fiefSiegeStrategistTrace ? new StringBuilder() : null;
+        var lastSiegeStrategistRow = new Dictionary<(int Civ, int Rival, int Settlement), (string Signature, int Season)>();
+        if (fiefSiegeStrategistRows is not null && match.Ai is { } strategistAi)
+            for (int civ = 0; civ < Archetypes.Length; civ++)
+                if (strategistAi.SeatOf(civ)?.Strategist is Strategist strategist)
+                    strategist.SiegeCampaignObserverForDiagnostics = row =>
+                    {
+                        string signature = $"t{row.Tile};fresh={row.Fresh};walls={row.WallsSeen};selected={row.Selected};evaluated={row.Evaluated};" +
+                            $"origin={row.OriginSettlement};attackers={row.Attackers};ratio={row.ForceRatio.Raw};force={row.ForceEligible};" +
+                            $"supply={row.SupplyEligible};signal={row.DistressOrStockEligible};relief={row.ReliefEligible};winter={row.WinterEligible};reason={row.RejectionReason}";
+                        var key = (row.Civ, row.Rival, row.Settlement);
+                        if (lastSiegeStrategistRow.TryGetValue(key, out var previous) && previous.Signature == signature &&
+                            row.Season - previous.Season < 8) return;
+                        lastSiegeStrategistRow[key] = (signature, row.Season);
+                        fiefSiegeStrategistRows.AppendLine(
+                            $"fief-siege-campaign seed={seed} civ={row.Civ} rival={row.Rival} season={row.Season} settlement={row.Settlement} tile={row.Tile} " +
+                            $"fresh={row.Fresh.ToString().ToLowerInvariant()} wallsSeen={row.WallsSeen.ToString().ToLowerInvariant()} " +
+                            $"selected={row.Selected.ToString().ToLowerInvariant()} evaluated={row.Evaluated.ToString().ToLowerInvariant()} " +
+                            $"origin={row.OriginSettlement} attackers={row.Attackers} forceRatio={row.ForceRatio.ToDoubleForDisplay():F3} " +
+                            $"force={row.ForceEligible.ToString().ToLowerInvariant()} supply={row.SupplyEligible.ToString().ToLowerInvariant()} " +
+                            $"distressOrStock={row.DistressOrStockEligible.ToString().ToLowerInvariant()} relief={row.ReliefEligible.ToString().ToLowerInvariant()} " +
+                            $"winter={row.WinterEligible.ToString().ToLowerInvariant()} reason={row.RejectionReason}");
+                    };
+        var siegeFireBySeason = fiefSiegeTrace ? new Dictionary<(int Season, int Settlement), SiegeTraceObservation>() : null;
+        var siegeTerminalBySettlement = fiefSiegeTrace ? new Dictionary<int, FiefSiegeTerminalExposure>() : null;
+        if (siegeFireBySeason is not null)
+            match.Politics.SiegeTraceObserverForDiagnostics = observation =>
+                siegeFireBySeason[(observation.Season, observation.Settlement)] = observation;
+        int siegeEventCursor = match.Politics.Events.Count;
         var steadyStats = new MetalStatistics[civs];
         var steadyTrace = new IT6AccountingSnapshot[civs];
         var statsHistory = new List<MetalStatistics>[civs];
@@ -313,13 +504,26 @@ internal static class IronMatchCommand
         var granted = new bool[civs];
         var grantedE5 = new bool[civs];
         int key6 = research.Catalog.IndexOf("KEY-6");
+        MatchModel? wp7ControlMatch = null;
+        SimRunner? wp7ControlRunner = null;
+        FiefWp7Trace.PairedWindow? wp7PairWindow = null;
         var idleSeasons = new int[civs];
         var peakSoldiers = new int[civs];
         long limit = minutes * 600L;
         MatchEnd end = match.EndOfMatch();
+        if (fiefTerritoryRows is not null)
+            FiefTerritoryTrace.Append(fiefTerritoryRows, seed, 0, match, fiefTerritoryState!);
         while (runner.Tick < limit && !end.IsOver(runner.Tick))
         {
             CaptureFiefLandSamples();
+            if (fiefWp7Paired && wp7ControlRunner is null && runner.Tick % (4L * 150L) == 0 &&
+                FiefWp7Trace.HasEligibleCity(match.Economy, research))
+            {
+                wp7ControlMatch = CreateWp7ControlBranch();
+                wp7ControlRunner = new SimRunner(wp7ControlMatch, runner.ChecksumInterval, runner.Tick);
+                wp7PairWindow = FiefWp7Trace.BeginPairedWindow(match, wp7ControlMatch,
+                    checked((int)(runner.Tick / 150L)));
+            }
             // Diagnostic: take research out of the picture. Each civilization is given every E4 project except the keystone the moment it has KEY-4.
             if (grantE4)
                 for (int c = 0; c < civs; c++)
@@ -341,8 +545,126 @@ internal static class IronMatchCommand
                             runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
                     }
                 }
+            var siegesAtSeasonStart = fiefSiegeTrace
+                ? match.Politics.Investments.Select(inv => (inv.Civ, inv.TargetCiv, inv.HomeSettlement, inv.Settlement,
+                    inv.BeganSeason, inv.Engines, inv.Cannons, Members: inv.Members.Count, inv.Integrity, inv.PowderBreach)).ToArray()
+                : Array.Empty<(int Civ, int TargetCiv, int HomeSettlement, int Settlement, int BeganSeason, int Engines, int Cannons, int Members, Fix64 Integrity, bool PowderBreach)>();
             runner.Advance(150);
+            if (wp7ControlRunner is not null && wp7ControlMatch is not null && wp7PairWindow is not null)
+            {
+                wp7ControlRunner.Advance(150);
+                if (wp7ControlRunner.Tick != runner.Tick)
+                    throw new InvalidDataException($"WP7 counterfactual branch tick mismatch at {runner.Tick}: {wp7ControlRunner.Tick}.");
+                wp7PairWindow.ObserveSeason(match, wp7ControlMatch);
+            }
+            if (fiefTerritoryRows is not null)
+                FiefTerritoryTrace.Append(fiefTerritoryRows, seed, checked((int)(runner.Tick / 150L)), match, fiefTerritoryState!);
+            if (fiefWp7Rows is not null)
+                FiefWp7Trace.AppendSeason(fiefWp7Rows, match.Economy, research, fiefWp7State!, seed,
+                    checked((int)(runner.Tick / 150L) - 1), "treatment");
+            if (continuationRunner is not null)
+            {
+                continuationRunner.Advance(150);
+                while (continuationChecksumCursor < continuationRunner.Checksums.Count)
+                {
+                    ChecksumRecord resumed = continuationRunner.Checksums[continuationChecksumCursor++];
+                    int sourceIndex = checked((int)(resumed.Tick / runner.ChecksumInterval) - 1);
+                    if ((uint)sourceIndex >= (uint)runner.Checksums.Count)
+                        throw new InvalidDataException($"Missing uninterrupted Fief checksum at tick {resumed.Tick} for seed {seed}.");
+                    ChecksumRecord original = runner.Checksums[sourceIndex];
+                    if (original != resumed)
+                        throw new InvalidDataException($"Fief continuation mismatch for seed {seed} at tick {resumed.Tick}: uninterrupted {original.Hash:x16}, resumed {resumed.Hash:x16}.");
+                    continuationReport!.WriteLine($"interval,{seed},{resumed.Tick},,,{original.Hash:x16},{resumed.Hash:x16},{original.Hash:x16}");
+                }
+                continuationReport!.Flush();
+                if (runner.Tick % 750 == 0) CaptureContinuationCheckpoint();
+            }
             end = match.EndOfMatch();
+            if (wp7ControlRunner is not null && wp7ControlMatch is not null && wp7PairWindow is not null)
+            {
+                MatchEnd controlEnd = wp7ControlMatch.EndOfMatch();
+                bool fullYear = wp7PairWindow.ObservedSeasons == 4;
+                bool terminated = end.IsOver(runner.Tick) || controlEnd.IsOver(wp7ControlRunner.Tick) || runner.Tick >= limit;
+                if (fullYear || terminated)
+                {
+                    string pairEndReason = fullYear ? "four_seasons_complete" :
+                        end.IsOver(runner.Tick) ? "treatment_match_end" :
+                        controlEnd.IsOver(wp7ControlRunner.Tick) ? "control_match_end" : "horizon";
+                    wp7PairWindow.Append(fiefWp7Rows!, seed, match, wp7ControlMatch,
+                        checked((int)(runner.Tick / 150L) - 1), fullYear, pairEndReason);
+                    wp7ControlMatch = null;
+                    wp7ControlRunner = null;
+                    wp7PairWindow = null;
+                }
+            }
+            if (fiefSiegeRows is not null && siegeFireBySeason is not null)
+            {
+                int siegeSeason = checked((int)(runner.Tick / 150L) - 1);
+                var siegeRows = new Dictionary<int, (int Civ, int TargetCiv, int HomeSettlement, int Settlement, int BeganSeason,
+                    int Engines, int Cannons, int Members, Fix64 Integrity, bool PowderBreach)>();
+                foreach (var prior in siegesAtSeasonStart) siegeRows[prior.Settlement] = prior;
+                foreach (Investment current in match.Politics.Investments)
+                    siegeRows[current.Settlement] = (current.Civ, current.TargetCiv, current.HomeSettlement, current.Settlement,
+                        current.BeganSeason, current.Engines, current.Cannons, current.Members.Count, current.Integrity, current.PowderBreach);
+                foreach (var siege in siegeRows.Values.OrderBy(row => row.Settlement))
+                {
+                    bool hasObservation = siegeFireBySeason.TryGetValue((siegeSeason, siege.Settlement), out SiegeTraceObservation fire);
+                    bool fired = hasObservation && fire.FireAttempted;
+                    int turns = Math.Max(0, siegeSeason - siege.BeganSeason);
+                    int engines = fired ? fire.Engines : siege.Engines, cannons = fired ? fire.Cannons : siege.Cannons;
+                    int engineCrews = fired ? fire.EngineCrews : 0, cannonCrews = fired ? fire.CannonCrews : 0;
+                    Fix64 terminalIntegrity = fired ? fire.IntegrityAfter : siege.Integrity;
+                    bool terminalBreach = fired ? fire.PowderBreach : siege.PowderBreach;
+                    bool remainsActive = match.Politics.InvestmentAt(siege.Settlement) is not null;
+                    siegeTerminalBySettlement![siege.Settlement] = new FiefSiegeTerminalExposure(siege.Settlement,
+                        siege.Civ, siege.TargetCiv, terminalIntegrity, terminalBreach,
+                        remainsActive ? "active" : "ended", remainsActive ? "pending_at_match_horizon" : "ending_event_unavailable");
+                    fiefSiegeRows.AppendLine($"fief-siege-trace seed={seed} season={siegeSeason} attacker={siege.Civ} defender={siege.TargetCiv} home={siege.HomeSettlement} settlement={siege.Settlement} siegeTurn={turns} engines={engines} cannons={cannons} members={siege.Members} engineCrews={(fired ? engineCrews.ToString(CultureInfo.InvariantCulture) : "unavailable")} cannonCrews={(fired ? cannonCrews.ToString(CultureInfo.InvariantCulture) : "unavailable")} assignedCrews={(fired ? (engineCrews + cannonCrews).ToString(CultureInfo.InvariantCulture) : "unavailable")} deadCrews={(hasObservation ? fire.AttritionDeaths.ToString(CultureInfo.InvariantCulture) : "unavailable")} attritionAssignedCrews={(hasObservation ? fire.AttritionAssignedCrews.ToString(CultureInfo.InvariantCulture) : "unavailable")} attritionDeaths={(hasObservation ? fire.AttritionDeaths.ToString(CultureInfo.InvariantCulture) : "unavailable")} def09Active={(hasObservation ? fire.Def09Active.ToString().ToLowerInvariant() : "unavailable")} fireAttempted={fired.ToString().ToLowerInvariant()} cannonShots={(fired ? fire.CannonShots.ToString(CultureInfo.InvariantCulture) : "0")} powderPaid={(fired ? fire.PowderPaid.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture) : "0.00")} supplied={(fired ? fire.Supplied.ToString().ToLowerInvariant() : "unavailable")} exposed={(fired ? "true" : "false")} integrity={(fired ? fire.IntegrityAfter : siege.Integrity).ToDoubleForDisplay().ToString("F3", CultureInfo.InvariantCulture)} powderBreach={(fired ? fire.PowderBreach : siege.PowderBreach)} outcome={(match.Politics.InvestmentAt(siege.Settlement) is null ? "ended" : "active")}");
+                }
+                IReadOnlyList<PoliticsEvent> siegeEvents = match.Politics.Events;
+                int eventStart = Math.Min(siegeEventCursor, siegeEvents.Count);
+                for (int ei = eventStart; ei < siegeEvents.Count; ei++)
+                {
+                    PoliticsEvent e = siegeEvents[ei];
+                    if (e.Kind is not (PoliticsEventKind.InvestmentRelieved or PoliticsEventKind.InvestmentCapitulated or
+                        PoliticsEventKind.InvestmentSally or PoliticsEventKind.AssaultResolved or PoliticsEventKind.Captured)) continue;
+                    int settlement = e.Kind == PoliticsEventKind.Captured ? e.A : e.Kind == PoliticsEventKind.AssaultResolved ? e.B : e.A;
+                    if (e.Kind is PoliticsEventKind.InvestmentRelieved or PoliticsEventKind.InvestmentCapitulated)
+                    {
+                        FiefSiegeTerminalExposure prior = siegeTerminalBySettlement!.GetValueOrDefault(settlement,
+                            new FiefSiegeTerminalExposure(settlement, e.Civ, e.Other, Fix64.One, false, "ended", "none"));
+                        siegeTerminalBySettlement![settlement] = prior with
+                        {
+                            Outcome = e.Kind.ToString().ToLowerInvariant(),
+                            CensorReason = "none",
+                        };
+                    }
+                    fiefSiegeRows.AppendLine($"fief-siege-trace seed={seed} season={siegeSeason} attacker={e.Civ} defender={e.Other} settlement={settlement} siegeTurn=terminal engines=unavailable cannons=unavailable engineCrews=unavailable cannonCrews=unavailable assignedCrews=unavailable deadCrews=unavailable cannonShots=unavailable powderPaid=unavailable exposed=unavailable integrity=unavailable powderBreach=unavailable outcome={e.Kind.ToString().ToLowerInvariant()} outcomeA={e.A} outcomeB={e.B}");
+                }
+                siegeEventCursor = siegeEvents.Count;
+                foreach (var key in siegeFireBySeason.Keys.Where(k => k.Season < siegeSeason).ToArray()) siegeFireBySeason.Remove(key);
+            }
+            if (fiefHealthRows is not null)
+            {
+                int healthSeason = checked((int)(runner.Tick / 150L) - 1);
+                for (int c = 0; c < civs; c++)
+                {
+                    FiefExpectedHazardSnapshot health = match.Economy.CaptureFiefExpectedHazardsForDiagnostics(c);
+                    long ownKey5Tick = research.IsDone(c, key5) ? research.CompletedTick(c, key5) : -1;
+                    int ownKey5Season = ownKey5Tick < 0 ? -1 : checked((int)(ownKey5Tick / 150L));
+                    int seasonOffsetFromOwnKey5 = ownKey5Season < 0 ? -1 : healthSeason - ownKey5Season;
+                    Fix64 observedEpidemicRate = health.AdultEquivalentPersonSeasons > Fix64.Zero
+                        ? Fix64.FromInt(health.EpidemicDeaths) / health.AdultEquivalentPersonSeasons : Fix64.Zero;
+                    Fix64 observedTotalRate = health.AdultEquivalentPersonSeasons > Fix64.Zero
+                        ? Fix64.FromInt(health.TotalDeaths) / health.AdultEquivalentPersonSeasons : Fix64.Zero;
+                    fiefHealthRows.AppendLine($"fief-health-trace seed={seed} season={healthSeason} civ={c} ownKey5Season={ownKey5Season} seasonOffsetFromOwnKey5={seasonOffsetFromOwnKey5} adultEquivalentPersonSeasons={health.AdultEquivalentPersonSeasons.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture)} expectedEndemic={health.Endemic.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedEpidemic={health.Epidemic.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedStarvation={health.Starvation.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedExposure={health.Exposure.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedInjury={health.Injury.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedPredators={health.Predators.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedViolence={health.Violence.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedSenescence={health.Senescence.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedTotal={health.Total.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} expectedEpidemicShare={health.EpidemicShare.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} observedEpidemicDeaths={health.EpidemicDeaths} observedPoxDeaths={health.PoxDeaths} observedPlagueDeaths={health.PlagueDeaths} observedTotalDeaths={health.TotalDeaths} quarantine={health.Quarantine.ToString().ToLowerInvariant()} importedOutbreakAttempts={health.ImportedAttempts} importedOutbreakBlocked={health.ImportedBlocked} importedOutbreakSuccesses={health.ImportedSuccesses} observedEpidemicDeathsPerAdultEquivalentPersonSeason={observedEpidemicRate.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)} observedTotalDeathsPerAdultEquivalentPersonSeason={observedTotalRate.ToDoubleForDisplay().ToString("F6", CultureInfo.InvariantCulture)}");
+                }
+                match.Economy.ResetFiefExpectedHazardsForDiagnostics();
+            }
+            if (fiefInstitutionRows is not null)
+                FiefInstitutionTrace.Append(fiefInstitutionRows, match.Economy, research, checked((int)(runner.Tick / 150L) - 1));
+            if (armsLifecycleTrace is not null)
+                armsLifecycleTrace.AppendSeason(fiefArmsLifecycleRows!, seed, checked((int)(runner.Tick / 150L) - 1), match.Economy, match.Politics, research);
             if (it6Accounting)
             {
                 int season = (int)(runner.Tick / 150L);
@@ -478,11 +800,59 @@ internal static class IronMatchCommand
             }
         }
         CaptureFiefLandSamples();
+        if (wp7ControlRunner is not null && wp7ControlMatch is not null && wp7PairWindow is not null)
+        {
+            string pairEndReason = end.IsOver(runner.Tick) ? "treatment_match_end" : runner.Tick >= limit ? "horizon" : "run_stopped";
+            wp7PairWindow.Append(fiefWp7Rows!, seed, match, wp7ControlMatch,
+                checked((int)(runner.Tick / 150L) - 1), fullYear: false, pairEndReason);
+        }
+        if (fiefWp7Rows is not null)
+            FiefWp7Trace.AppendTerminal(fiefWp7Rows, match.Economy, seed, checked((int)(runner.Tick / 150L)),
+                end.IsOver(runner.Tick), end.Reason.ToString(), runner.Tick >= limit, fiefWp7State, research,
+                "treatment");
+        if (continuationRunner is not null && continuationMatch is not null)
+        {
+            ulong uninterruptedFinal = match.ComputeChecksum();
+            ulong resumedFinal = continuationMatch.ComputeChecksum();
+            if (continuationRunner.Tick != runner.Tick || uninterruptedFinal != resumedFinal)
+                throw new InvalidDataException($"Fief continuation final-state mismatch for seed {seed} at tick {runner.Tick}: uninterrupted {uninterruptedFinal:x16}, resumed {resumedFinal:x16}.");
+            continuationReport!.WriteLine($"final,{seed},{runner.Tick},,,{uninterruptedFinal:x16},{resumedFinal:x16},{uninterruptedFinal:x16}");
+            continuationReport.Dispose();
+        }
+        if (fiefSiegeRows is not null)
+        {
+            int censorSeason = checked((int)(runner.Tick / 150L));
+            foreach (Investment investment in match.Politics.Investments)
+            {
+                fiefSiegeRows.AppendLine($"fief-siege-trace seed={seed} season={censorSeason} attacker={investment.Civ} defender={investment.TargetCiv} settlement={investment.Settlement} siegeTurn={Math.Max(0, censorSeason - investment.BeganSeason)} engines={investment.Engines} cannons={investment.Cannons} engineCrews=unavailable cannonCrews=unavailable assignedCrews=unavailable deadCrews=unavailable cannonShots=unavailable powderPaid=unavailable exposed=unavailable integrity={investment.Integrity.ToDoubleForDisplay().ToString("F3", CultureInfo.InvariantCulture)} powderBreach={investment.PowderBreach} exposed=false outcome=right_censored");
+                siegeTerminalBySettlement![investment.Settlement] = new FiefSiegeTerminalExposure(investment.Settlement,
+                    investment.Civ, investment.TargetCiv, investment.Integrity, investment.PowderBreach,
+                    "right_censored", "match_horizon_active_investment");
+            }
+            FiefSiegeTerminalTrace.Append(fiefSiegeRows, seed, censorSeason, match.Economy, siegeTerminalBySettlement!.Values);
+        }
+
+        if (replayPath is not null)
+        {
+            ulong fingerprint = WorldEconomyInput.FromGeneratedWorld(world).Fingerprint;
+            MatchReplay replay = MatchReplay.FromRun(seed, pack, Archetypes, runner, fingerprint, rules, controls);
+            using FileStream replayStream = new(replayPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            replay.Write(replayStream);
+            replayStream.Flush();
+        }
 
         var o = new StringBuilder();
         void L(string text = "") => o.Append(text).Append('\n');
         string Min(long tick) => tick < 0 ? "-" : (tick / 600.0).ToString("F1", CultureInfo.InvariantCulture);
-        L($"== {(bronzeControl ? "bronze-control" : "iron-match")} seed {seed}: {runner.Tick / 600.0:F1} minutes simulated, chapter end {end.Reason} at season {(end.HasEnd ? end.EndSeason.ToString(CultureInfo.InvariantCulture) : "none")} (ended: {end.IsOver(runner.Tick)})");
+        L($"== {matchLabel} seed {seed}: {runner.Tick / 600.0:F1} minutes simulated, chapter end {end.Reason} at season {(end.HasEnd ? end.EndSeason.ToString(CultureInfo.InvariantCulture) : "none")} (ended: {end.IsOver(runner.Tick)})");
+        if (fiefHealthRows is not null) L(fiefHealthRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefArmsLifecycleRows is not null) L(fiefArmsLifecycleRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefInstitutionRows is not null) L(fiefInstitutionRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefWp7Rows is not null) L(fiefWp7Rows.ToString().TrimEnd('\n', '\r'));
+        if (fiefTerritoryRows is not null) L(fiefTerritoryRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefSea10Rows is not null) L(fiefSea10Rows.ToString().TrimEnd('\n', '\r'));
+        if (fiefSiegeRows is not null) L(fiefSiegeRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefSiegeStrategistRows is not null) L(fiefSiegeStrategistRows.ToString().TrimEnd('\n', '\r'));
         L($"{"civ",-4}{"arch",-9}{"KEY-4",7}{"KEY-5",7}{"E4 done",8}{"settl",7}{"people",8}{"T11",6}{"T12",6}{"adults",8}{"soldiers",9}{"scholars",9}{"missions",9}{"idleS",7}");
         for (int c = 0; c < civs; c++)
         {
@@ -677,7 +1047,15 @@ internal static class IronMatchCommand
             string added = window.SensitivityWaterSources > 0 ? "water" : "wind";
             output.AppendLine($"    s{window.SettlementId} c{window.Civilization}: add {added}; coverage {Pct(window.GrainMilledPeopleSeasons, window.PopulationSeasons)} -> {Pct(window.SensitivityGrainMilledPeopleSeasons, window.PopulationSeasons)}; " +
                 $"grind/saw/craft {F(window.GrindingUsed)}/{F(window.SawingUsed)}/{F(window.CraftUsed)} -> {F(window.SensitivityGrindingUsed)}/{F(window.SensitivitySawingUsed)}/{F(window.SensitivityCraftUsed)} hours");
+            MillPowerLedgerSnapshot context = window.LastSnapshot;
+            output.AppendLine($"      end-window buildability: river-site={context.SiteNearRiver}; fields={context.FieldTiles}; " +
+                $"water-gate={Gate(context.WaterMillHardGate)}; wind-hard={Gate(context.WindmillHardGate)}; wind-wanted={Gate(context.WindmillWantedGate)}; " +
+                $"stock wood/block/wheel={F(context.WoodStock)}/{F(context.BlockStock)}/{F(context.WheelStock)} (windmill needs 14/4/1; water mill 8/6/1)");
+            output.AppendLine($"      12-season availability: water gate={window.WaterGateOpenSeasons}/12, water materials={window.WaterMaterialsReadySeasons}/12; " +
+                $"wind gate={window.WindGateOpenSeasons}/12, wind materials={window.WindMaterialsReadySeasons}/12");
         }
+
+        static string Gate(BuildGate gate) => gate.Open ? "open" : $"{gate.Cause}/{gate.Why}";
     }
 
     private static FiefLandStart[] CaptureFiefLandStarts(GeneratedWorld world)

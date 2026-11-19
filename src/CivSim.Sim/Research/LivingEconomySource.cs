@@ -240,7 +240,7 @@ public sealed class LivingEconomySource : IResearchSource
 
     public InsightInputs GetInsightInputs(int civ)
     {
-        Fix64 adults = Fix64.Zero, elders = Fix64.Zero, hearthAdults = Fix64.Zero;
+        Fix64 adults = Fix64.Zero, elders = Fix64.Zero, hearthAdults = Fix64.Zero, spectacleHolders = Fix64.Zero;
         int settlements = _settlementIndices[civ].Count;
         var heads = new Fix64[_catalog.Roles.Count];
         int elderRole = _catalog.RoleIndex("elder"), shamanRole = _catalog.RoleIndex("shaman");
@@ -248,6 +248,7 @@ public sealed class LivingEconomySource : IResearchSource
         {
             adults += _adults[civ][s];
             elders += _elders[civ][s];
+            spectacleHolders += Fix64.Min(_elders[civ][s], Fix64.FromInt(_economy.SpectacleStockAt(_settlementIndices[civ][s])));
             if (_hearth[civ][s]) hearthAdults += _adults[civ][s] + _elders[civ][s];
             // One Elder per settlement that has an elder; one Shaman per settlement with a viable group (docs/MVP/02 §8.1).
             if (elderRole >= 0 && _elders[civ][s] > Fix64.Zero) heads[elderRole] += Fix64.One;
@@ -266,6 +267,7 @@ public sealed class LivingEconomySource : IResearchSource
         {
             Adults = adults,
             Elders = elders,
+            SpectacleHolders = spectacleHolders,
             Settlements = settlements,
             RoleHeads = heads,
             StructureOutput = _cities[civ] * _cityInsight,
@@ -330,6 +332,104 @@ public sealed class LivingEconomySource : IResearchSource
         }
         practisingShare = weights.Raw == 0 ? Fix64.Zero : Fix64.Min(Fix64.One, weighted / weights);
     }
+
+    public void GetPracticeBySettlement(int civ, IResearchView view, Span<Fix64> workBySettlementPractice)
+    {
+        if (!_economy.FiefChain) return;
+        int practices = _catalog.PracticeIds.Count;
+        int settlementCount = RetentionSettlementCount(civ);
+        if (workBySettlementPractice.Length < settlementCount * practices)
+            throw new ArgumentException("Settlement practice buffer is too small.", nameof(workBySettlementPractice));
+        workBySettlementPractice.Clear();
+        int maxId = 0;
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            var settlement = _economy.SettlementLite(i);
+            if (settlement.Civilization == civ && (FreeFolk is null || !FreeFolk.IsFreeFolk(settlement.Id))) maxId = Math.Max(maxId, settlement.Id);
+        }
+        var localById = new int[maxId + 1];
+        Array.Fill(localById, -1);
+        int ordinal = 0;
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            var settlement = _economy.SettlementLite(i);
+            if (settlement.Civilization != civ || FreeFolk is not null && FreeFolk.IsFreeFolk(settlement.Id)) continue;
+            localById[settlement.Id] = ordinal++;
+        }
+        var adults = new Fix64[settlementCount];
+        for (int f = 0; f < _economy.FigureCount; f++)
+        {
+            FigureView figure = _economy.Figure(f);
+            if (figure.Civilization != civ || figure.Age < 14 ||
+                (uint)figure.SettlementId >= (uint)localById.Length ||
+                FreeFolk is not null && FreeFolk.IsFreeFolk(figure.SettlementId)) continue;
+            int local = localById[figure.SettlementId];
+            if (local < 0) continue;
+            adults[local] += Fix64.One;
+            Fix64 work = Fix64.Min(Fix64.One, figure.WorkThisSeason);
+            int practice = figure.Task is > 0 and < 16 && _taskPractice[figure.Task] >= 0
+                ? _taskPractice[figure.Task] : _jobPractice[(int)figure.Job];
+            if (work > Fix64.Zero && practice >= 0)
+            {
+                Fix64 weight = figure.Age >= 45 ? Fix64.FromInt(2) : Fix64.One;
+                workBySettlementPractice[local * practices + practice] += work * weight;
+            }
+        }
+        for (int local = 0; local < settlementCount; local++)
+            foreach ((string practiceId, string? projectId, int hundredths) in AmbientPractice)
+            {
+                int practice = _catalog.PracticeIndex(practiceId);
+                if (practice < 0 || projectId is not null && !view.IsDone(civ, _catalog.IndexOf(projectId))) continue;
+                workBySettlementPractice[local * practices + practice] += adults[local] * hundredths / 100;
+            }
+    }
+
+    public bool HasSettlementKnowHowRetention => _economy.FiefChain;
+    public int RetentionSettlementCount(int civ)
+    {
+        int count = 0;
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            var settlement = _economy.SettlementLite(i);
+            if (settlement.Civilization == civ && (FreeFolk is null || !FreeFolk.IsFreeFolk(settlement.Id))) count++;
+        }
+        return count;
+    }
+    public int RetentionSettlementId(int civ, int ordinal)
+    {
+        if (ordinal < 0) return -1;
+        int current = 0;
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            var settlement = _economy.SettlementLite(i);
+            if (settlement.Civilization != civ || FreeFolk is not null && FreeFolk.IsFreeFolk(settlement.Id)) continue;
+            if (current++ == ordinal) return settlement.Id;
+        }
+        return -1;
+    }
+    public int CopyRetentionSettlementIds(int civ, Span<int> into)
+    {
+        int count = 0;
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            var settlement = _economy.SettlementLite(i);
+            if (settlement.Civilization != civ || FreeFolk is not null && FreeFolk.IsFreeFolk(settlement.Id)) continue;
+            if (count >= into.Length) throw new ArgumentException("Retention settlement id buffer is too small.", nameof(into));
+            into[count++] = settlement.Id;
+        }
+        return count;
+    }
+    public void EnsureKnowHowRetention(int lineageCount) => _economy.EnsureFiefKnowHowState(lineageCount);
+    public Fix64 KnowHowReserve(int civ, int lineage) => _economy.FiefKnowHowReserve(civ, lineage);
+    public void AddKnowHowReserve(int civ, int lineage, Fix64 amount) => _economy.AddFiefKnowHowReserve(civ, lineage, amount);
+    public Fix64 KnowHowBucket(int settlementId, int lineage) => _economy.FiefKnowHowBucket(settlementId, lineage);
+    public void AddKnowHowBucket(int settlementId, int lineage, Fix64 amount) => _economy.AddFiefKnowHow(settlementId, lineage, amount);
+    public void DebitKnowHowBuckets(int civ, int lineage, Fix64 amount) => _economy.DebitFiefKnowHow(civ, lineage, amount);
+    public bool NeedsKnowHowMigration => _economy.FiefKnowHowNeedsMigration;
+    public void MigrateKnowHow(int lineageCount, Func<int, int, Fix64> pool)
+        => _economy.MigrateFiefKnowHow(lineageCount, pool);
+    public void SetKnowHowDiscardHandler(Action<int, int, Fix64> handler)
+        => _economy.FiefKnowHowDiscarded = handler;
 
     public UrgencySignals GetSignals(int civ)
     {

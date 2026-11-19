@@ -144,6 +144,8 @@ public partial class Game : Node3D
             int startMinute = ReadStartMinute();
             int viewerCiv = ReadViewerCiv();
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty, ReadChapter());
+            if (_session.Mode == CivSim.Sim.Research.ChapterMode.Fief)
+                DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED");
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
@@ -312,6 +314,7 @@ public partial class Game : Node3D
                 arg.StartsWith("--research-era=", StringComparison.Ordinal) ||
                 arg.StartsWith("--screenshot=", StringComparison.Ordinal) ||
                 arg.StartsWith("--scenario=", StringComparison.Ordinal) ||
+                arg == "--fief-playtest" ||
                 arg.StartsWith("--shots=", StringComparison.Ordinal)))
             return 20261019UL;
         // A normal player launch gets a fresh world every time.
@@ -327,13 +330,25 @@ public partial class Game : Node3D
         return 0;
     }
 
-    /// <summary>Every new match plays through the Iron Age. Launch option <c>--chapter=bronze</c> (development only) starts the first match in the shorter Bronze rules.</summary>
+    /// <summary>Every ordinary new match plays through Iron. Debug-only launch option <c>--fief-playtest</c> opts the entire process into draft Fief matches.</summary>
     private static CivSim.Sim.Research.ChapterMode ReadChapter()
     {
+#if DEBUG
+        if (HasArgument("--fief-playtest")) return CivSim.Sim.Research.ChapterMode.Fief;
+#endif
         foreach (string arg in OS.GetCmdlineUserArgs())
             if (string.Equals(arg, "--chapter=bronze", StringComparison.OrdinalIgnoreCase))
                 return CivSim.Sim.Research.ChapterMode.Bronze;
         return CivSim.Sim.Research.ChapterMode.Iron;
+    }
+
+    private static bool IsFiefPlaytestLaunch()
+    {
+#if DEBUG
+        return HasArgument("--fief-playtest");
+#else
+        return false;
+#endif
     }
 
     private static int ReadViewerCiv()
@@ -665,10 +680,14 @@ public partial class Game : Node3D
                 settlement["fiefWindmillSources"] = i < frame.Fief.WindmillSources.Length ? frame.Fief.WindmillSources[i] : 0;
                 settlement["fiefAvailablePowerHours"] = i < frame.Fief.AvailablePowerHours.Length ? frame.Fief.AvailablePowerHours[i] : 0L;
                 settlement["fiefGrainCoverage"] = i < frame.Fief.GrainCoverage.Length ? frame.Fief.GrainCoverage[i] : 0L;
+                settlement["fiefSawingUsed"] = i < frame.Fief.SawingUsed.Length ? frame.Fief.SawingUsed[i] : 0L;
+                settlement["fiefCraftUsed"] = i < frame.Fief.CraftUsed.Length ? frame.Fief.CraftUsed[i] : 0L;
                 settlement["fiefMonks"] = i < frame.Fief.Monks.Length ? (int)frame.Fief.Monks[i] : 0;
                 settlement["fiefMonasteries"] = i < frame.Fief.Monasteries.Length ? (int)frame.Fief.Monasteries[i] : 0;
                 settlement["fiefUniversities"] = i < frame.Fief.Universities.Length ? (int)frame.Fief.Universities[i] : 0;
                 settlement["fiefHospitals"] = i < frame.Fief.Hospitals.Length ? (int)frame.Fief.Hospitals[i] : 0;
+                settlement["fiefScholars"] = i < frame.Fief.Scholars.Length ? (int)frame.Fief.Scholars[i] : 0;
+                settlement["fiefHospitalStaffed"] = i < frame.Fief.HospitalStaffed.Length && frame.Fief.HospitalStaffed[i] != 0;
                 settlement["fiefConcentricCastle"] = i < frame.Fief.ConcentricCastle.Length && frame.Fief.ConcentricCastle[i] != 0;
             }
 #if DEBUG

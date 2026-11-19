@@ -1,0 +1,26 @@
+# Frozen proposed F-T1 final-code calibration seed manifest.
+# Frozen before any match in this cohort; no worlds or pacing outcomes screened.
+# Selection: 20 distinct seeds sampled without replacement from [20500000, 20599999]
+# using Python 3 random.Random(20261116), then sorted.
+# 20 whole-match worlds × four seats each: Builder, Grower, Warlord, Sage; 20 matches / 80 seat outcomes total.
+# Calibration block only, not acceptance evidence. Use only after final integrated source/pack provenance is established.
+20500859
+20501724
+20524750
+20527573
+20528045
+20542167
+20544215
+20547720
+20553022
+20565793
+20566091
+20566313
+20568340
+20575287
+20575326
+20582332
+20583288
+20584815
+20590125
+20599629

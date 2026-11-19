@@ -67,7 +67,7 @@ public sealed class AiSystem
             DifficultyProfile profile = DifficultyProfile.From(pack, level);
             (IBeliefBuilder builder, IResearchSpark spark, IStrategist strategist) = AiMinds.Create(control, profile, research.Catalog);
             var map = new MapKnowledge(generated.Tiles.ToArray(), generated.Width, generated.Height);
-            var belief = new Belief(civ, controls.Length, research.Catalog.Count, map);
+            var belief = new Belief(civ, controls.Length, research.Catalog.Count, map, economy.FiefChain);
             var context = new AiContext
             {
                 Civ = civ, MatchSeed = seed, Spec = control.Spec, Profile = profile, Own = new OwnView(), Belief = belief, Intent = new StrategicIntent(),
@@ -111,24 +111,34 @@ public sealed class AiSystem
     {
         _tick = tick;
         for (int civ = 0; civ < _seats.Length; civ++)
-        {
-            AiSeat? seat = _seats[civ];
-            if (seat is null) continue;
-            AiContext ctx = seat.Context;
-            ctx.Tick = tick;
-            ctx.Season = _world.Politics.Season;
-            OwnViewBuilder.Build(ctx.Own, civ, tick, _world.Economy, _world.Research, _world.Politics);
-            ObserveRouteDecreeOutcome(ctx.Intent, civ, ctx.Season, tick, ctx.Own.Bronze.Mandate,
-                ctx.Own.Bronze.MandateCap, _world.Politics.Events);
-            seat.Builder.Update(seat.Belief, _world, seat.Profile);
-            // Replan cadence (docs/MVP/14 §9.2): the Settler thinks once a year.
-            if (seat.Profile.Replan == ReplanCadence.Yearly && ctx.Season % 4 != 0) continue;
-            // The Strategist decides first: its threat and war readings tell the Spark what research is urgent.
-            seat.Strategist.Decide(ctx);
-            if (_warlordRaidWithdrawalPolicyEnabled)
-                RaidWithdrawalPolicy.Decide(seat, _world.Politics, _seed, ctx.Season);
-            seat.Spark.Decide(ctx);
-        }
+            UpdateSeat(civ, tick);
+    }
+
+    /// <summary>Runs the production season-end pipeline for one seat without invoking other seats.</summary>
+    internal void UpdateSeatForTesting(int civ, long tick)
+    {
+        _tick = tick;
+        UpdateSeat(civ, tick);
+    }
+
+    private void UpdateSeat(int civ, long tick)
+    {
+        AiSeat? seat = _seats[civ];
+        if (seat is null) return;
+        AiContext ctx = seat.Context;
+        ctx.Tick = tick;
+        ctx.Season = _world.Politics.Season;
+        OwnViewBuilder.Build(ctx.Own, civ, tick, _world.Economy, _world.Research, _world.Politics);
+        ObserveRouteDecreeOutcome(ctx.Intent, civ, ctx.Season, tick, ctx.Own.Bronze.Mandate,
+            ctx.Own.Bronze.MandateCap, _world.Politics.Events);
+        seat.Builder.Update(seat.Belief, _world, seat.Profile);
+        // Replan cadence (docs/MVP/14 §9.2): the Settler thinks once a year.
+        if (seat.Profile.Replan == ReplanCadence.Yearly && ctx.Season % 4 != 0) return;
+        // The Strategist decides first: its threat and war readings tell the Spark what research is urgent.
+        seat.Strategist.Decide(ctx);
+        if (_warlordRaidWithdrawalPolicyEnabled)
+            RaidWithdrawalPolicy.Decide(seat, _world.Politics, _seed, ctx.Season);
+        seat.Spark.Decide(ctx);
     }
 
     internal static void ObserveRouteDecreeOutcome(StrategicIntent intent, int civ, int season, long tick,

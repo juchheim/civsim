@@ -235,6 +235,7 @@ public sealed class SimulationSession : IDisposable
     public MatchEndReason EndReason => (MatchEndReason)Volatile.Read(ref _endReason);
     /// <summary>How hard the rival peoples think. It decides their behaviour, so saves and replays must carry it.</summary>
     public Difficulty Difficulty => _difficulty;
+    public ChapterMode Mode => _match.Rules.Mode;
     public bool IsReplay => _replayMode;
     public bool ReplayFinished => Volatile.Read(ref _replayFinished) != 0;
     public string ReplayStatus => Volatile.Read(ref _replayStatus) ?? "Replay is playing.";
@@ -247,8 +248,9 @@ public sealed class SimulationSession : IDisposable
     internal static SimulationSession Restore(GameSaveData save, ContentPack pack)
         => new(save.Seed, pack, 0, save.ViewerCiv, save.Difficulty, save, null);
 
-    internal static SimulationSession Watch(Replay replay, ContentPack pack, Difficulty difficulty, int viewerCiv = 0)
-        => new(replay.MatchSeed, pack, 0, viewerCiv, difficulty, null, replay);
+    internal static SimulationSession Watch(Replay replay, ContentPack pack, Difficulty difficulty, int viewerCiv = 0,
+        ChapterMode mode = ChapterMode.Bronze)
+        => new(replay.MatchSeed, pack, 0, viewerCiv, difficulty, null, replay, mode);
 
     public void SetPaused(bool paused)
     {

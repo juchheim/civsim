@@ -8,6 +8,8 @@ using CivSim.Sim.World;
 
 namespace CivSim.Sim.Ai;
 
+public enum HorseSourceKnowledge : byte { Unknown, Seen, ConfirmedAbsent }
+
 /// <summary>
 /// What one civilization believes about a rival settlement, from what its figures have seen (docs/MVP/14 §3.1).
 /// Numbers are estimates with the season they were last true.
@@ -219,9 +221,10 @@ public sealed class MapKnowledge
 /// <summary>Everything one civilization believes about the world beyond its own people (docs/MVP/14 §3.1).</summary>
 public sealed class Belief
 {
-    public Belief(int civ, int civCount, int projectCount, MapKnowledge map)
+    public Belief(int civ, int civCount, int projectCount, MapKnowledge map, bool fiefChapter = false)
     {
         Civ = civ;
+        FiefChapter = fiefChapter;
         Map = map;
         Rivals = new RivalBelief[civCount];
         for (int c = 0; c < civCount; c++)
@@ -229,6 +232,9 @@ public sealed class Belief
     }
 
     public int Civ { get; }
+    public bool FiefChapter { get; }
+    /// <summary>Horse source knowledge, updated only from explored tiles in Fief.</summary>
+    public HorseSourceKnowledge HorseSource { get; set; }
     public int Season { get; set; }
     public RivalBelief[] Rivals { get; }
     public MapKnowledge Map { get; }
@@ -278,6 +284,7 @@ public sealed class Belief
         {
             h.Add(p.Civ); h.Add((int)p.Kind); h.Add(p.FromSettlement); h.Add(p.TargetSettlement); h.Add(p.ArriveSeason); h.Add(p.PartySize);
         }
+        if (FiefChapter) h.Add((int)HorseSource);
     }
 
     public void Write(BinaryWriter w)
@@ -321,6 +328,7 @@ public sealed class Belief
         {
             w.Write(p.Civ); w.Write((byte)p.Kind); w.Write(p.FromSettlement); w.Write(p.TargetSettlement); w.Write(p.ArriveSeason); w.Write(p.PartySize);
         }
+        if (FiefChapter) w.Write((byte)HorseSource);
     }
 
     public void Read(BinaryReader r0)
@@ -386,5 +394,6 @@ public sealed class Belief
                 Civ = r0.ReadInt32(), Kind = (ExpeditionKind)r0.ReadByte(), FromSettlement = r0.ReadInt32(),
                 TargetSettlement = r0.ReadInt32(), ArriveSeason = r0.ReadInt32(), PartySize = r0.ReadInt32(),
             });
+        HorseSource = FiefChapter ? (HorseSourceKnowledge)r0.ReadByte() : HorseSourceKnowledge.Unknown;
     }
 }

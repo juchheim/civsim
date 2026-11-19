@@ -51,6 +51,7 @@ public sealed partial class FrameBuilder
     private readonly bool[] _passable;
     private readonly ResearchCatalog _catalog;
     private readonly int _war03, _war11, _war01, _war04, _hnt02, _hnt03, _hnt05, _hnt06, _stn10;
+    private readonly int _way09;
     private readonly int[] _boatProjects;
     private readonly (int Project, CivLook Look)[] _lookProjects;
     private readonly int _com04, _fir05, _agr04, _soc05, _hus01, _travois;
@@ -128,6 +129,7 @@ public sealed partial class FrameBuilder
         _viewer = viewerCiv;
         _passable = HexGrid.BuildWalkingPassability(_tiles, _width, _height);
         _catalog = match.Research.Catalog;
+        _way09 = _catalog.IndexOf("WAY-09");
         _war01 = _catalog.IndexOf("WAR-01"); _war04 = _catalog.IndexOf("WAR-04"); _hnt02 = _catalog.IndexOf("HNT-02");
         _hnt03 = _catalog.IndexOf("HNT-03"); _hnt05 = _catalog.IndexOf("HNT-05"); _hnt06 = _catalog.IndexOf("HNT-06"); _war03 = _catalog.IndexOf("WAR-03"); _war11 = _catalog.IndexOf("WAR-11");
         _stn10 = _catalog.IndexOf("STN-10");
@@ -625,6 +627,21 @@ public sealed partial class FrameBuilder
                         _rememberedOwnerTick[t] = observationTick;
                     }
                 }
+        if (!_omniscient && _economy.FiefChain && _way09 >= 0 && research.IsDone(_viewer, _way09))
+        {
+            // Portolans extend a known shoreline over adjacent water only. They do not reveal land beyond the
+            // observed coastline, and derive entirely from this viewer's existing explored-map memory.
+            for (int t = 0; t < _tileCount; t++)
+                if (Visible(t) || pol.IsRevealed(_viewer, t)) _explored[t] = 1;
+            Span<int> neighbors = stackalloc int[6];
+            for (int t = 0; t < _tileCount; t++)
+            {
+                if (_explored[t] == 0 || !_tiles[t].IsLand) continue;
+                int count = HexGrid.Neighbors(t, _width, _height, neighbors);
+                for (int k = 0; k < count; k++)
+                    if (!_tiles[neighbors[k]].IsLand) _explored[neighbors[k]] = 1;
+            }
+        }
         // Record surface evidence first so a clue discovered later in tile order can support local prospecting now.
         if (!_omniscient)
             for (int t = 0; t < _tileCount; t++)

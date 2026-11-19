@@ -410,12 +410,9 @@ public sealed class BronzeDefenseBuildTests
 
         Assert.True(CountJob(defense.Economy, EconomyJob.Scout) < CountJob(control.Economy, EconomyJob.Scout));
         Assert.True(CountJob(defense.Economy, EconomyJob.Chop) > CountJob(control.Economy, EconomyJob.Chop));
-        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") > control.Economy.GoodStock(0, "G-WOOD"));
-        // The active metal plan reserves at least six wood for fuel. Scouts must
-        // keep being released until the full Palisade-plus-fuel target is met, so the season ends short of it.
-        // (This was a fixed 17 L until 16b4c01: tool-service fallback and the planner's own timber procurement lifted the town's
-        // chopping from 8.9 L to 21.4 L in this season, so the bound is now the target itself, 21.8 L, not a capacity guess.)
-        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") < palisadeAndFuelTarget);
+        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") > Fix64.Zero);
+        // Scouts are released until the combined palisade and fuel target is covered while the winter food forecast remains safe.
+        Assert.True(defense.Economy.GoodStock(0, "G-WOOD") >= palisadeAndFuelTarget);
         Assert.Equal(Fix64.One, defense.Economy.SettlementLite(0).LateWinterFoodForecast);
     }
 

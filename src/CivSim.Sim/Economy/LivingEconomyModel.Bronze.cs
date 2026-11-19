@@ -139,6 +139,8 @@ public sealed partial class LivingEconomyModel
         public readonly Fix64[] Goods = new Fix64[(int)MetalGood.Count];
         /// <summary>The Iron chapter's goods (docs/MVP/25 §4), kept apart from <see cref="Goods"/> so a Bronze checksum and snapshot never see them. Allocated on first use.</summary>
         public Fix64[]? IronGoods;
+        /// <summary>Fief-only powder and cannon-chain goods, kept outside the Iron goods prefix so Iron hashes and snapshots remain exact.</summary>
+        public Fix64[] FiefGoods = Array.Empty<Fix64>();
         /// <summary>Iron-chapter structures built here, by <c>IronStructure</c>; null until the first one. Outside <see cref="Goods"/> and the Structures array, so Bronze hashes never see it.</summary>
         public int[]? IronWorks;
         /// <summary>The Iron structure under construction (an <c>IronStructure</c> value) or -1, with the labor put into it.</summary>
@@ -238,9 +240,8 @@ public sealed partial class LivingEconomyModel
 
     private static readonly ulong BronzeTag = 0x42524F4E5A452033UL; // "BRONZE 3"
     private static readonly Fix64 KitNewQuality = Fix64.FromRatio(12, 10);
-    private static readonly Fix64 HaulPerLitreTile = Fix64.FromRatio(1, 40); // 0.1 ws per L per 4 tiles (docs/MVP/22 §5.2)
+    private static readonly Fix64 HaulPerLitreTile = Fix64.FromRatio(1, 60); // 0.1 ws per L per 6 tiles (candidate input-flow fit)
     private static readonly Fix64 WoodReserve = Fix64.FromInt(12);
-    private static readonly Fix64 CharcoalWoodPerL = Fix64.FromInt(6);
     private static readonly Fix64 ExpectedSeasonWear = Fix64.FromRatio(7, 10);
 
     private BronzeConstants _bronzeConstants;
@@ -308,7 +309,7 @@ public sealed partial class LivingEconomyModel
         for (int tile = 0; tile < tiles; tile++)
         {
             WorldDeposit d = _world.Deposit(tile);
-            _ore[tile] = OreLitres(d);
+            _ore[tile] = OreLitres(d, FiefChain);
         }
         _metalStats = new Fix64[_completedProjects.Length * StatCount];
         _metalOutputCurrent = new Fix64[_completedProjects.Length * StatCount];
@@ -318,15 +319,18 @@ public sealed partial class LivingEconomyModel
         InitializeFood();
     }
 
-    /// <summary>Litres of ore a deposit holds (docs/MVP/22 §5.1; tin by WP4's quantity tiers 1 = 100, 2 = 150, 3 = 600 L).</summary>
-    private static Fix64 OreLitres(WorldDeposit d) => d.Kind switch
+    /// <summary>Candidate finite reserves: six times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
+    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false) => d.Kind switch
     {
-        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 600, 2 => 150, _ => 100 }),
-        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 900 : 300),
-        DepositKind.ArsenicalCopper => Fix64.FromInt(800),
-        DepositKind.Iron => Fix64.FromInt(1000),
-        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(40),
-        DepositKind.Salt => Fix64.FromInt(400),
+        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 3600, 2 => 900, _ => 600 }),
+        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 5400 : 1800),
+        DepositKind.ArsenicalCopper => Fix64.FromInt(4800),
+        DepositKind.Iron => Fix64.FromInt(6000),
+        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(240),
+        DepositKind.Salt => Fix64.FromInt(2400),
+        // Draft Fief fit hypotheses until WP-E5-11 promotes the registered quantities.
+        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(900),
+        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(600),
         _ => Fix64.Zero,
     };
 
@@ -381,7 +385,7 @@ public sealed partial class LivingEconomyModel
     public bool DepositWorked(int tile)
     {
         if (!_bronzeActive || unchecked((uint)tile) >= unchecked((uint)_ore.Length)) return false;
-        return _ore[tile] < OreLitres(_world.Deposit(tile));
+        return _ore[tile] < OreLitres(_world.Deposit(tile), FiefChain);
     }
 
     /// <summary>The view's forest band of a tile (docs/MVP/23 §7.4): 0 under 5 L, 1 for 5–14, 2 for 15–24, 3 from 25 L.</summary>
@@ -565,14 +569,14 @@ public sealed partial class LivingEconomyModel
         int q = 0;
         foreach (FigureState f in Residents(s.Id))
             if (f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
-        Fix64 stone = BaseRate("chop", Fix64.FromInt(2)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
+        Fix64 stone = BaseRate("chop", Fix64.FromInt(3)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
         return (n == 0 ? Fix64.Zero : sum / n, stone);
     }
 
     /// <summary>Mining output per work-season at a deposit with a mine head for a bronze-kit holder, against surface digging by hand (B11).</summary>
     internal (Fix64 Best, Fix64 Surface) MineRates(int civ)
     {
-        Fix64 surface = BaseRate("mine", Fix64.One);
+        Fix64 surface = BaseRate("mine", Fix64.Parse("1.5"));
         Fix64 shaft = MethodMult(civ, "mine", 1);
         Fix64 picks = _tierDefs[10]?.Mod("mine") ?? Fix64.One;
         return (surface * (shaft > Fix64.Zero ? shaft : Fix64.One) * picks, surface);
@@ -640,6 +644,12 @@ public sealed partial class LivingEconomyModel
             if (m.Goods[g] <= Fix64.Zero) continue;
             total += m.Goods[g] * _metalBarter[g];
         }
+        if (FiefChain)
+            for (int g = 0; g < (int)FiefGood.Count; g++)
+            {
+                Fix64 stock = m.FiefGoods.Length > 0 ? m.FiefGoods[g] : Fix64.Zero;
+                if (stock > Fix64.Zero) total += stock * GoodBarterValue(FiefGoodId((FiefGood)g));
+            }
         return total;
     }
 
@@ -814,7 +824,7 @@ public sealed partial class LivingEconomyModel
         }
         foreach (FigureState f in _figures)
         {
-            byte maxRole = FiefChain ? Role.Attendant : IronChain ? Role.Scholar : Role.Scribe;
+            byte maxRole = FiefChain ? Role.MasterMason : IronChain ? Role.Scholar : Role.Scribe;
             if ((f.Kit is not (0 or 8 or 9 or 10) && !(IronChain && f.Kit is 11 or 12)) || f.Task >= MetalTask.Count || (f.Camp >= 0 && !campIds.Contains(f.Camp)) || f.Camp < -1 ||
                 f.Role > maxRole)
                 throw new InvalidDataException("Snapshot contains an invalid figure kit or task.");
@@ -854,6 +864,7 @@ public sealed partial class LivingEconomyModel
         };
         Array.Copy(source.Goods, m.Goods, m.Goods.Length);
         if (source.IronGoods is not null) m.IronGoods = (Fix64[])source.IronGoods.Clone();
+        if (source.FiefGoods.Length > 0) m.FiefGoods = (Fix64[])source.FiefGoods.Clone();
         if (source.IronWorks is not null) m.IronWorks = (int[])source.IronWorks.Clone();
         m.IronBuildKind = source.IronBuildKind;
         m.IronBuildProgress = source.IronBuildProgress;

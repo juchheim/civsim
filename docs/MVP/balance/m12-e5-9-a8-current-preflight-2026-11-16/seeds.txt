@@ -1,0 +1,10 @@
+# WP-E5-9 A8 whole-match current-candidate preflight; 8 fresh world seeds.
+# Frozen without outcome/geography screening. Disjoint from both previous A8 attempts.
+23000001
+23000002
+23000003
+23000004
+23000005
+23000006
+23000007
+23000008

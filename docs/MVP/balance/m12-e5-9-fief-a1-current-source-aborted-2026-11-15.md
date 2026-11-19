@@ -1,0 +1,3 @@
+# A1 current-source rerun attempt — aborted
+
+An A1 run was briefly started against the current content+`src/` aggregate (`9ddb1947ec28df407e891015632b836cefd97f45a8169e8f8e92ed07a3a9cb0f`) and stopped with SIGINT (exit code 130) after the repository owner instructed that A1 wait until the F-T7 route-carriage fix and remaining source changes settle. It emitted no cohort results and is not acceptance evidence. The redirected raw output file, [m12-e5-9-fief-a1-current-source-output-2026-11-15.txt](m12-e5-9-fief-a1-current-source-output-2026-11-15.txt), is preserved at zero bytes. The frozen A1 seed range remains 20261019–20261058; rerun only after the owner confirms the final source freeze.

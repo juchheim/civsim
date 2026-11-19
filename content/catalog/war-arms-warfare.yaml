@@ -149,12 +149,14 @@ projects:
     era: 5
     type: M
     status: draft
+    cost: 12800
+    cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [WAR-11, CHM-07]
     effects:
       - {kind: role, id: gunner}
       - {kind: good, id: "G-CANNON"}
       - {kind: unlock_action, action: fire_cannon}
-      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per firing season, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
+      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per shot, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
     practice: [{action: fire_cannon, share: 100}]
     flavor: "Thunder is taught to break walls."
     moment: "A gunner touches a match and a wall shudders."

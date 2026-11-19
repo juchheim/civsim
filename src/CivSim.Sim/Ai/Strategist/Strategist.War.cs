@@ -57,6 +57,7 @@ public sealed partial class Strategist
                 WarOption option = EvaluateAssault(v, s, read, m, site, width, trials, landPerSettlement, ownAvgPop);
                 option.TacticallyViable = option.Feasible;
                 ApplyLaunchBlockers(v, s, read, option, width);
+                TraceSiegeCampaignCandidate(v, read, site, option, width, selected: true);
                 if (CampaignEvaluationObserverForDiagnostics is not null)
                     option.GlobalForceDiagnostic = FormatGlobalForceUpperBound(v, read, option, width);
                 diagnosticOptions?.Add(option);
@@ -72,6 +73,14 @@ public sealed partial class Strategist
                         option.AlternateOriginAttackers, option.Ratio, option.Required, option.CaptureChance,
                         option.Value, option.TacticallyViable, option.Feasible, ReferenceEquals(option, best), option.Why,
                         option.GlobalForceDiagnostic));
+            if (SiegeCampaignObserverForDiagnostics is not null)
+                foreach (Site site in read.Sites)
+                {
+                    bool selected = false;
+                    foreach (Site selectedSite in warTargets)
+                        if (selectedSite.Settlement == site.Settlement) { selected = true; break; }
+                    if (!selected) TraceSiegeCampaignCandidate(v, read, site, option: null, width: width, selected: false);
+                }
             if (best is null) continue;
             // Windows: strike before the rival's walls arrive, or while it is in distress (14 §6.2).
             RivalBelief r = v.Belief.Rivals[o];
@@ -350,6 +359,7 @@ public sealed partial class Strategist
                 for (int i = 0; i < allowed; i++) { _a.Add(new Fighter(2_000_000 + _a.Count, each)); force += each; }
             }
         option.Attackers = _a.Count;
+        option.AttackForce = force;
         if (_a.Count < PoliticsSystem.CampaignMinimumAttackers)
         {
             (option.AlternateOriginAttackers, option.AlternateOriginSettlement) = MaxAlternateOriginAttackers(v, width, origin.Index);
@@ -487,8 +497,10 @@ public sealed partial class Strategist
         bool supplied = HasKnownSupplyPath(v, site.Tile, width);
         bool hungryWinter = option.LandsSeason >= 2 && origin.LateWinterForecast < StrategistTuning.WinterFoodFloor;
         bool weakReliefMargin = relievedDefense > Fix64.Zero && force < relievedDefense * option.Required;
-        // Without target stores, visible distress is the only settlement-specific evidence of vulnerability.
-        bool favorable = site.Distress;
+        // Without target stores, visible distress is the ordinary vulnerability signal. In Fief, a ready cannon
+        // train at the rally settlement is a second, own-stock signal for a visible walled target.
+        bool powderReady = v.Own.FiefChapter && origin.CannonStock >= Fix64.One && origin.PowderStock >= Fix64.FromRatio(1, 4);
+        bool favorable = site.Distress || powderReady;
         option.CaptureChance = Fix64.Zero; // deliberately unknown until target-store beliefs exist
         Fix64 conditionalGain = landPerSettlement * s.HorizonYears;
         Fix64 cost = v.Own.Others[read.Civ].AtWar ? Fix64.Zero : StrategistTuning.WarReputationLegacy;
@@ -498,10 +510,63 @@ public sealed partial class Strategist
         option.Feasible = option.TacticallyViable;
         option.Why = $"Stone Walls: investment ratio {F2(option.Ratio)} (plan needs {F2(option.Required)}; rules gate {F2(Sieges.MinimumInvestmentRatio)}), " +
                      $"{(supplied ? "supplied" : "no known supply path within 8 tiles")}, " +
-                     $"{(favorable ? "target distress seen" : "no distress evidence; target stores unknown")}" +
+                     $"{(site.Distress ? "target distress seen" : powderReady ? "own cannon and powder stock support a breach" : "no distress or siege-stock evidence; target stores unknown")}" +
                      (weakReliefMargin ? $", relief strength {F1(relief)} threatens the host" : "") +
                      (hungryWinter ? ", winter food short" : "") + "; stores are unobserved, so capitulation timing is unknown";
         return option;
+    }
+
+    /// <summary>Emits one opt-in row per known settlement without feeding diagnostic state back into policy.</summary>
+    private void TraceSiegeCampaignCandidate(StrategistView v, RivalRead read, Site site, WarOption? option,
+        int width, bool selected)
+    {
+        Action<SiegeCampaignDiagnostic>? observer = SiegeCampaignObserverForDiagnostics;
+        if (observer is null) return;
+
+        bool wallsSeen = StoneWallsSeen(v, read.Civ, site.Settlement);
+        bool evaluated = selected && wallsSeen;
+        int originId = option?.OriginSettlement ?? -1;
+        int attackers = option?.Attackers ?? 0;
+        Fix64 force = option?.AttackForce ?? Fix64.Zero;
+        Fix64 ratio = Fix64.Zero;
+        bool forceEligible = false, supplyEligible = false, signalEligible = false, reliefEligible = false, winterEligible = false;
+        string reason;
+
+        if (!selected) reason = "target_not_selected_by_bounded_target_selector";
+        else if (!wallsSeen) reason = "target_visibility_stone_walls_not_seen";
+        else
+        {
+            OwnSettlement? origin = v.Own.SettlementAt(originId);
+            Fix64 defenders = site.DefendStrength * Fix64.FromRatio(11, 10);
+            Fix64 required = Fix64.FromRatio(15, 10);
+            ratio = defenders > Fix64.Zero ? force / defenders : Fix64.FromInt(10);
+            forceEligible = attackers >= PoliticsSystem.CampaignMinimumAttackers && ratio >= required;
+            supplyEligible = HasKnownSupplyPath(v, site.Tile, width);
+
+            Fix64 relief = Fix64.Zero;
+            foreach (Site other in read.Sites)
+            {
+                if (other.Settlement == site.Settlement || HexGrid.Distance(other.Tile, site.Tile, width) > StrategistTuning.ReliefRange) continue;
+                int available = Math.Max(0, Math.Min(other.Fighters - 2, other.Fighters * 6 / 10));
+                relief += other.PerAttack * available;
+            }
+            reliefEligible = defenders + relief <= Fix64.Zero || force >= (defenders + relief) * required;
+            bool powderReady = v.Own.FiefChapter && origin is not null && origin.CannonStock >= Fix64.One &&
+                               origin.PowderStock >= Fix64.FromRatio(1, 4);
+            signalEligible = site.Distress || powderReady;
+            int seasons = Math.Max(1, ((option?.Travel ?? 0) + PoliticsSystem.TilesPerSeason - 1) / PoliticsSystem.TilesPerSeason);
+            int landsSeason = (v.Season + seasons - 1) % 4;
+            Fix64 winterFood = origin?.LateWinterForecast ?? Fix64.Zero;
+            winterEligible = !(landsSeason >= 2 && winterFood < StrategistTuning.WinterFoodFloor);
+
+            reason = !forceEligible ? "force" : !supplyEligible ? "path_supply" : !signalEligible ? "distress_stock" :
+                !reliefEligible ? "relief" : !winterEligible ? "winter" :
+                option is not null && !option.Feasible ? $"launch_blocker:{option.Why}" : "eligible";
+        }
+
+        observer(new SiegeCampaignDiagnostic(v.Civ, read.Civ, v.Season, site.Settlement, site.Tile,
+            site.Stale <= StrategistTuning.StaleSeasons, wallsSeen, selected, evaluated, originId, attackers,
+            ratio, forceEligible, supplyEligible, signalEligible, reliefEligible, winterEligible, reason));
     }
 
     /// <summary>

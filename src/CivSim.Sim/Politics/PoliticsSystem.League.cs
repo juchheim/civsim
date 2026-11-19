@@ -98,6 +98,7 @@ public sealed partial class PoliticsSystem
                 }
             }
         }
+        AdvanceFiefInheritance(_season);
     }
 
     private void HashLeagues(ref StateHasher h)

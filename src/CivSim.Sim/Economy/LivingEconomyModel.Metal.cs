@@ -67,6 +67,8 @@ public sealed partial class LivingEconomyModel
         public readonly Fix64[] Want;
         public readonly Fix64[] Terminal;
         public Fix64 Budget;
+        public Fix64 MilitaryAssemblyNeed, MilitaryAssemblyReserved;
+        public Fix64 CraftWorkBeforeTools, CraftWorkAfterTools;
         // Labor buckets, in the order figures are assigned to them.
         public Fix64 BuildNeed, BuildRequested, BuildCap, MineNeed, CharcoalNeed, SmeltNeed;
         public Fix64 BuildAssigned, MineAssigned, CharcoalAssigned, SmeltAssigned;
@@ -145,8 +147,9 @@ public sealed partial class LivingEconomyModel
 
         var compiled = new List<CompiledRecipe>();
         var iron = new List<CompiledRecipe>();
+        var fief = new List<CompiledRecipe>();
+        var ironChain = new List<CompiledRecipe>();
         var merged = new List<CompiledRecipe>();
-        var mergedFief = new List<CompiledRecipe>();
         foreach (EconomyRecipe r in _content.Recipes)
         {
             bool enabled = r.Outputs.Length > 0;
@@ -165,10 +168,14 @@ public sealed partial class LivingEconomyModel
                 quantities[i] = r.Inputs[i].Quantity;
             }
             int output = r.Outputs.Length > 0 ? SlotOf(r.Outputs[0].Good) : NoSlot;
-            bool touchesIron = output >= IronSlotBase;
-            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesIron |= slot >= IronSlotBase;
             bool touchesFief = output >= FiefSlotBase;
-            foreach (int[] alternatives in slots) foreach (int slot in alternatives) touchesFief |= slot >= FiefSlotBase;
+            bool touchesIron = output >= IronSlotBase && output < FiefSlotBase;
+            foreach (int[] alternatives in slots)
+                foreach (int slot in alternatives)
+                {
+                    touchesFief |= slot >= FiefSlotBase;
+                    touchesIron |= slot >= IronSlotBase && slot < FiefSlotBase;
+                }
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
             var entry = new CompiledRecipe
             {
@@ -177,16 +184,16 @@ public sealed partial class LivingEconomyModel
                 Task = TaskOfPractice(r.Practice), IsCharcoal = output == MetalSlot(MetalGood.Charcoal),
                 Enabled = enabled,
             };
-            // The Fief recipes (docs/MVP/36) join the planner only in a Fief match, so the Bronze and Iron recipe lists stay exactly as they were.
-            mergedFief.Add(entry);
-            if (touchesFief) continue;
-            (touchesIron ? iron : compiled).Add(entry);
+            if (touchesFief) fief.Add(entry);
+            else if (touchesIron) iron.Add(entry);
+            else compiled.Add(entry);
+            if (!touchesFief) ironChain.Add(entry);
             merged.Add(entry);
         }
         _compiledRecipes = compiled.ToArray();
         _ironRecipes = iron.ToArray();
+        _ironChainRecipes = ironChain.ToArray();
         _allRecipes = merged.ToArray();
-        _allFiefRecipes = mergedFief.ToArray();
     }
 
     private int SlotOf(string goodId)
@@ -199,13 +206,16 @@ public sealed partial class LivingEconomyModel
             if (IronGoodId((IronGood)g) == goodId) return IronSlot((IronGood)g);
         for (int g = 0; g < (int)FiefGood.Count; g++)
             if (FiefGoodId((FiefGood)g) == goodId) return FiefSlot((FiefGood)g);
+        for (int g = 0; g < (int)BowGood.Count; g++)
+            if (BowGoodId((BowGood)g) == goodId) return BowSlot((BowGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
-        if (slot >= FiefSlotBase) return s.FiefGoods is { } fief ? fief[slot - FiefSlotBase] : Fix64.Zero;
+        if (slot >= BowSlotBase) return s.FiefGoods is { Length: > 0 } bows ? bows[slot - BowSlotBase] : Fix64.Zero;
+        if (slot >= FiefSlotBase) return s.Metal is { FiefGoods.Length: > 0 } metal ? metal.FiefGoods[slot - FiefSlotBase] : Fix64.Zero;
         if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
         int metalSlot = slot - (int)Good.Count;
         if (metalSlot == (int)MetalGood.Ochre && s.Metal is null) return s.SurfaceOchre;
@@ -219,9 +229,16 @@ public sealed partial class LivingEconomyModel
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
         }
+        else if (slot >= BowSlotBase)
+        {
+            Fix64[] bows = s.FiefGoods ??= new Fix64[(int)BowGood.Count];
+            bows[slot - BowSlotBase] = Fix64.Max(Fix64.Zero, bows[slot - BowSlotBase] + amount);
+        }
         else if (slot >= FiefSlotBase)
         {
-            Fix64[] fief = s.FiefGoods ??= new Fix64[(int)FiefGood.Count];
+            MetalState state = EnsureMetal(s);
+            if (state.FiefGoods.Length == 0) state.FiefGoods = new Fix64[(int)FiefGood.Count];
+            Fix64[] fief = state.FiefGoods;
             fief[slot - FiefSlotBase] = Fix64.Max(Fix64.Zero, fief[slot - FiefSlotBase] + amount);
         }
         else if (slot >= IronSlotBase)
@@ -366,7 +383,7 @@ public sealed partial class LivingEconomyModel
     {
         int rung = KitChopRung(f);
         if (rung < 0) return Fix64.Zero;
-        Fix64 rate = BaseRate("chop", Fix64.FromInt(2)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
+        Fix64 rate = BaseRate("chop", Fix64.FromInt(3)) * ChopRungMult(f.Civilization, rung) * KitQuality(f);
         // The WOD-08 saw rides on a T12 kit only: chop x1.4 against the T12 iron axe (docs/MVP/26 §2.2).
         if (f.Kit == 12 && Done(f.Civilization, "WOD-08") && Done(f.Civilization, "MET-10")) rate *= SawChopMult;
         return rate;
@@ -454,6 +471,7 @@ public sealed partial class LivingEconomyModel
         DepositKind.Iron => Done(civ, "MET-08"),
         DepositKind.Gold or DepositKind.Silver => Done(civ, "MET-07"),
         DepositKind.Salt => Done(civ, "MIN-06"),
+        DepositKind.Saltpeter or DepositKind.Sulfur => FiefChain && Done(civ, "CHM-07"),
         _ => false,
     };
 
@@ -468,11 +486,18 @@ public sealed partial class LivingEconomyModel
         _ => null,
     };
 
+    private static FiefGood? FiefOreGood(DepositKind kind) => kind switch
+    {
+        DepositKind.Saltpeter => FiefGood.Saltpeter,
+        DepositKind.Sulfur => FiefGood.Sulfur,
+        _ => null,
+    };
+
     /// <summary>Whether a civilization can dig a deposit at all: the ore is unlocked and depth 2 needs Shaft Mining (docs/MVP/23 §7.1).</summary>
     private bool DepositWorkable(int civ, int tile)
     {
         WorldDeposit d = _world.Deposit(tile);
-        if (_ore[tile] <= Fix64.Zero || OreGood(d.Kind) is null || !OreUnlocked(civ, d.Kind)) return false;
+        if (_ore[tile] <= Fix64.Zero || (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null)) || !OreUnlocked(civ, d.Kind)) return false;
         return d.Depth < 2 || Done(civ, "MIN-04");
     }
 
@@ -483,18 +508,41 @@ public sealed partial class LivingEconomyModel
     {
         fireSetting = false;
         WorldDeposit d = _world.Deposit(tile);
-        if (d.Kind is DepositKind.Gold or DepositKind.Silver) return BaseRate("pan_gold", Fix64.FromRatio(1, 10));
-        if (d.Kind == DepositKind.Salt) return BaseRate("salt", Fix64.One);
-        Fix64 factor = d.Kind == DepositKind.Tin ? Fix64.Half : Fix64.One;
-        Fix64 rate = BaseRate("mine", Fix64.One) * factor;
-        if (mineHead && Done(civ, "MIN-04"))
+        Fix64 rate;
+        if (d.Kind is DepositKind.Gold or DepositKind.Silver) rate = BaseRate("pan_gold", Fix64.FromRatio(1, 10));
+        else if (d.Kind == DepositKind.Salt) rate = BaseRate("salt", Fix64.One);
+        else if (d.Kind is DepositKind.Saltpeter or DepositKind.Sulfur) rate = BaseRate("mine", Fix64.FromInt(2));
+        else
         {
-            Fix64 fire = MethodMult(civ, "mine", 2);
-            Fix64 shaft = MethodMult(civ, "mine", 1);
-            if (fire > Fix64.Zero) { fireSetting = true; return rate * fire; }
-            if (shaft > Fix64.Zero) return rate * shaft;
+            Fix64 factor = d.Kind == DepositKind.Tin ? Fix64.Half : Fix64.One;
+            rate = BaseRate("mine", Fix64.FromInt(2)) * factor;
+            if (mineHead && Done(civ, "MIN-04"))
+            {
+                Fix64 fire = MethodMult(civ, "mine", 2);
+                Fix64 shaft = MethodMult(civ, "mine", 1);
+                if (fire > Fix64.Zero) { fireSetting = true; rate *= fire; }
+                else if (shaft > Fix64.Zero) rate *= shaft;
+                else if (d.Depth >= 2) rate = Fix64.Zero;
+            }
+            else if (d.Depth >= 2) rate = Fix64.Zero;
         }
-        return d.Depth >= 2 ? Fix64.Zero : rate;
+
+        // MIN-08 is a Fief-only bonus for known veins within the civilization's own territory.
+        // Ownership is the economy's existing visibility/claim boundary; don't boost unowned or rival deposits.
+        if (rate > Fix64.Zero && FiefChain && Done(civ, "MIN-08") && _ore[tile] > Fix64.Zero &&
+            d.Kind != DepositKind.None && IsOwnTile(civ, tile))
+            rate *= Fix64.FromRatio(5, 4);
+        return rate;
+    }
+
+    internal Fix64 FixtureMineRate(int civ, int tile)
+        => DepositWorkable(civ, tile) ? MineRate(civ, tile, mineHead: false, out _) : Fix64.Zero;
+
+    internal int FixtureFirstUnknownDepositTile()
+    {
+        for (int tile = 0; tile < _world.TileCount; tile++)
+            if (_world.Deposit(tile).Kind == DepositKind.None || _ore[tile] <= Fix64.Zero) return tile;
+        return -1;
     }
 
     private bool IsOwnTile(int civ, int tile)
@@ -881,6 +929,10 @@ public sealed partial class LivingEconomyModel
             if (id == "smelter" && m is not null && m.Smelters > 0) return true;
             if (id == "forge" && m is not null && m.Forges > 0) return true;
             if (id == "press" && IronWorksCount(s, IronStructure.Press) > 0) return true;
+            if (id == "blast_furnace" && FiefChain && IronWorksCount(s, IronStructure.BlastFurnace) > 0) return true;
+            if (id == "powder_mill" && FiefChain && IronWorksCount(s, IronStructure.PowderMill) > 0) return true;
+            if (id == "monastery" && MonasteryStaffed(s)) return true;
+            if (id == "print_shop" && FiefChain && IronWorksCount(s, IronStructure.PrintShop) > 0 && RoleHeads(s.Id).Scribes > 0) return true;
         }
         return false;
     }
@@ -891,19 +943,42 @@ public sealed partial class LivingEconomyModel
     private Fix64 OutputQuantity(SettlementState s, CompiledRecipe r)
     {
         Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
+        if (FiefChain)
+            q *= FiefMilitaryIntermediateYield(r.Def.Id);
         return FurnaceActive(s, r) ? q * FurnaceOutputFactor(s) : q;
     }
+
+    /// <summary>
+    /// Fief-only throughput fit for traced constrained intermediates. The seed-125 forge trace fulfilled about 58% of
+    /// arsenical co-smelt and charcoal plans; the factors reduce raw ore/wood needed per military-ready intermediate.
+    /// Existing wrought/steel, crucible steel, and bronze fits keep their recipe-to-kit batch targets. No deposits are added.
+    /// Earlier eras keep the registry yields unchanged.
+    /// </summary>
+    private static Fix64 FiefMilitaryIntermediateYield(string recipeId) => recipeId switch
+    {
+        "burn_charcoal" => Fix64.FromRatio(3, 2),
+        "cosmelt_arsenical" => Fix64.FromInt(2),
+        "forge_wrought" or "carburize_steel" => Fix64.FromRatio(5, 4),
+        "crucible_steel" => Fix64.FromRatio(4, 3),
+        "alloy_bronze" => Fix64.FromRatio(6, 5),
+        _ => Fix64.One,
+    };
 
     private Fix64 InputQuantity(SettlementState s, CompiledRecipe r, int input)
     {
         Fix64 q = r.InputQuantity[input];
+        // WP-E5-7 draft fit: artisan loss is modeled as 5% extra input per recipe batch.
+        // Guilds improve the craft-quality index by 20%, represented conservatively as
+        // a 1/1.2 reduction to that loss. This never changes recipe output or tool life.
+        if (FiefChain && FiefCraftLossApplies(r))
+            q *= Fix64.One + FiefRecipeWasteRate(s.Civilization);
         if (BellowsActive(s, r) && Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0)
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
         if (FurnaceActive(s, r))
         {
-            // The furnace's x4 output and x2 charcoal use only apply to the share of craft work covered by the shared ledger.
+            // Output remains tied to the x4 factor. Default charcoal remains x2; the opt-in Fief fit varies only its input factor.
             q *= Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0
-                ? FurnaceInputAndLaborFactor(s) : FurnaceOutputFactor(s);
+                ? FurnaceCharcoalInputFactor(s) : FurnaceOutputFactor(s);
         }
         return q;
     }
@@ -946,7 +1021,7 @@ public sealed partial class LivingEconomyModel
         // Who carries what: the kit summary feeds charcoal labor and the craft labor of dressing stone.
         int adults = 0, needKits = 0, rung6Adults = 0;
         Fix64 chopSum = Fix64.Zero;
-        Fix64 e2Chop = ActionRate("chop", Fix64.FromInt(2), s, "chop") * Modifier(civ, "wood_yield");
+        Fix64 e2Chop = ActionRate("chop", Fix64.FromInt(3), s, "chop") * Modifier(civ, "wood_yield");
         foreach (FigureState f in Residents(s.Id))
         {
             if (f.Age < 14) continue;
@@ -1057,6 +1132,7 @@ public sealed partial class LivingEconomyModel
         }
         (plan.MineNeed, plan.CharcoalNeed, plan.SmeltNeed) = ChainLabor(s, plan);
         plan.Budget = plan.BuildNeed + plan.IronBuildNeed + plan.MineNeed + plan.CharcoalNeed + plan.SmeltNeed;
+        plan.MilitaryAssemblyNeed = MilitaryAssemblyLabor(s, plan);
         return plan;
     }
 
@@ -1277,6 +1353,51 @@ public sealed partial class LivingEconomyModel
     private static string F(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Labor of the metal chain for the plan's batches and wants: in-range mining, charcoal (with cutting) and the recipes of orders 20–40.</summary>
+    private bool IsEssentialTransportRecipe(int outputSlot) => SlotOf("G-CART") == outputSlot;
+
+    private bool IsDiscretionaryFinishingRecipe(CompiledRecipe recipe)
+        => recipe.Def.Order >= CraftOrder && !IsMilitaryAssemblyRecipe(recipe.OutputSlot) && !IsEssentialTransportRecipe(recipe.OutputSlot);
+
+    private string MilitaryInputReadiness(SettlementState s, CompiledRecipe recipe, Fix64 batches)
+    {
+        var fields = new List<string>();
+        for (int i = 0; i < recipe.Def.Inputs.Length; i++)
+        {
+            Fix64 held = Fix64.Zero;
+            foreach (string good in recipe.Def.Inputs[i].Goods)
+            {
+                int slot = SlotOf(good);
+                if (slot != NoSlot) held += Stock(s, slot);
+            }
+            Fix64 need = InputQuantity(s, recipe, i) * batches;
+            fields.Add($"{string.Join('|', recipe.Def.Inputs[i].Goods)}={F(held)}/{F(need)}");
+        }
+        return string.Join(',', fields);
+    }
+
+    private Fix64 MilitaryAssemblyLabor(SettlementState s, MetalPlan plan)
+    {
+        Fix64 need = Fix64.Zero;
+        for (int r = 0; r < _compiledRecipes.Length; r++)
+        {
+            CompiledRecipe recipe = _compiledRecipes[r];
+            if (recipe.Def.Order < CraftOrder || plan.Batches[r] <= Fix64.Zero || !IsMilitaryAssemblyRecipe(recipe.OutputSlot)) continue;
+            need += plan.Batches[r] * RecipeLabor(s, recipe, plan.AnyMetalKit);
+        }
+        return need;
+    }
+
+    private bool IsMilitaryAssemblyRecipe(int outputSlot)
+    {
+        foreach (string id in new[]
+        {
+            "G-ARMS1", "G-ARMS2A", "G-ARMS2T", "G-ARMS3", "G-ARMS4", "G-ARMS5",
+            "G-WHEEL", "G-CROSSBOW", "G-LONGBOW", "G-CHARIOT", "G-ENGINE", "G-CANNON", "G-POWDER",
+        })
+            if (SlotOf(id) == outputSlot) return true;
+        return false;
+    }
+
     private (Fix64 Mine, Fix64 Charcoal, Fix64 Smelt) ChainLabor(SettlementState s, MetalPlan plan)
     {
         Fix64 mine = MiningLaborNeed(s, plan), charcoal = Fix64.Zero, smelt = Fix64.Zero;
@@ -1309,12 +1430,13 @@ public sealed partial class LivingEconomyModel
         // wastes charcoal on Bronze casts, and competes with the sustainable Iron route's first 12-season equipment cohort.
         bool ironRekit = IronChain && Done(civ, "MET-09");
         if (plan.Tier != 0 && !ironRekit)
-            plan.Terminal[MetalSlot(KitGood(plan.Tier))] = Fix64.Max(Fix64.Zero, Fix64.FromInt(needKits) - m.Goods[(int)KitGood(plan.Tier)]);
+        {
+            int slot = MetalSlot(KitGood(plan.Tier));
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(needKits), m.Goods[(int)KitGood(plan.Tier)]));
+        }
         IronKitWant(s, m, plan);
         IronExportWant(s, m, plan, pop);
         IronBuildWants(s, m, plan);
-        IronArmsWant(s, m, plan);
-        IronEngineWant(s, m, plan);
         IronCraftWants(s, m, plan);
         Fix64 ironHubOreNeed = SisterIronOreDeficit(s);
         if (ironHubOreNeed > Fix64.Zero)
@@ -1360,20 +1482,6 @@ public sealed partial class LivingEconomyModel
             }
         }
 
-        // Arms (docs/MVP/23 §4.2): one kit per warrior plus the spares; warriors are about four per hundred people (22 §5.6).
-        if (TierKnown(civ, 8) && plan.Tier != 0)
-        {
-            Fix64 target = Fix64.FromInt(_bronzeConstants.SpareArms + pop * 4 / 100);
-            Fix64 have = m.Goods[(int)MetalGood.Arms1] + m.Goods[(int)MetalGood.Arms2A] + m.Goods[(int)MetalGood.Arms2T];
-            if (target > have)
-            {
-                bool war05 = Done(civ, "WAR-05");
-                MetalGood arms = war05 && plan.Tier == 10 ? MetalGood.Arms2T
-                    : war05 && (plan.Tier == 9 || m.Goods[(int)MetalGood.ArsenicalBronze] >= Fix64.FromRatio(3, 10)) ? MetalGood.Arms2A
-                    : MetalGood.Arms1;
-                plan.Terminal[MetalSlot(arms)] += target - have;
-            }
-        }
     }
 
     /// <summary>
@@ -1386,7 +1494,7 @@ public sealed partial class LivingEconomyModel
         void Want(MetalGood good, Fix64 target)
         {
             Fix64 have = m.Goods[(int)good];
-            if (target > have) plan.Terminal[MetalSlot(good)] += target - have;
+            if (target > have) plan.Terminal[MetalSlot(good)] = Fix64.Max(plan.Terminal[MetalSlot(good)], target);
         }
         Fix64 perTwenty = Fix64.FromInt((pop + 19) / 20);
         if (Done(civ, "MET-06")) Want(MetalGood.FineBronze, perTwenty);
@@ -1396,12 +1504,18 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "FIB-08")) Want(MetalGood.DyedCloth, perTwenty);
         if (Done(civ, "MEC-03")) Want(MetalGood.Wheel, Fix64.FromInt(2));
         if (Done(civ, "TRN-05")) Want(MetalGood.Cart, Fix64.FromInt((pop + 24) / 25));
-        if (Done(civ, "WAR-06")) Want(MetalGood.Chariot, Fix64.FromInt(pop / 50));
+        if (Done(civ, "WAR-06"))
+            plan.Terminal[MetalSlot(MetalGood.Chariot)] = Fix64.Max(plan.Terminal[MetalSlot(MetalGood.Chariot)],
+                Fix64.Max(Fix64.FromInt(pop / 50), m.Goods[(int)MetalGood.Chariot]));
         if (Done(civ, "STN-11")) Want(MetalGood.Ashlar, Fix64.FromInt(Math.Max(10, CivicCutStoneWant(s))));
         else if (Done(civ, "MIN-03") && CivicCutStoneWant(s) > 0) Want(MetalGood.Block, Fix64.FromInt(CivicCutStoneWant(s)));
         if (Done(civ, "CHM-05")) Want(MetalGood.Soap, perTwenty);
         if (Done(civ, "CHM-04")) Want(MetalGood.Dye, Fix64.One);
-        if (Done(civ, "HUS-05")) plan.Terminal[MetalSlot(MetalGood.Cheese)] += m.Goods[(int)MetalGood.Milk] * 4 / 6;
+        if (Done(civ, "HUS-05"))
+        {
+            int cheese = MetalSlot(MetalGood.Cheese);
+            plan.Terminal[cheese] = Fix64.Max(plan.Terminal[cheese], m.Goods[(int)MetalGood.Cheese] + m.Goods[(int)MetalGood.Milk] * 4 / 6);
+        }
         if (Done(civ, "FOD-07")) Want(MetalGood.Salted, Fix64.FromInt(pop) / 2);
         if (Done(civ, "HUS-06")) Want(MetalGood.WoolGarment, Fix64.FromInt((pop + 9) / 10));
         if (Done(civ, "MET-07")) Want(MetalGood.Gold, perTwenty / 10);
@@ -1410,6 +1524,30 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
         FiefBowWants(s, m, plan);
+        FiefLearningWants(s, plan);
+        // Food, fuel, tools and transport maintenance above keep their normal priority. Military readiness is a
+        // secondary target: cover the fighting-age population with ordinary arms, then separately upgrade posts.
+        WantBaselineArms(s, m, plan);
+        FiefWeaponWants(s, plan);
+        IronArmsWant(s, m, plan);
+        IronEngineWant(s, m, plan);
+    }
+
+    private void WantBaselineArms(SettlementState s, MetalState m, MetalPlan plan)
+    {
+        int civ = s.Civilization;
+        if (!TierKnown(civ, 8) || plan.Tier == 0) return;
+        int fighters = 0;
+        foreach (FigureState f in Residents(s.Id)) if (f.Age >= 14) fighters++;
+        Fix64 target = Fix64.FromInt(fighters + _bronzeConstants.SpareArms);
+        Fix64 have = Fix64.FromInt(Math.Min(target.FloorToInt(), TotalIssuedWeaponStock(s)));
+        if (target <= have) return;
+        bool war05 = Done(civ, "WAR-05");
+        MetalGood arms = war05 && plan.Tier == 10 ? MetalGood.Arms2T
+            : war05 && (plan.Tier == 9 || m.Goods[(int)MetalGood.ArsenicalBronze] >= Fix64.FromRatio(3, 10)) ? MetalGood.Arms2A
+            : MetalGood.Arms1;
+        int slot = MetalSlot(arms);
+        plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], m.Goods[(int)arms] + target - have);
     }
 
     /// <summary>
@@ -1474,7 +1612,16 @@ public sealed partial class LivingEconomyModel
             for (int slot = 0; slot < PlanSlots; slot++)
                 if (blockedOres[slot]) potential[slot] = Stock(s, slot);
         if (Done(civ, "MIN-01") && HasResourceInRange(s, _ochreStock)) potential[MetalSlot(MetalGood.Ochre)] = Plenty;
-        if (Done(civ, "MIN-03")) potential[MetalSlot(MetalGood.Block)] = Plenty;
+        if (Done(civ, "MIN-03"))
+        {
+            Fix64 quarryable = Stock(s, MetalSlot(MetalGood.Block));
+            foreach (int tile in RangeTiles(s.SiteTile)) quarryable += _stoneStock[tile];
+            potential[MetalSlot(MetalGood.Block)] = Fix64.Min(Plenty, quarryable);
+        }
+        if (FiefChain)
+            foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
+                if (BestRangeFiefDeposit(s, ore, out _) >= 0 || HasFiefOreCamp(s, ore) || HasFiefDepositInReach(s, ore))
+                    potential[FiefSlot(ore)] = Plenty;
         var result = new Fix64[_compiledRecipes.Length];
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
@@ -1568,6 +1715,14 @@ public sealed partial class LivingEconomyModel
             if (tile < 0 || rate <= Fix64.Zero) continue;
             labor += Fix64.Min(net, _ore[tile]) / (rate * UnskilledMiner);
         }
+        if (FiefChain)
+            foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
+            {
+                Fix64 net = plan.Want[FiefSlot(ore)] - Stock(s, FiefSlot(ore));
+                if (net <= Fix64.Zero) continue;
+                int tile = BestRangeFiefDeposit(s, ore, out Fix64 rate);
+                if (tile >= 0 && rate > Fix64.Zero) labor += Fix64.Min(net, _ore[tile]) / (rate * UnskilledMiner);
+            }
         _ = civ;
         return labor;
     }
@@ -1586,6 +1741,48 @@ public sealed partial class LivingEconomyModel
             if (best < 0 || r > rate) { best = tile; rate = r; }
         }
         return best;
+    }
+
+    private int BestRangeFiefDeposit(SettlementState s, FiefGood good, out Fix64 rate)
+    {
+        rate = Fix64.Zero;
+        int best = -1;
+        if (!FiefChain) return best;
+        foreach (int tile in RangeTiles(s.SiteTile))
+        {
+            if (FiefOreGood(_world.Deposit(tile).Kind) != good || !DepositWorkable(s.Civilization, tile) || IsRivalTile(s.Civilization, tile)) continue;
+            Fix64 candidateRate = MineRate(s.Civilization, tile, false, out _);
+            if (candidateRate > rate) { rate = candidateRate; best = tile; }
+        }
+        return best;
+    }
+
+    private bool HasFiefOreCamp(SettlementState s, FiefGood good)
+    {
+        if (!FiefChain) return false;
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == s.Id && FiefOreGood(_world.Deposit(camp.Tile).Kind) == good && DepositWorkable(s.Civilization, camp.Tile)) return true;
+        return false;
+    }
+
+    private bool HasFiefDepositInReach(SettlementState s, FiefGood good)
+    {
+        if (!FiefChain) return false;
+        foreach (int tile in ReachTiles(s.SiteTile, MiningReach(s.Civilization, s.SiteTile)))
+            if (FiefOreGood(_world.Deposit(tile).Kind) == good && DepositWorkable(s.Civilization, tile) && IsOwnTile(s.Civilization, tile) && !IsRivalTile(s.Civilization, tile)) return true;
+        return false;
+    }
+
+    private Fix64 DigFiefOre(SettlementState s, int tile, FiefGood good, Fix64 rate, Fix64 productive, Fix64 want)
+    {
+        if (!FiefChain || FiefOreGood(_world.Deposit(tile).Kind) != good) return Fix64.Zero;
+        Fix64 dug = Fix64.Min(want, Fix64.Min(_ore[tile], productive * rate));
+        if (dug > Fix64.Zero)
+        {
+            _ore[tile] -= dug;
+            AddStock(s, FiefSlot(good), dug);
+        }
+        return dug;
     }
 
     /// <summary>Chooses the metal structure to build next (forge, kiln, smelter, mine head) and returns its remaining labor.</summary>
@@ -1651,20 +1848,20 @@ public sealed partial class LivingEconomyModel
         _ => (0, 0),
     };
 
-    /// <summary>Clay per work-season: from a clay deposit in range (3 L, docs/MVP/10 §5.3), else at a riverbank, lake shore or wetland edge (1 L), else subsoil (0.5 L).</summary>
+    /// <summary>Clay per work-season: from a clay deposit in range (4.5 L), else at a riverbank, lake shore or wetland edge (1.5 L), else subsoil (0.75 L), candidate input-flow fit.</summary>
     private Fix64 ClayRate(SettlementState s, out bool deposit)
     {
         deposit = false;
         foreach (int tile in RangeTiles(s.SiteTile))
-            if (_clayStock[tile] > Fix64.Zero) { deposit = true; return Fix64.FromInt(3); }
+            if (_clayStock[tile] > Fix64.Zero) { deposit = true; return Fix64.Parse("4.5"); }
         foreach (int tile in RangeTiles(s.SiteTile))
         {
             WorldEconomyTile t = _world.Tile(tile);
-            if (t.River || t.Lake || (Biome)t.BiomeId == Biome.Wetland) return Fix64.One;
+            if (t.River || t.Lake || (Biome)t.BiomeId == Biome.Wetland) return Fix64.Parse("1.5");
         }
         // Anywhere else a little clay for moulds and furnace linings can be dug from subsoil, slowly (a WP6 decision:
         // without it most E3 settlements could never build a forge, docs/MVP/07d "WP6 live results").
-        return Fix64.Half;
+        return Fix64.Parse("0.75");
     }
 
     /// <summary>Whether a metal structure's clay and stone can be had: in stores, dug in range, or sent by a sister settlement.</summary>
@@ -1840,6 +2037,7 @@ public sealed partial class LivingEconomyModel
             {
                 part = Fix64.Min(amount, plan.SmeltNeed - plan.SmeltAssigned);
                 Assign(figure, EconomyJob.Craft, part);
+                TraceWp7CraftAssignment(figure, part, "smelting");
                 if (figure.Task == 0) figure.Task = MetalTask.Smelt;
                 plan.SmeltAssigned += part;
             }
@@ -1975,6 +2173,15 @@ public sealed partial class LivingEconomyModel
                 }
             }
         }
+        if (FiefChain)
+            foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
+            {
+                Fix64 net = plan.Want[FiefSlot(ore)] - Stock(s, FiefSlot(ore));
+                int tile = BestRangeFiefDeposit(s, ore, out Fix64 rate);
+                if (tile < 0 || rate <= Fix64.Zero || net <= Epsilon || productive <= Epsilon) continue;
+                Fix64 dug = DigFiefOre(s, tile, ore, rate, productive, net);
+                productive = Fix64.Max(Fix64.Zero, productive - dug / rate);
+            }
         if (plan.MineAssigned > Fix64.Zero && plan.MineProductive > Fix64.Zero)
             spare += plan.MineAssigned * productive / (plan.MineProductive * specialist);
 
@@ -2001,15 +2208,39 @@ public sealed partial class LivingEconomyModel
                 if (ironPlan.Length > 0) ironPlan.Append(' ');
                 ironPlan.Append(recipe.Def.Id).Append('=').Append(plan.Batches[r].ToDoubleForDisplay().ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
             }
-            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} craftLeft {craftLeft.ToDoubleForDisplay():F2} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
+            MetalDebug!.AppendLine($"s{s.Id} civ{civ} season{season} foodSec {F(s.FoodSecurity)} craftLeft {craftLeft.ToDoubleForDisplay():F2} assemblyNeed {F(plan.MilitaryAssemblyNeed)} assemblyReserved {F(plan.MilitaryAssemblyReserved)} toolsBefore {F(plan.CraftWorkBeforeTools)} toolsAfter {F(plan.CraftWorkAfterTools)} metalPool {metalPool.ToDoubleForDisplay():F2} rangeStone {rangeStone.ToDoubleForDisplay():F1} block {m.Goods[(int)MetalGood.Block].ToDoubleForDisplay():F1} ashlar {m.Goods[(int)MetalGood.Ashlar].ToDoubleForDisplay():F1} dressPlan {dressPlan.ToDoubleForDisplay():F2} " +
                 $"work={plan.TotalWork.ToDoubleForDisplay():F2} pushCap={plan.PushCap.ToDoubleForDisplay():F2} kitCapMargin={plan.IronKitCapMarginApplied} chainPrimary={plan.PrimaryChain.ToDoubleForDisplay():F2}x{plan.PrimaryScale.ToDoubleForDisplay():F2} chainSecondary={plan.SecondaryChain.ToDoubleForDisplay():F2}x{plan.SecondaryScale.ToDoubleForDisplay():F2} assigned(mine/char/smelt)={plan.MineAssigned.ToDoubleForDisplay():F2}/{plan.CharcoalAssigned.ToDoubleForDisplay():F2}/{plan.SmeltAssigned.ToDoubleForDisplay():F2} " +
+                $"rawStock cuOre={F(m.Goods[(int)MetalGood.CopperOre])} asOre={F(m.Goods[(int)MetalGood.ArsenicalOre])} tinOre={F(m.Goods[(int)MetalGood.TinOre])} feOre={F(m.Goods[(int)MetalGood.IronOre])} charcoal={F(m.Goods[(int)MetalGood.Charcoal])} " +
                 $"ironStock ore={m.Goods[(int)MetalGood.IronOre].ToDoubleForDisplay():F2} iron={m.Goods[(int)MetalGood.Iron].ToDoubleForDisplay():F2} charcoal={m.Goods[(int)MetalGood.Charcoal].ToDoubleForDisplay():F2} wrought={IronStock(s, IronGood.Wrought).ToDoubleForDisplay():F2} steel={IronStock(s, IronGood.Steel).ToDoubleForDisplay():F2} T11={IronStock(s, IronGood.Kit11).ToDoubleForDisplay():F2} T12={IronStock(s, IronGood.Kit12).ToDoubleForDisplay():F2}; ironPlan {ironPlan}");
         }
         Fix64 earlyIronKit12Made = Fix64.Zero;
         bool earlyIronKit12Attempted = false;
+        Fix64 plannedBlockInput = Fix64.Zero;
+        int blockSlot = MetalSlot(MetalGood.Block);
+        for (int r = 0; r < _compiledRecipes.Length; r++)
+        {
+            CompiledRecipe candidate = _compiledRecipes[r];
+            if (plan.Batches[r] <= Fix64.Zero) continue;
+            for (int input = 0; input < candidate.InputSlots.Length; input++)
+                if (Array.IndexOf(candidate.InputSlots[input], blockSlot) >= 0)
+                    plannedBlockInput += plan.Batches[r] * InputQuantity(s, candidate, input);
+        }
+        if (plannedBlockInput > Fix64.Zero)
+        {
+            // The fixed-point planner may not retain an Iron recipe's block input in the shared terminal vector.
+            // Preserve the actual planned recipe demand so an engine can quarry blocks without any Ashlar order.
+            plan.Want[blockSlot] = Fix64.Max(plan.Want[blockSlot], m.Goods[(int)MetalGood.Block] + plannedBlockInput);
+            QuarryBlocks(s, m, plan, ref craftLeft);
+        }
+        var deferredFinishing = new Fix64[_compiledRecipes.Length];
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
             CompiledRecipe recipe = _compiledRecipes[r];
+            if (IsDiscretionaryFinishingRecipe(recipe))
+            {
+                deferredFinishing[r] = plan.Batches[r];
+                continue;
+            }
             if (recipe.IsCharcoal)
             {
                 if (plan.Batches[r] > Fix64.Zero && RecipeAvailable(s, recipe))
@@ -2034,14 +2265,28 @@ public sealed partial class LivingEconomyModel
                 ? Fix64.Max(Fix64.Zero, plan.Batches[r] - earlyIronKit12Made)
                 : plan.Batches[r];
             if (planned <= Fix64.Zero) continue;
-            if (recipe.OutputSlot == MetalSlot(MetalGood.Ashlar)) QuarryBlocks(s, m, plan, ref craftLeft);
             if (recipe.OutputSlot == MetalSlot(MetalGood.Salted)) PanSalt(s, m, plan, season, ref craftLeft);
+            string inputReadiness = traceSettlement
+                ? MilitaryInputReadiness(s, recipe, planned) : "";
             Fix64 made = RunRecipe(s, recipe, planned, plan.AnyMetalKit, ref metalPool, ref craftLeft);
             if (traceSettlement)
-                MetalDebug!.Append($" {recipe.Def.Id}:{planned.ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+                MetalDebug!.Append($" {recipe.Def.Id}:{planned.ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})" +
+                    (inputReadiness.Length == 0 ? "" : $" inputs=[{inputReadiness}]"));
             if (made <= Fix64.Zero) continue;
             RecordRecipe(civ, recipe, made, OutputQuantity(s, recipe));
             if (recipe.Def.Id == "cosmelt_arsenical") arsenic = true;
+        }
+        // Readiness has first claim on finishing goods and their shared inputs; any unspent work or materials
+        // are released immediately to discretionary output during this same season.
+        for (int r = 0; r < deferredFinishing.Length; r++)
+        {
+            Fix64 planned = deferredFinishing[r];
+            if (planned <= Fix64.Zero || !RecipeAvailable(s, _compiledRecipes[r])) continue;
+            CompiledRecipe recipe = _compiledRecipes[r];
+            Fix64 made = RunRecipe(s, recipe, planned, plan.AnyMetalKit, ref metalPool, ref craftLeft);
+            if (traceSettlement)
+                MetalDebug!.Append($" {recipe.Def.Id}:{planned.ToDoubleForDisplay():F2}->{made.ToDoubleForDisplay():F2}(deferred pool {metalPool.ToDoubleForDisplay():F2}/{craftLeft.ToDoubleForDisplay():F2})");
+            if (made > Fix64.Zero) RecordRecipe(civ, recipe, made, OutputQuantity(s, recipe));
         }
         if (traceSettlement) MetalDebug!.AppendLine();
         m.FuelShortSeasons = fuelShort ? m.FuelShortSeasons + 1 : 0;
@@ -2053,16 +2298,18 @@ public sealed partial class LivingEconomyModel
         // 5. Kits: wear by this season's tool work, then hand out what was cast.
         WearAndIssueKits(s, m, plan.Tier, toolWork);
 
-        // 6. Goods that wear by age (arms, carts, chariots, wool garments: "24 seasons" and the like).
+        // 6. Non-military goods that wear by age. Arms, chariots and engines were aged before planning, so
+        // output completed this season remains usable until next season.
         for (int g = 0; g < (int)MetalGood.Count; g++)
         {
+            if ((MetalGood)g is MetalGood.Arms1 or MetalGood.Arms2A or MetalGood.Arms2T or MetalGood.Chariot) continue;
             if (m.Goods[g] <= Fix64.Zero) continue;
             int t = _content.TradeGoodIndex(MetalGoodId((MetalGood)g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
-            if (seasons > 0) m.Goods[g] -= m.Goods[g] / seasons;
+            if (seasons > 0) m.Goods[g] = AgeCraftedDurableGood(s, MetalGoodId((MetalGood)g), m.Goods[g], seasons);
         }
 
-        if (IronChain) WearIronGoods(m);
+        if (IronChain) WearIronGoods(s, m);
 
         // 7. Statistics for the harness (T17): labor, people.
         Fix64 work = Fix64.Zero;
@@ -2072,9 +2319,50 @@ public sealed partial class LivingEconomyModel
         Fix64 idleMetal = Fix64.Min(metalPool, plan.CharcoalAssigned + plan.SmeltAssigned + spare);
         // T17 counts mining, charcoal and smelting (22 §5.6); building the forge and furnaces is construction.
         AddMetalStat(civ, StatMetalLabor, plan.MineAssigned + plan.CharcoalAssigned + plan.SmeltAssigned - idleMetal + plan.CampWork);
+        RecordIT6FiefMetalLabor(civ, plan.MineAssigned, plan.CharcoalAssigned, plan.SmeltAssigned,
+            plan.CampWork, idleMetal);
         AddMetalStat(civ, StatPeopleSeasons, Fix64.FromInt(Population(s.Id)));
         RecordIT6MetalFacilityBuild(civ, plan.BuildAssigned);
         OpenCampsIfNeeded(s, plan, season);
+    }
+
+    /// <summary>Age prior-season military stock before planning; current-season production is not depreciated immediately.</summary>
+    private void WearMilitaryGoodsBeforePlanning(SettlementState settlement)
+    {
+        if (settlement.Metal is not { } m) return;
+        foreach (MetalGood good in new[] { MetalGood.Arms1, MetalGood.Arms2A, MetalGood.Arms2T, MetalGood.Chariot })
+        {
+            Fix64 stock = m.Goods[(int)good];
+            if (stock <= Fix64.Zero) continue;
+            int t = _content.TradeGoodIndex(MetalGoodId(good));
+            int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+            if (seasons > 0) m.Goods[(int)good] = AgeCraftedDurableGood(settlement, MetalGoodId(good), stock, seasons);
+        }
+        if (IronChain && m.IronGoods is { } iron)
+            foreach (IronGood good in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine })
+            {
+                Fix64 stock = iron[(int)good];
+                if (stock <= Fix64.Zero) continue;
+                int t = _content.TradeGoodIndex(IronGoodId(good));
+                int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+                if (seasons <= 0) continue;
+                if (good == IronGood.Engine)
+                {
+                    // Fractional output is unfinished assembly work toward a whole 24-work engine, not a finished engine to age.
+                    Fix64 unfinished = stock - Fix64.FromInt(stock.FloorToInt());
+                    Fix64 finished = Fix64.FromInt(stock.FloorToInt());
+                    iron[(int)good] = AgeCraftedDurableGood(settlement, IronGoodId(good), finished, seasons) + unfinished;
+                }
+                else iron[(int)good] = AgeCraftedDurableGood(settlement, IronGoodId(good), stock, seasons);
+            }
+        if (FiefChain)
+        {
+            Fix64 stock = Stock(settlement, FiefSlot(FiefGood.Arms5));
+            int t = _content.TradeGoodIndex(FiefGoodId(FiefGood.Arms5));
+            int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+            if (stock > Fix64.Zero && seasons > 0)
+                AddStock(settlement, FiefSlot(FiefGood.Arms5), AgeCraftedDurableGood(settlement, FiefGoodId(FiefGood.Arms5), stock, seasons) - stock);
+        }
     }
 
     private void RecordRecipe(int civ, CompiledRecipe recipe, Fix64 batches, Fix64 outputPerBatch)
@@ -2125,7 +2413,7 @@ public sealed partial class LivingEconomyModel
             stock[recipe.OutputSlot] += batches * OutputQuantity(s, recipe);
         }
         Fix64 net = need - Stock(s, charcoal);
-        return net <= Fix64.Zero ? Fix64.Zero : net / _compiledRecipes[charcoalRecipe].OutputQuantity;
+        return net <= Fix64.Zero ? Fix64.Zero : net / OutputQuantity(s, _compiledRecipes[charcoalRecipe]);
     }
 
     /// <summary>Runs one recipe for up to <paramref name="planned"/> batches; returns the batches made.</summary>
@@ -2154,6 +2442,53 @@ public sealed partial class LivingEconomyModel
         }
         if (batches <= Fix64.Zero) return Fix64.Zero;
         RecordIT6Recipe(s, recipe, batches);
+        Action<string>? wp7Observer = FiefWp7TraceObserverForDiagnostics;
+        Fix64[][]? inputStocksBefore = null;
+        if (wp7Observer is not null)
+        {
+            inputStocksBefore = new Fix64[recipe.InputSlots.Length][];
+            for (int i = 0; i < recipe.InputSlots.Length; i++)
+            {
+                inputStocksBefore[i] = new Fix64[recipe.InputSlots[i].Length];
+                for (int j = 0; j < recipe.InputSlots[i].Length; j++)
+                    inputStocksBefore[i][j] = AvailableStock(s, recipe.InputSlots[i][j]);
+            }
+        }
+        string? wp7TraceRow = null;
+        if (FiefChain)
+        {
+            CivicState civic = EnsureCivic(s);
+            Fix64 wasteRate = FiefCraftLossApplies(recipe) ? FiefRecipeWasteRate(s.Civilization) : Fix64.Zero;
+            for (int i = 0; i < recipe.InputQuantity.Length; i++)
+                civic.GuildRecipeWaste += batches * recipe.InputQuantity[i] * wasteRate;
+            Fix64 quality = Modifier(s.Civilization, "craft_quality");
+            Fix64 apprenticeship = Modifier(s.Civilization, "apprenticeship_speed");
+            civic.CraftQualityUnits += batches * quality;
+            // Retained as telemetry for the same multiplier that now reduces craft-role recipe labor.
+            civic.CraftRoleTraining += batches * labor * apprenticeship;
+            bool guilds = Done(s.Civilization, "SOC-11");
+            Fix64 training = batches * labor * apprenticeship;
+            if (wp7Observer is not null)
+            {
+                Fix64 loss = Fix64.Zero;
+                var inputs = new System.Text.StringBuilder();
+                for (int i = 0; i < recipe.InputQuantity.Length; i++)
+                {
+                    Fix64 declared = recipe.InputQuantity[i];
+                    Fix64 effective = InputQuantity(s, recipe, i);
+                    loss += batches * (effective - declared);
+                    if (i > 0) inputs.Append(';');
+                    inputs.Append(i).Append('[');
+                    for (int slot = 0; slot < recipe.InputSlots[i].Length; slot++)
+                    {
+                        if (slot > 0) inputs.Append('|');
+                        inputs.Append(StoreSlotId(recipe.InputSlots[i][slot]));
+                    }
+                    inputs.Append("]:").Append(declared.Raw).Append(':').Append(effective.Raw);
+                }
+                wp7TraceRow = $"wp7-soc11 seed={_seed} season={_seasonsCompleted} civ={s.Civilization} settlement={s.Id} recipe={recipe.Def.Id} batches={batches.Raw} inputs={inputs} declaredLoss={loss.Raw} expectedLoss={loss.Raw} output={(batches * OutputQuantity(s, recipe)).Raw} qualityIndex={quality.Raw} role=craft trainingWork={training.Raw} soc11={guilds.ToString().ToLowerInvariant()}";
+            }
+        }
         for (int i = 0; i < recipe.InputSlots.Length; i++)
         {
             Fix64 need = batches * InputQuantity(s, recipe, i);
@@ -2165,8 +2500,24 @@ public sealed partial class LivingEconomyModel
                 if (need <= Fix64.Zero) break;
             }
         }
+        string? inputActual = null;
+        if (wp7Observer is not null && inputStocksBefore is not null)
+        {
+            var actual = new System.Text.StringBuilder();
+            for (int i = 0; i < recipe.InputSlots.Length; i++)
+                for (int j = 0; j < recipe.InputSlots[i].Length; j++)
+                {
+                    if (actual.Length > 0) actual.Append(';');
+                    int slot = recipe.InputSlots[i][j];
+                    actual.Append(i).Append(':').Append(StoreSlotId(slot)).Append(':')
+                        .Append((inputStocksBefore[i][j] - AvailableStock(s, slot)).Raw);
+                }
+            inputActual = actual.ToString();
+        }
         AddStock(s, recipe.OutputSlot, batches * OutputQuantity(s, recipe));
         SpendLabor(batches * labor, recipe.Def.Order < CraftOrder, ref metalPool, ref craftPool);
+        if (wp7Observer is not null && wp7TraceRow is not null && inputActual is not null)
+            wp7Observer(wp7TraceRow + " inputActual=" + inputActual);
         return batches;
     }
 
@@ -2193,7 +2544,8 @@ public sealed partial class LivingEconomyModel
         ref Fix64 metalPool, ref Fix64 craftPool, out bool fuelShort)
     {
         fuelShort = false;
-        Fix64 plannedCharcoal = planned * recipe.OutputQuantity;
+        Fix64 charcoalOutput = OutputQuantity(s, recipe);
+        Fix64 plannedCharcoal = planned * charcoalOutput;
         bool traceFuelSupply = IT6AccountingTraceEnabled && IronChain && Done(s.Civilization, "MET-09");
         Fix64 reachableWoodBefore = Fix64.Zero, harvestableWoodBefore = Fix64.Zero;
         Fix64 inRangeWoodBefore = Fix64.Zero, outerReachWoodBefore = Fix64.Zero;
@@ -2294,11 +2646,11 @@ public sealed partial class LivingEconomyModel
             m.ClampTile = tile;
         }
         if (planned > Fix64.FromRatio(1, 100) && metalPool + craftPool > Fix64.FromRatio(1, 100)) fuelShort = true;
-        Fix64 unmetCharcoal = fuelShort ? planned * recipe.OutputQuantity : Fix64.Zero;
+        Fix64 unmetCharcoal = fuelShort ? planned * charcoalOutput : Fix64.Zero;
         RecordIT6CharcoalPlan(s, plannedCharcoal, unmetCharcoal, Done(s.Civilization, "MET-09"), fuelShort,
             reachableWoodBefore, harvestableWoodBefore, inRangeWoodBefore, outerReachWoodBefore,
             localWoodBefore, metalPool + craftPool, woodFactorBefore);
-        if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * recipe.OutputQuantity;
+        if (made > Fix64.Zero) m.Goods[(int)MetalGood.Charcoal] += made * charcoalOutput;
         AddMetalStat(s.Civilization, StatCharcoalWood, woodUsed);
         RecordIT6CharcoalHaul(s.Civilization, haulLabor);
         return made;
@@ -2369,7 +2721,7 @@ public sealed partial class LivingEconomyModel
         Fix64 best = Fix64.One;
         foreach (FigureState f in Residents(s.Id))
             if (f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
-        return BaseRate("quarry", Fix64.FromInt(2)) * best;
+        return BaseRate("quarry", Fix64.FromInt(3)) * best;
     }
 
     private Fix64 TakeRangeStone(SettlementState s, Fix64 amount)
@@ -2503,9 +2855,12 @@ public sealed partial class LivingEconomyModel
         foreach (MiningCampState camp in _camps)
         {
             if (camp.Parent != s.Id) continue;
-            MetalGood good = OreGood(_world.Deposit(camp.Tile).Kind)!.Value;
-            Fix64 want = plan.Want[MetalSlot(good)];
-            Fix64 net = want * 2 - m.Goods[(int)good];
+            MetalGood? good = OreGood(_world.Deposit(camp.Tile).Kind);
+            FiefGood? fiefGood = FiefChain ? FiefOreGood(_world.Deposit(camp.Tile).Kind) : null;
+            if (good is null && fiefGood is null) continue;
+            int goodSlot = good is { } metalGood ? MetalSlot(metalGood) : FiefSlot(fiefGood!.Value);
+            Fix64 want = plan.Want[goodSlot];
+            Fix64 net = want * 2 - Stock(s, goodSlot);
             Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
             Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor * FiefHorseHaulFactor(s);
             Fix64 idle = Fix64.Zero;
@@ -2540,11 +2895,13 @@ public sealed partial class LivingEconomyModel
                         // Each litre costs its digging plus its haul home (0.1 ws per L per 4 walking tiles, ÷5 by cart).
                         Fix64 perLitre = Fix64.One / effective + haul;
                         Fix64 litres = Fix64.Min(net, left / perLitre);
-                        Fix64 dug = Dig(s, camp.Tile, effective, litres / effective, litres, camp.MineHead);
+                        Fix64 dug = good is { } g
+                            ? Dig(s, camp.Tile, effective, litres / effective, litres, camp.MineHead)
+                            : DigFiefOre(s, camp.Tile, fiefGood!.Value, effective, litres / effective, litres);
                         if (B12CopperShareTraceEnabled && s.Id == 11 && season is >= 255 and <= 267 && good == MetalGood.CopperOre)
                             copperCampDug += dug;
                         Fix64 spent = dug * perLitre;
-                        RecordIT6OreHaul(civ, dug * haul, good == MetalGood.IronOre);
+                        if (good is { } hauledGood) RecordIT6OreHaul(civ, dug * haul, hauledGood == MetalGood.IronOre);
                         used += spent;
                         net -= dug;
                         PracticeFigure(f, SkillFamily.Gather, spent);
@@ -2640,6 +2997,18 @@ public sealed partial class LivingEconomyModel
                 CountCampAttempt($"{good}/NoOwnTile:{best}");
             }
         }
+        if (FiefChain)
+            foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
+            {
+                if (plan.Want[FiefSlot(ore)] <= Stock(s, FiefSlot(ore)) || BestRangeFiefDeposit(s, ore, out _) >= 0 || HasFiefOreCamp(s, ore)) continue;
+                int reach = MiningReach(civ, s.SiteTile);
+                foreach (int tile in ReachTiles(s.SiteTile, reach))
+                {
+                    if (FiefOreGood(_world.Deposit(tile).Kind) != ore || !IsOwnTile(civ, tile) || IsRivalTile(civ, tile)) continue;
+                    TryOpenCamp(s, tile, HexGrid.Distance(s.SiteTile, tile, _world.Width), decreed: false, season);
+                    break;
+                }
+            }
         if (TraceTargetCampDecision(s, season)) AppendB12CampOpenTrace(s, season, plan, targetDecision);
     }
 
@@ -2724,7 +3093,7 @@ public sealed partial class LivingEconomyModel
     {
         int civ = parent.Civilization;
         WorldDeposit d = _world.Deposit(tile);
-        if (OreGood(d.Kind) is null || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
+        if (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null) || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
         if (!OreUnlocked(civ, d.Kind)) return MiningCampResult.NotUnlocked;
         if (d.Depth >= 2 && !Done(civ, "MIN-04")) return MiningCampResult.NeedsShaftMining;
         if (IsRivalTile(civ, tile)) return MiningCampResult.RivalOwned;
@@ -2924,7 +3293,7 @@ public sealed partial class LivingEconomyModel
                 if (KitChopRung(_figures[i]) < 0) actionWork[i, column] *= scale;
         }
         Fix64 woodYield = Modifier(civ, "wood_yield");
-        Fix64 e2Rate = ActionRate("chop", Fix64.FromInt(2), s, "chop", toolWork: appliedOther) * woodYield;
+        Fix64 e2Rate = ActionRate("chop", Fix64.FromInt(3), s, "chop", toolWork: appliedOther) * woodYield;
         Fix64 wood = Fix64.Zero;
         foreach (int i in _actionWorkTouchedRows)
         {

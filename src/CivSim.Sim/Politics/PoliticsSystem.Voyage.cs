@@ -1,5 +1,6 @@
 using System;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Randomness;
 using CivSim.Sim.World;
 
@@ -29,10 +30,14 @@ public sealed partial class PoliticsSystem
     private int[]?[] _walkFrom = Array.Empty<int[]?>();
     private int[]?[] _sailFrom = Array.Empty<int[]?>();
     private int _way08 = -1;
+    private int _way09 = -1;
+    private int _sea11 = -1;
 
     private void InitVoyages()
     {
         _way08 = _research.Catalog.IndexOf("WAY-08");
+        _way09 = _research.Catalog.IndexOf("WAY-09");
+        _sea11 = _research.Catalog.IndexOf("SEA-11");
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
         _landmass = new int[n];
@@ -59,7 +64,13 @@ public sealed partial class PoliticsSystem
     }
 
     /// <summary>Whether this civilization's people know the outrigger (SEA-04) and so can cross open water.</summary>
-    public bool CanSail(int civ) => _p.Sea04 >= 0 && (uint)civ < (uint)_civs && _research.IsDone(civ, _p.Sea04);
+    public bool CanSail(int civ)
+    {
+        if (_p.Sea04 < 0 || (uint)civ >= (uint)_civs || !_research.IsDone(civ, _p.Sea04)) return false;
+        if (!_economy.FiefChain) return true;
+        int key6 = _catalog.IndexOf("KEY-6");
+        return key6 >= 0 && _research.IsDone(civ, key6);
+    }
 
     private int[] WalkFrom(int tile) => _walkFrom[tile] ??= HexGrid.WalkingDistancesFrom(_width, _height, _passable, tile);
 
@@ -71,7 +82,19 @@ public sealed partial class PoliticsSystem
         int walk = WalkFrom(from)[to];
         if (walk != int.MaxValue || !CanSail(civ)) return walk;
         int cost = SailFrom(from)[to];
-        return cost == int.MaxValue ? int.MaxValue : (cost + 9) / 10;
+        if (cost == int.MaxValue) return int.MaxValue;
+        int sailingTiles = (cost + 9) / 10;
+        // Modifiers apply only when this route actually crosses water. Combine the
+        // speed fractions before rounding so their composition is deterministic.
+        if (_economy.FiefChain && (uint)civ < (uint)_civs && SeaTilesOnRoute(civ, from, to) > 0)
+        {
+            long distanceNumerator = 1, distanceDenominator = 1;
+            if (_way09 >= 0 && _research.IsDone(civ, _way09)) { distanceNumerator *= 10; distanceDenominator *= 13; }
+            if (_sea11 >= 0 && _research.IsDone(civ, _sea11)) { distanceNumerator *= 10; distanceDenominator *= 14; }
+            if (distanceNumerator != distanceDenominator)
+                sailingTiles = Math.Max(1, (int)(((long)sailingTiles * distanceNumerator + distanceDenominator - 1) / distanceDenominator));
+        }
+        return sailingTiles;
     }
 
     /// <summary>Whether people of <paramref name="civ"/> can get from one tile to another at all.</summary>
@@ -147,7 +170,15 @@ public sealed partial class PoliticsSystem
         if (sea <= 0) return false;
         int risk = VoyageRiskForSeaTiles(e.Civ, sea);
         ulong entity = (ulong)(e.FromSettlement * 4099L + e.ToSettlement * 7L + (int)e.Kind);
-        if (!RollVoyageLost(risk, entity, _season, e.Civ)) return false;
+        bool turnedBack = RollVoyageLost(risk, entity, _season, e.Civ);
+        if (e.Kind == ExpeditionKind.Caravan)
+        {
+            Compact? compact = CompactById(e.CompactId);
+            TraceSea10Route(turnedBack ? "voyage_turnback" : "voyage_survived", compact, e,
+                e.FromSettlement, e.ToSettlement, turnedBack ? "cargo_returned_to_seller" : "voyage_completed", e.Cargo, e.Cargo, e.Cargo,
+                returned: turnedBack ? e.Cargo : Fix64.Zero);
+        }
+        if (!turnedBack) return false;
         _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind));
         if (e.Kind is ExpeditionKind.Gift or ExpeditionKind.Barter) _economy.GiveGoods(e.FromSettlement, e.Value);
         else if (e.Kind == ExpeditionKind.Caravan) Unload(e.FromSettlement, e.Good, e.Cargo);

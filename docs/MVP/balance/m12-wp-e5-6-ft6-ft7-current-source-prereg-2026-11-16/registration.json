@@ -1,0 +1,117 @@
+{
+  "status": "preregistered_pending_final_source_and_binary_pins_no_launch_authorized",
+  "preparedDate": "2026-11-16",
+  "selection": {
+    "calibration": {
+      "rng": "random.Random(20261121)",
+      "pool": [
+        41000000,
+        41999999
+      ]
+    },
+    "heldout": {
+      "rng": "random.Random(20261122)",
+      "pool": [
+        42000000,
+        42999999
+      ]
+    },
+    "method": "20 unique seeds sampled without replacement within each pool, sorted for execution; no geography, KEY-5 timing, world, outcome, or exposure screening"
+  },
+  "seedManifests": {
+    "calibration": {
+      "path": "calibration-seeds.txt",
+      "sha256": "3e11fa10bd553d2bb1a349d5ccfcc737293b273e3dec69e6080dabdee93ab0a4",
+      "count": 20,
+      "values": [
+        41004232,
+        41077339,
+        41086171,
+        41168084,
+        41172181,
+        41178985,
+        41183145,
+        41189462,
+        41294570,
+        41353904,
+        41365460,
+        41367521,
+        41379142,
+        41381743,
+        41412794,
+        41552386,
+        41624123,
+        41638739,
+        41827672,
+        41984192
+      ]
+    },
+    "heldout": {
+      "path": "heldout-seeds.txt",
+      "sha256": "4985622a7b7ab7697588fd450eebf9a317293fedb3e88cd03b9eff66fe0c3daa",
+      "count": 20,
+      "values": [
+        42018344,
+        42037967,
+        42065435,
+        42179594,
+        42237860,
+        42249514,
+        42403301,
+        42405531,
+        42457965,
+        42516143,
+        42522089,
+        42529452,
+        42597395,
+        42647091,
+        42656881,
+        42658513,
+        42662123,
+        42700733,
+        42752669,
+        42843240
+      ]
+    }
+  },
+  "collisionAudit": {
+    "scope": "All UTF-8 text files in the authoritative repository checkout, excluding .git, bin, obj, and .godot directories; exact standalone eight-digit integer tokens were checked against all 40 selected seeds. This includes existing F-T1 r2, F-T2, F-T3, F-T4, WP7-WP9, B5 manifests and historical output/seed ledgers present in the checkout.",
+    "filesScanned": 1594,
+    "eightDigitTokensScanned": 215362,
+    "collisionCount": 0,
+    "withinPairOverlap": []
+  },
+  "pins": {
+    "headCommit": "PENDING_FINAL_FREEZE",
+    "sourceAggregateSha256": "PENDING_FINAL_FREEZE",
+    "packSha256": "PENDING_FINAL_FREEZE",
+    "harnessDllSha256": "PENDING_FINAL_FREEZE",
+    "adjacentSimDllSha256": "PENDING_FINAL_FREEZE",
+    "testAssemblySha256": "PENDING_FINAL_FREEZE",
+    "fixtureSourcesSha256": "PENDING_FINAL_FREEZE",
+    "runnerSha256": "PENDING_FINAL_FREEZE",
+    "analyzerSha256": "PENDING_FINAL_FREEZE",
+    "testHelperSha256": "PENDING_FINAL_FREEZE",
+    "runtimeVersion": "PENDING_FINAL_FREEZE"
+  },
+  "protocol": {
+    "mode": "natural fief-match",
+    "minutes": 130,
+    "grantE5": false,
+    "traces": [
+      "--fief-health-trace",
+      "--fief-institution-trace"
+    ],
+    "cohortSizes": {
+      "calibration": 20,
+      "heldout": 20
+    },
+    "analysis": "Retain all seed outcomes and censoring; F-T7 filters health rows at/after own KEY-5 and reports pooled expected epidemic-hazard share plus 95% seed-bootstrap interval (20,000 resamples, RNG seed 20261115); F-T6 reports working/dormant/queued/unresolved counts, known staffed denominator, reconciliation, and blockers descriptively."
+  },
+  "interpretation": {
+    "ft6": "No approved numeric dormant-rate cutoff. Descriptive diagnostic only.",
+    "ft7": "The 10-14% pooled expected-share band and 95% seed-bootstrap interval containing 12% remain an unapproved draft hypothesis/screen only; do not present as user-approved acceptance bounds. Calibration may assess a draft fit. Holdout stays sealed until the draft candidate/source/pack/binaries are frozen; report results diagnostically and do not promote based on an unapproved rule.",
+    "med08": "Natural route-import effect is inconclusive if no valid route-import attempts are observed; focused keyed-gate evidence is separate."
+  },
+  "execution": "No build, test, or match is authorized by this preregistration. Final pins and output paths must be added/frozen only after source stabilization and host availability; re-run the collision audit against any manifests added after this preparation."
+}

@@ -1,0 +1,26 @@
+{
+  "status": "pre_registered_seed_blocks_not_launchable",
+  "candidate_anchor": {
+    "head": "bd0f4b8c6d9c13a0c960be8d55a6d3af8cb3874c",
+    "source_aggregate": "2fae166f4f3078097d44b5ed4642b758abb2793a3e78c0903cfb4fc30384f34e",
+    "pack_expected": "f360a3d93047ac248d97574af3bff24e9ffb28c13217a578c473e7dd02a0a05a",
+    "harness_expected": "aa7b830c2ce5847666c67b31dd08150649d4e92cee51c21b6565ef5b290efa3f",
+    "sim_expected": "a8cb7666042cf6651a6b9558b3d6db7b1f00566b5cc30041077e67b86540ad50",
+    "warning": "Existing binaries/pack may not represent current source; final source freeze and adjacent build/provenance verification required before runner manifest creation."
+  },
+  "calibration": {
+    "count": 20,
+    "minutes": 130,
+    "seed_file": "wp7-calibration-seeds.txt",
+    "seed_file_sha256": "443e0c4de1d6f63e23ae4d86c18dfbec9e75d773421e3bac1eb13df4eb48b021"
+  },
+  "holdout": {
+    "count": 80,
+    "minutes": 130,
+    "seed_file": "wp7-holdout-seeds.txt",
+    "seed_file_sha256": "80e638045a3457057db028b63206288e233cb23ae3eacaa9f17e7ef6901c0793"
+  },
+  "disjointness": "Blocks are mutually disjoint and do not intersect reserved WP-E5-12 33000000-33000079. Full repo-wide collision check remains required before gate launch.",
+  "criteria": "Carry the autonomous provisional WP7 rules from m12-e5-7-measurement-protocol-audit-2026-11-15.md unchanged; they are not separately user-approved. Calibration may fit draft values. Holdout is untouched. Sparse exposure/precision is inconclusive.",
+  "execution": "No cohort launched. Runner JSON may be generated only after final frozen source/pack/Harness/Sim tuple is verified, manifest is frozen, and disjointness is checked against all existing seed ledgers."
+}

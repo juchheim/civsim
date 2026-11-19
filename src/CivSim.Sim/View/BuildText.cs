@@ -128,6 +128,8 @@ public static class BuildText
             BuildWhy.NeedsSoldiers => $"It needs {g.Arg} fed soldiers in post here.",
             BuildWhy.NeedsGraftedOrchard => "It needs an orchard here to press.",
             BuildWhy.MillAlready => "A water mill already grinds here.",
+            BuildWhy.MillCoverageMet => "This town already meets the mill coverage target.",
+            BuildWhy.PowderNotNeeded => "This town has no cannon powder demand yet.",
             BuildWhy.NeedsMill => "It needs a mill to drive its bellows first.",
             BuildWhy.NeedsForge => "It needs a forge and a smelter in the town first.",
             BuildWhy.NeedsFields => $"It needs {g.Arg} worked fields here.",

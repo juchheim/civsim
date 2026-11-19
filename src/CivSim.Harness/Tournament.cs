@@ -3061,20 +3061,20 @@ internal static class Tournament
     /// <summary>Runs a match while collecting only the team Legacy scores consumed by A6.</summary>
     public static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, Player[] seats, EconomyArchetype[] archetypes, int minutes,
         Action<MatchModel>? configure = null, Action<MatchModel>? completed = null,
-        Action<MatchModel, int>? afterSeason = null)
+        Action<MatchModel, int>? afterSeason = null, ChapterRules? rules = null)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
-        return PlayForLegacy(pack, seed, world, seats, archetypes, minutes, configure, completed, afterSeason);
+        return PlayForLegacy(pack, seed, world, seats, archetypes, minutes, configure, completed, afterSeason, rules);
     }
 
     /// <summary>Runs a legacy-only match on a caller-provided generated world.</summary>
     internal static LegacyMatchOutcome PlayForLegacy(ContentPack pack, ulong seed, GeneratedWorld world, Player[] seats,
         EconomyArchetype[] archetypes, int minutes, Action<MatchModel>? configure = null, Action<MatchModel>? completed = null,
-        Action<MatchModel, int>? afterSeason = null)
+        Action<MatchModel, int>? afterSeason = null, ChapterRules? rules = null)
     {
         var controls = new CivControl[seats.Length];
         for (int i = 0; i < seats.Length; i++) controls[i] = seats[i].Control;
-        MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls);
+        MatchModel match = MatchModel.Create(seed, pack, world, archetypes, controls, rules: rules);
         configure?.Invoke(match);
         var runner = new SimRunner(match, int.MaxValue);
         long ticks = minutes * 600L;

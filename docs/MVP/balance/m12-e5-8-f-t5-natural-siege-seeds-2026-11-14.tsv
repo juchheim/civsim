@@ -1,0 +1,24 @@
+# F-T5 natural siege exposure; 20 worlds sampled without replacement from 20500000..20599999.
+# Selection: Python random.Random(20261117).sample after excluding existing exact 8-digit 205xxxxx tokens in workspace.
+# No geography, match outcome, or siege exposure screening was used.
+seed
+20501417
+20503198
+20507967
+20515513
+20519090
+20526515
+20528181
+20528376
+20530706
+20537285
+20538444
+20539418
+20545015
+20545180
+20546348
+20560953
+20563123
+20566761
+20592638
+20597675

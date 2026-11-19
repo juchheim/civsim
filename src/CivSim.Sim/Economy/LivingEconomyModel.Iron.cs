@@ -15,12 +15,26 @@ namespace CivSim.Sim.Economy;
 /// </summary>
 public sealed partial class LivingEconomyModel
 {
-    /// <summary>Goods that exist only in the Iron chapter. Append only; the order is the slot order in snapshots.</summary>
+    /// <summary>Goods that exist only in the Iron chapter. Append only; this prefix is the slot order in Iron snapshots.</summary>
     private enum IronGood : byte
     {
         Wrought, Steel, Kit11, Kit12, Arms3, Arms4, Plank, Engine, BlownGlass, FiredBrick, Tile, Barrel, Grape, Olive, Wine, OilPlant,
         Count
     }
+
+    /// <summary>Fief-only goods. Stored in a separate snapshot tail so Iron keeps its original goods array and checksum.</summary>
+    private enum FiefGood : byte { Saltpeter, Sulfur, CastIron, Powder, Cannon, Paper, Book, Spirits, CrucibleSteel, Arms5, Count }
+
+    private const int IronGoodsBeforeFief = (int)IronGood.Count;
+    private static int FiefSlotBase => IronSlotBase + (int)IronGood.Count;
+    private static int FiefSlot(FiefGood good) => FiefSlotBase + (int)good;
+
+    private static string FiefGoodId(FiefGood good) => good switch
+    {
+        FiefGood.Saltpeter => "G-SALTPETER", FiefGood.Sulfur => "G-SULFUR", FiefGood.CastIron => "G-CAST",
+        FiefGood.Powder => "G-POWDER", FiefGood.Cannon => "G-CANNON", FiefGood.Paper => "G-PAPER", FiefGood.Book => "G-BOOK",
+        FiefGood.Spirits => "G-SPIRITS", FiefGood.CrucibleSteel => "G-CSTEEL", FiefGood.Arms5 => "G-ARMS5", _ => "",
+    };
 
     private static string IronGoodId(IronGood good) => good switch
     {
@@ -39,6 +53,7 @@ public sealed partial class LivingEconomyModel
     private const uint IronSnapshotMagic = 0x4E4F5249;   // "IRON" little-endian
 
     private CompiledRecipe[] _ironRecipes = Array.Empty<CompiledRecipe>();
+    private CompiledRecipe[] _ironChainRecipes = Array.Empty<CompiledRecipe>();
     /// <summary>Every compiled recipe in content order (ascending order, then id): the Bronze list with the Iron recipes in place.</summary>
     private CompiledRecipe[] _allRecipes = Array.Empty<CompiledRecipe>();
     private bool _ironChain;
@@ -71,7 +86,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
-    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0) + (_fiefChain ? (int)FiefGood.Count : 0);
+    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0) + (_fiefChain ? (int)FiefGood.Count + (int)BowGood.Count : 0);
 
     /// <summary>
     /// True when the match plays the Iron chapter (<c>MatchModel</c> sets it from the chapter rules). Off, the Iron recipes cannot run, no Iron
@@ -83,8 +98,8 @@ public sealed partial class LivingEconomyModel
         init
         {
             _ironChain = value;
-            // The Iron recipes join the planner's list only in the Iron chapter, in content order so the craft step still runs them ascending.
-            if (value) _compiledRecipes = _fiefChain ? _allFiefRecipes : _allRecipes;
+            // Iron-only recipes join the planner in Iron; Fief's additional recipes join only after its own mode flag is set.
+            if (value) _compiledRecipes = _ironChainRecipes;
         }
     }
 
@@ -120,7 +135,9 @@ public sealed partial class LivingEconomyModel
         IronGood otherTierKit = steel ? IronGood.Kit11 : IronGood.Kit12;
         // ExpandWants subtracts stock of the selected output tier from this terminal target.
         // Pre-net the other tier only, since either tier can satisfy the shared holder deficit.
-        plan.Terminal[IronSlot(targetKit)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, otherTierKit));
+        int targetSlot = IronSlot(targetKit);
+        plan.Terminal[targetSlot] = Fix64.Max(plan.Terminal[targetSlot],
+            Fix64.Max(IronStock(s, targetKit), wanted - IronStock(s, otherTierKit)));
     }
 
     /// <summary>Provisional aggregate forest-share threshold where the Iron chain's demand factor reaches full strength.</summary>
@@ -1357,7 +1374,7 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0 || m.IronWait != 0 || m.IronShelf is not null;
+        => m.IronGoods is not null || m.FiefGoods.Length > 0 || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0 || m.IronWait != 0 || m.IronShelf is not null;
 
     /// <summary>Iron structure kinds that existed when the first Iron checksums were fixed; later kinds are hashed only while non-zero so a match that builds none keeps its checksum.</summary>
     private const int IronKindsFirst = (int)IronStructure.Press + 1;
@@ -1366,10 +1383,10 @@ public sealed partial class LivingEconomyModel
 
     private int SnapshotIronStructureCount => FiefChain ? (int)IronStructure.Count : IronStructuresBeforeFief;
 
-    private static void HashLaterIronKinds(ref StateHasher hash, int[]? works)
+    private static void HashLaterIronKinds(ref StateHasher hash, int[]? works, int kindCount)
     {
         if (works is null) return;
-        for (int k = IronKindsFirst; k < works.Length; k++)
+        for (int k = IronKindsFirst; k < Math.Min(works.Length, kindCount); k++)
             if (works[k] != 0) { hash.Add(0x4B494E44 + k); hash.Add(works[k]); }
     }
 
@@ -1386,7 +1403,7 @@ public sealed partial class LivingEconomyModel
             hash.Add(m.IronBuildProgress);
             hash.Add(m.IronSoldiersSupplied);
             for (int k = 0; k < IronKindsFirst; k++) hash.Add(m.IronWorks is { } w ? w[k] : 0);
-            HashLaterIronKinds(ref hash, m.IronWorks);
+            HashLaterIronKinds(ref hash, m.IronWorks, SnapshotIronStructureCount);
             hash.Add(m.IronTerraces?.Count ?? 0);
             if (m.IronTerraces is not null) foreach (int tile in m.IronTerraces) hash.Add(tile);
             hash.Add(m.IronFacing?.Count ?? 0);
@@ -1395,9 +1412,10 @@ public sealed partial class LivingEconomyModel
             hash.Add(m.IronWait);
             hash.Add(m.IronShelf is null ? 0 : IronKindsFirst);
             if (m.IronShelf is not null) for (int k = 0; k < IronKindsFirst; k++) hash.Add(m.IronShelf[k]);
-            if (m.IronShelf is not null) for (int k = IronKindsFirst; k < m.IronShelf.Length; k++) if (m.IronShelf[k] != Fix64.Zero) { hash.Add(0x4B494E44 + k); hash.Add(m.IronShelf[k]); }
+            if (m.IronShelf is not null) for (int k = IronKindsFirst; k < Math.Min(m.IronShelf.Length, SnapshotIronStructureCount); k++) if (m.IronShelf[k] != Fix64.Zero) { hash.Add(0x4B494E44 + k); hash.Add(m.IronShelf[k]); }
             hash.Add(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { hash.Add(m.IronFaith[k]); hash.Add(m.IronFaithSeason![k]); }
+            if (FiefChain) hash.Add(m.FiefGoods.Length > 0 ? m.FiefGoods : new Fix64[(int)FiefGood.Count]);
         }
     }
 
@@ -1429,6 +1447,7 @@ public sealed partial class LivingEconomyModel
             if (m.IronShelf is not null) for (int k = 0; k < shelfCount; k++) writer.Write(m.IronShelf[k].Raw);
             writer.Write(m.IronFaith?.Length ?? 0);
             if (m.IronFaith is not null) for (int k = 0; k < m.IronFaith.Length; k++) { writer.Write(m.IronFaith[k].Raw); writer.Write(m.IronFaithSeason![k]); }
+            if (FiefChain) WriteFixArray(writer, m.FiefGoods.Length > 0 ? m.FiefGoods : new Fix64[(int)FiefGood.Count]);
         }
     }
 
@@ -1456,7 +1475,7 @@ public sealed partial class LivingEconomyModel
             if (metal.IronSoldiersSupplied < 0) throw new InvalidDataException("Negative Iron-chapter soldier count.");
             if (metal.IronBuildKind < -1 || metal.IronBuildKind >= structureCount || metal.IronBuildProgress < Fix64.Zero)
                 throw new InvalidDataException("Invalid Iron-chapter build state.");
-            var works = new int[(int)IronStructure.Count];
+            var works = new int[SnapshotIronStructureCount];
             bool any = false;
             for (int k = 0; k < structureCount; k++)
             {
@@ -1503,6 +1522,20 @@ public sealed partial class LivingEconomyModel
                 metal.IronFaith![k] = Fix64.FromRaw(reader.ReadInt64());
                 metal.IronFaithSeason![k] = reader.ReadInt32();
                 if (metal.IronFaith[k] < Fix64.Zero || metal.IronFaith[k] > Fix64.One) throw new InvalidDataException("Invalid Iron-chapter faith share.");
+            }
+            if (FiefChain)
+            {
+                var fiefGoods = new Fix64[(int)FiefGood.Count];
+                if (FiefSnapshotVersionForRestore >= 47) ReadFixArray(reader, fiefGoods);
+                else
+                {
+                    var legacyLength = FiefSnapshotVersionForRestore >= 46 ? (int)FiefGood.CrucibleSteel : (int)FiefGood.Spirits;
+                    var legacyFiefGoods = new Fix64[legacyLength];
+                    ReadFixArray(reader, legacyFiefGoods);
+                    Array.Copy(legacyFiefGoods, fiefGoods, legacyFiefGoods.Length);
+                }
+                foreach (Fix64 amount in fiefGoods) if (amount < Fix64.Zero) throw new InvalidDataException("Snapshot contains a negative Fief-good stock.");
+                metal.FiefGoods = fiefGoods;
             }
         }
     }
@@ -1677,9 +1710,23 @@ public sealed partial class LivingEconomyModel
         int soldiers = 0;
         foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Soldier) soldiers++;
         if (soldiers == 0) return;
-        Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4);
-        IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
-        plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+        // Each post has its own upgrade target. Lower-grade or previously-issued stock covers the ordinary arms
+        // baseline; it must not make the planner believe the newly researched professional tier is already equipped.
+        if (FiefChain && Done(s.Civilization, "MET-11"))
+        {
+            int slot = FiefSlot(FiefGood.Arms5);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), Stock(s, slot)));
+        }
+        else if (Done(s.Civilization, "MET-10"))
+        {
+            int slot = IronSlot(IronGood.Arms4);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), IronStock(s, IronGood.Arms4)));
+        }
+        else
+        {
+            int slot = IronSlot(IronGood.Arms3);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), IronStock(s, IronGood.Arms3)));
+        }
     }
 
     /// <summary>
@@ -1733,26 +1780,27 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Iron arms and siege engines wear out by age like the Bronze arms: a share of the stock each season, one over the service life (24 seasons iron, 48 steel-edge, 12 for an engine).</summary>
-    private void WearIronGoods(MetalState m)
+    private void WearIronGoods(SettlementState settlement, MetalState m)
     {
         if (m.IronGoods is not { } iron) return;
         SpoilIronLiquids(m);
-        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine, IronGood.Barrel })
+        foreach (IronGood g in new[] { IronGood.Barrel })
         {
             int t = _content.TradeGoodIndex(IronGoodId(g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
-            if (seasons > 0 && iron[(int)g] > Fix64.Zero) iron[(int)g] -= iron[(int)g] / seasons;
+            if (seasons > 0 && iron[(int)g] > Fix64.Zero)
+                iron[(int)g] = AgeCraftedDurableGood(settlement, IronGoodId(g), iron[(int)g], seasons);
         }
     }
 
     // ---- Wonders and leagues (LRN-06, SEA-08, BLD-11, DIP-07) -------------------------------------------
 
-    private static bool IsWonder(IronStructure kind) => kind is IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome;
+    private static bool IsWonder(IronStructure kind) => kind is IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral;
 
     /// <summary>The research project a Wonder completes, which earns its Legacy.</summary>
     private static string WonderProject(IronStructure kind) => kind switch
     {
-        IronStructure.GreatLibrary => "LRN-06", IronStructure.GreatLighthouse => "SEA-08", _ => "BLD-11",
+        IronStructure.GreatLibrary => "LRN-06", IronStructure.GreatLighthouse => "SEA-08", IronStructure.GothicCathedral => "BLD-12", _ => "BLD-11",
     };
 
     /// <summary>The civilization that holds a Wonder, or -1: there is one of each in the world, and it belongs to whoever holds the town it stands in.</summary>
@@ -1785,6 +1833,19 @@ public sealed partial class LivingEconomyModel
             if (best is null || Population(o.Id) > Population(best.Id)) best = o;
         }
         return best?.Id == s.Id;
+    }
+
+    private bool WantsMasterMason(SettlementState s)
+        => FiefChain && Done(s.Civilization, "STN-13") &&
+           (s.Metal is { IronBuildKind: >= 0 } m && IronSpecs[m.IronBuildKind] is { Large: true, Stone: true } ||
+            Done(s.Civilization, "BLD-12") && WonderWanted(s, IronStructure.GothicCathedral));
+
+    private int MasterMasonHeads(int settlementIndex)
+    {
+        if (!FiefChain) return 0;
+        int n = 0;
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id)) if (f.Role == Role.MasterMason) n++;
+        return n;
     }
 
     /// <summary>The settlement a league member's labor is pledged to, if that settlement is still building a Wonder.</summary>
@@ -1886,6 +1947,7 @@ public sealed partial class LivingEconomyModel
         Check("bloom", m.Goods[(int)MetalGood.Iron], spec.Bloom);
         Check("wheel", m.Goods[(int)MetalGood.Wheel], spec.Wheel);
         Check("plank", IronStock(s, IronGood.Plank), spec.Plank);
+        Check("glass", m.Goods[(int)MetalGood.Glass], spec.Glass);
         return string.Join(" ", parts);
     }
 
@@ -1911,6 +1973,15 @@ public sealed partial class LivingEconomyModel
             if (IronSpecs[k].Name == structure && IsWonder((IronStructure)k))
                 foreach (SettlementState s in _settlements) if (IronWorksCount(s, (IronStructure)k) > 0) return s.Id;
         return -1;
+    }
+
+    /// <summary>Trade multiplier for a pilgrimage route whose destination is this settlement; dormant until a built Gothic Cathedral qualifies as the endpoint.</summary>
+    public Fix64 PilgrimageTradeMultiplier(int destinationSettlement)
+    {
+        if (!FiefChain || (uint)destinationSettlement >= (uint)_settlements.Count) return Fix64.One;
+        SettlementState destination = _settlements[destinationSettlement];
+        if (IronWorksCount(destination, IronStructure.GothicCathedral) == 0) return Fix64.One;
+        return Modifier(destination.Civilization, "pilgrimage_trade");
     }
 
     /// <summary>
@@ -1989,10 +2060,29 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>One scholar for each academy, once the civilization knows LRN-05 (the role is staffed from the town's adults, as a priest is; it does not create a person).</summary>
     private int ScholarSlots(SettlementState s)
-        => IronChain && Done(s.Civilization, "LRN-05")
-            ? IronWorksCount(s, IronStructure.Academy) +
-              (FiefChain && Done(s.Civilization, "LRN-08") ? IronWorksCount(s, IronStructure.University) : 0)
-            : 0;
+    {
+        if (!IronChain || !Done(s.Civilization, "LRN-05")) return 0;
+        int slots = IronWorksCount(s, IronStructure.Academy) +
+            (FiefChain && Done(s.Civilization, "LRN-08") ? IronWorksCount(s, IronStructure.University) : 0);
+        if (!FiefChain || !Done(s.Civilization, "LRN-07")) return slots;
+
+        int monasteries = IronWorksCount(s, IronStructure.Monastery);
+        int schools = IronWorksCount(s, IronStructure.CathedralSchool);
+        int institutionSlots = monasteries + schools;
+        slots += institutionSlots;
+
+        int monks = MonksAt(s.Id);
+        int staffedMonasteries = Math.Min(monasteries, monks / 4);
+        int residentScholars = 0;
+        foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Scholar) residentScholars++;
+        int staffedSchools = residentScholars > 0 ? schools : 0;
+        int staffedInstitutions = staffedMonasteries + staffedSchools;
+        // LRN-07's 1.5 cap is converted to whole seats by nearest integer, with halves rounded up.
+        // Base seats exist per monastery/school; bonus seats come only from staffed institutions.
+        Fix64 bonusCapacity = Fix64.FromInt(staffedInstitutions) * (Modifier(s.Civilization, "scholar_cap") - Fix64.One);
+        slots += Math.Max(0, (bonusCapacity + Fix64.Half).FloorToInt());
+        return slots;
+    }
 
     private int MonkSlots(SettlementState s)
         => FiefChain && Done(s.Civilization, "BEL-10") ? 4 * IronWorksCount(s, IronStructure.Monastery) : 0;
@@ -2153,7 +2243,8 @@ public sealed partial class LivingEconomyModel
         int soldiers = m.IronSoldiersSupplied;
         int wanted = Math.Min(2, soldiers / 4);
         if (wanted <= 0) return;
-        plan.Terminal[IronSlot(IronGood.Engine)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(wanted) - IronStock(s, IronGood.Engine));
+        int slot = IronSlot(IronGood.Engine);
+        plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(wanted), IronStock(s, IronGood.Engine)));
     }
 
     /// <summary>Takes up to <paramref name="max"/> whole engines from a settlement's store for a campaign train; returns how many left.</summary>
@@ -2452,13 +2543,13 @@ public sealed partial class LivingEconomyModel
         // Appended after the first Iron checksums were fixed (docs/MVP/29): hashed only while non-zero, see HashIronWorks.
         WaterMill, Colonnade,
         // Faith & Fief (docs/MVP/27 §5.1, §5.2; M12 WP-E5-5): built only in a Fief match, appended after the Iron structures and hashed only while non-zero.
-        Windmill, Sawmill, BlastFurnace, Monastery, University, Hospital, ConcentricCastle,
+        Windmill, Sawmill, BlastFurnace, Monastery, University, Hospital, ConcentricCastle, PowderMill, PrintShop, ClockTower, GothicCathedral, CathedralSchool,
         Count
     }
 
     /// <summary>What a structure needs: its unlocking project, labor in work-seasons, and materials paid at completion (docs/MVP/26 §3.2; all provisional).</summary>
     private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom,
-        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0, int Plank = 0);
+        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0, int Plank = 0, int Glass = 0);
 
     // Large: a treadwheel crane halves the labor (MEC-06). Stone: STN-12 shortens stone work. Infrastructure: surveying (NUM-07) shortens fields, roads and aqueducts.
     private static readonly IronSpec[] IronSpecs =
@@ -2492,9 +2583,9 @@ public sealed partial class LivingEconomyModel
         new("water_mill", "NRG-03", 18, 6, 0, 8, 0, Stone: true, Wheel: 1),
         // The colonnade of a Temple (registry temple_tier2): dressed stone and timber.
         new("temple_tier2", "STN-12", 16, 0, 8, 4, 0, Stone: true),
-        // Faith & Fief (all provisional, docs/MVP/27 §5): a windmill takes two wheels and timber; a sawmill timber, block and a litre of bloom for the saw;
+        // Faith & Fief (all provisional, docs/MVP/27 §5): a windmill is a timber post mill (18 wood, one wheel, no dressed blocks: blocks were the late-game bottleneck that left second sources unbuilt, F-T2); a sawmill timber, block and a litre of bloom for the saw;
         // a blast furnace is block (the registry's 16 block and 8 fired brick, counted as 24 block) and timber.
-        new("windmill", "NRG-05", 24, 4, 0, 14, 0, Wheel: 1),
+        new("windmill", "NRG-05", 24, 0, 0, 18, 0, Wheel: 1),
         new("sawmill", "WOD-09", 20, 4, 0, 10, 1),
         new("blast_furnace", "MET-12", 40, 24, 0, 6, 0, Stone: true),
         new("monastery", "BEL-10", 30, 12, 0, 6, 0, Stone: true),
@@ -2502,6 +2593,16 @@ public sealed partial class LivingEconomyModel
         new("hospital", "MED-07", 24, 8, 0, 4, 0, Stone: true),
         // DEF-09 concentric fortification: a Fief-only upgrade, built at an already garrisoned castle.
         new("concentric_castle", "DEF-09", 80, 0, 24, 12, 2, Large: true, Stone: true),
+        // CHM-07 gunpowder workshop (all first-pass values provisional).
+        new("powder_mill", "CHM-07", 16, 4, 0, 8, 0),
+        // COM-10 print shop (catalog materials; build only in Fief).
+        new("print_shop", "COM-10", 16, 0, 0, 4, 1, Plank: 2),
+        // MEC-08 Clock Tower (Fief): 30 work, ten block, one bloom iron, four timber.
+        new("clock_tower", "MEC-08", 30, 10, 0, 4, 1),
+        // BLD-12 Gothic Cathedral (Fief): draft registry hypothesis; one world Wonder, staffed Master Mason, glass glazing input.
+        new("gothic_cathedral", "BLD-12", 120, 0, 40, 20, 0, Large: true, Stone: true, Glass: 4),
+        // LRN-07 cathedral school: draft fit hypothesis matched to the monastery's construction scale.
+        new("cathedral_school", "LRN-07", 30, 12, 0, 6, 0, Stone: true),
     };
 
     /// <summary>
@@ -2520,6 +2621,7 @@ public sealed partial class LivingEconomyModel
             if (efficiency > Fix64.Zero) labor /= efficiency;
         }
         if (spec.Large && IronWorksCount(s, IronStructure.Crane) > 0) labor *= Fix64.Half;
+        if (FiefChain && spec.Large && spec.Stone && MasterMasonHeads(s.Id) > 0) labor /= Modifier(civ, "large_stone_works_speed");
         return labor;
     }
 
@@ -2559,11 +2661,14 @@ public sealed partial class LivingEconomyModel
     private bool IronBuildFeasible(SettlementState s, IronStructure kind)
         => kind switch
         {
+            // Fief windmills are the one repeatable mill structure: a second source may be built while the
+            // coverage appetite remains open, and an in-progress build must remain feasible at count 1.
+            IronStructure.Windmill => FiefChain && IronWorksCount(s, kind) < 2,
             IronStructure.Terrace => NextTerraceTile(s) >= 0,
             IronStructure.WindlassWell => IronWorksCount(s, kind) < 2,
             IronStructure.Gatehouse => IronWorksCount(s, kind) == 0 && HasStoneWalls(s),
             IronStructure.FrontierWall => IronWorksCount(s, kind) < 2 && NextFrontierFacing(s) >= 0,
-            IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
+            IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
             _ => IronWorksCount(s, kind) == 0,
         };
 
@@ -2615,6 +2720,30 @@ public sealed partial class LivingEconomyModel
                 m.IronWait = 0;
             }
         }
+        // The same deficit windmill takes the slot from a longer build at once (the shelf keeps the other build's progress), so that its stone work, timber and wheel are planned like
+        // any current build's; while it stands shelved and fully worked, the town plans only its wheel and blocks.
+        int millKind = !focused ? FiefMillDeficitKind(s, civ) : -1;
+        if (millKind >= 0 && m.IronBuildKind != millKind)
+        {
+            IronSpec millSpec = IronSpecs[millKind];
+            // Taking the slot is what funds the windmill: only the current build gets its stone work, timber and wheel planned. A windmill that was fully worked and then
+            // shelved for want of materials does not retake the slot until they are in store, so a town without stone cannot hold its queue hostage.
+            bool shelvedWorked = m.IronShelf is { } shelf && shelf[millKind] > Fix64.Zero && shelf[millKind] >= IronLaborOf(s, millSpec);
+            if (!shelvedWorked || CanPayIronBuild(s, m, millSpec)) SwitchIronBuild(s, m, millKind);
+            else
+            {
+                if (millSpec.Block > 0)
+                {
+                    int slot = MetalSlot(MetalGood.Block);
+                    plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)MetalGood.Block], Fix64.FromInt(millSpec.Block)));
+                }
+                if (millSpec.Wheel > 0)
+                {
+                    int slot = MetalSlot(MetalGood.Wheel);
+                    plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)MetalGood.Wheel], Fix64.FromInt(millSpec.Wheel)));
+                }
+            }
+        }
         if (m.IronBuildKind < 0)
         {
             int next = NextWantedIronKind(s, m, civ, skip: -1, passShelved: false);
@@ -2623,11 +2752,22 @@ public sealed partial class LivingEconomyModel
         }
         if (m.IronBuildKind < 0) return;
         IronSpec spec = IronSpecs[m.IronBuildKind];
-        if (spec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) - m.Goods[(int)MetalGood.Block]);
-        if (spec.Ashlar > 0) plan.Terminal[MetalSlot(MetalGood.Ashlar)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]);
-        if (spec.Bloom > 0) plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Bloom) - m.Goods[(int)MetalGood.Iron]);
-        if (spec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
-        if (spec.Plank > 0) plan.Terminal[IronSlot(IronGood.Plank)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Plank) - IronStock(s, IronGood.Plank));
+        if (spec.Block > 0) SetMetalMaterial(MetalGood.Block, spec.Block);
+        if (spec.Ashlar > 0) SetMetalMaterial(MetalGood.Ashlar, spec.Ashlar);
+        if (spec.Bloom > 0) SetMetalMaterial(MetalGood.Iron, spec.Bloom);
+        if (spec.Wheel > 0) SetMetalMaterial(MetalGood.Wheel, spec.Wheel);
+        if (spec.Plank > 0)
+        {
+            int slot = IronSlot(IronGood.Plank);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(IronStock(s, IronGood.Plank), Fix64.FromInt(spec.Plank)));
+        }
+        if (spec.Glass > 0) SetMetalMaterial(MetalGood.Glass, spec.Glass);
+
+        void SetMetalMaterial(MetalGood good, int amount)
+        {
+            int slot = MetalSlot(good);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)good], Fix64.FromInt(amount)));
+        }
     }
 
     /// <summary>
@@ -2667,6 +2807,9 @@ public sealed partial class LivingEconomyModel
             }
             if (preferred >= 0) return preferred;
         }
+        // A Fief town whose mills cover under 60% of its grain wants its second windmill ahead of the queue (D12, F-T2).
+        int deficitMill = FiefMillDeficitKind(s, civ);
+        if (deficitMill >= 0 && deficitMill != skip && IronKindOpen(s, m, civ, deficitMill, passShelved)) return deficitMill;
         // Defense works are taken first (docs/MVP/28 §9): they are wanted only by a walled town (gatehouse) or a walled border town (castle, with the crane that halves
         // its labor), they are cheap or rare, and at the end of the enum order they were reached by 1 walled town in 20.
         foreach (IronStructure first in DefenseFirst)
@@ -2677,6 +2820,19 @@ public sealed partial class LivingEconomyModel
         for (int k = 0; k < (int)IronStructure.Count; k++)
             if (k != skip && IronKindOpen(s, m, civ, k, passShelved)) return k;
         return -1;
+    }
+
+    /// <summary>
+    /// The windmill's kind index when this Fief town already has a mill but its modeled grain coverage is under the draft 60% screen, so a second windmill is wanted
+    /// (the appetite and the two-windmill cap are in <see cref="IronGate"/>); -1 otherwise. Without this a second source waited behind whatever else the town was
+    /// building and was funded in one season of twelve (F-T2 natural cohort, seeds 20700066 and 20701208).
+    /// </summary>
+    private int FiefMillDeficitKind(SettlementState s, int civ)
+    {
+        if (!FiefChain || !Done(civ, "NRG-05")) return -1;
+        if (IronWorksCount(s, IronStructure.WaterMill) + IronWorksCount(s, IronStructure.Windmill) == 0) return -1;
+        int kind = (int)IronStructure.Windmill;
+        return IronBuildWanted(s, IronStructure.Windmill) && !BuildFocusSkips(s, BuildTrack.Iron, kind) ? kind : -1;
     }
 
     private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle, IronStructure.ConcentricCastle };
@@ -2701,7 +2857,8 @@ public sealed partial class LivingEconomyModel
     private bool CanPayIronBuild(SettlementState s, MetalState m, IronSpec spec)
         => m.Goods[(int)MetalGood.Block] >= Fix64.FromInt(spec.Block) && m.Goods[(int)MetalGood.Ashlar] >= Fix64.FromInt(spec.Ashlar) &&
            m.Goods[(int)MetalGood.Iron] >= Fix64.FromInt(spec.Bloom) && s.Stores[(int)Good.Wood] >= Fix64.FromInt(spec.Wood) &&
-           m.Goods[(int)MetalGood.Wheel] >= Fix64.FromInt(spec.Wheel) && IronStock(s, IronGood.Plank) >= Fix64.FromInt(spec.Plank);
+           m.Goods[(int)MetalGood.Wheel] >= Fix64.FromInt(spec.Wheel) && IronStock(s, IronGood.Plank) >= Fix64.FromInt(spec.Plank) &&
+           m.Goods[(int)MetalGood.Glass] >= Fix64.FromInt(spec.Glass);
 
     /// <summary>Work-seasons per litre of stone dressed from a block into ashlar (the E3 recipe: 0.5 with a T8+ kit).</summary>
     private static readonly Fix64 DressLabor = Fix64.Half;
@@ -2802,7 +2959,8 @@ public sealed partial class LivingEconomyModel
     {
         if (m.Goods[(int)MetalGood.Block] < Fix64.FromInt(spec.Block) || m.Goods[(int)MetalGood.Ashlar] < Fix64.FromInt(spec.Ashlar) ||
             m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood) ||
-            m.Goods[(int)MetalGood.Wheel] < Fix64.FromInt(spec.Wheel) || IronStock(s, IronGood.Plank) < Fix64.FromInt(spec.Plank)) return false;
+            m.Goods[(int)MetalGood.Wheel] < Fix64.FromInt(spec.Wheel) || IronStock(s, IronGood.Plank) < Fix64.FromInt(spec.Plank) ||
+            m.Goods[(int)MetalGood.Glass] < Fix64.FromInt(spec.Glass)) return false;
         if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
         if (m.IronBuildKind == (int)IronStructure.FrontierWall && NextFrontierFacing(s) < 0) return false;
         if (IsWonder((IronStructure)m.IronBuildKind) && WonderOwnerCiv((IronStructure)m.IronBuildKind) >= 0) return false; // someone else finished it first: there is one of each
@@ -2812,6 +2970,7 @@ public sealed partial class LivingEconomyModel
         AddStock(s, MetalSlot(MetalGood.Wheel), -Fix64.FromInt(spec.Wheel));
         AddStock(s, (int)Good.Wood, -Fix64.FromInt(spec.Wood));
         AddStock(s, IronSlot(IronGood.Plank), -Fix64.FromInt(spec.Plank));
+        AddStock(s, MetalSlot(MetalGood.Glass), -Fix64.FromInt(spec.Glass));
         return true;
     }
 

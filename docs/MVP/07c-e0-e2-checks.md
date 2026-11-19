@@ -317,8 +317,10 @@ Play feedback after §10 was that late Roots and Bronze Primary projects still f
 | Era | E0 | E1 | E2 Roots | E3 Bronze | E4 Iron | E5 | E6 | E7 | E8 | E9 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Previous base (§10) | 22 | 50 | 100 | 160 | 660 | 3,750 | 19,500 | 175,000 | 1,050,000 | 5,500,000 |
-| **Current base** | **22** | **50** | **150** | **400** | **1,200** | **6,000** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
-| Change from §10 | — | — | **+50%** | **+150%** | **+82%** | **+60%** | **+64%** | **+60%** | **+62%** | **+64%** |
+| **Current base** | **22** | **50** | **150** | **400** | **1,200** | **6,400** | **32,000** | **280,000** | **1,700,000** | **9,000,000** |
+| Change from §10 | — | — | **+50%** | **+150%** | **+82%** | **+71%** | **+64%** | **+60%** | **+62%** | **+64%** |
+
+The E5 entry is a draft current-source F-T1 calibration hypothesis based on 15/20 completed worlds, not a completed fit or acceptance result; see [the partial calibration record](balance/m12-e5-ft1-partial-calibration-fit-2026-11-16.md). Other rows and the mean-field projections below are unchanged historical model values.
 
 The balanced mean-field model now estimates **1.15 minutes per Primary in Roots** and **1.18 minutes in Bronze**, versus 0.85 and 0.72 before this follow-up. The interval grows to 1.39 in E5, 1.79 in E6, 2.71 in E7, 3.63 in E8 and 4.61 in E9. These are model averages; actual project types, progress income and Know-how vary within each era.
 

@@ -41,8 +41,7 @@ public partial class Game
     private PanelContainer? _webTopBar, _webDock, _inspectorCard;
     private BoxContainer? _webDockBox;
     private VBoxContainer? _inspectorCardBody;
-    private UiButton? _inspectorTab;
-    private bool _webStageApplied, _inspectorCollapsed;
+    private bool _webStageApplied;
     private float _stageTop, _stageDockTop;
 
     // slot strip
@@ -113,12 +112,9 @@ public partial class Game
     private int _webSignature = int.MinValue;
     private Label? _footerNote;
     private float _footerNoteTimer;
-    private UiToggle? _webAutoFill;
-    private UiPopover? _queuePopover, _leaningPopover;
-    private UiLayer? _queueLayer, _leaningLayer;
+    private UiPopover? _queuePopover;
+    private UiLayer? _queueLayer;
     private VBoxContainer? _queueList;
-    private readonly HSlider?[] _leaningSliders = new HSlider?[3];
-    private readonly Label?[] _leaningValues = new Label?[3];
 
     private static bool ReadResearchWebArgument() => HasArgument("--research-web");
 
@@ -245,15 +241,7 @@ public partial class Game
         // Footer
         var footer = UiKit.Row(UiTokens.Sp3);
         _webFooter = footer;
-        _webAutoFill = new UiToggle("Auto-fill", false, enabled => { if (!_updatingFocusBar) SetAutoFill(enabled); })
-        {
-            TooltipText = "When a slot opens, the elders pick a project after one season. Your own choices stay.",
-            CustomMinimumSize = new Vector2(144, UiTokens.ControlS),
-        };
-        _webAutoFill.ThemeTypeVariation = "ToggleRowCompact";
-        footer.AddChild(_webAutoFill);
-        footer.AddChild(UiKit.Ghost("Elders' leaning…", ToggleLeaningPopover, "Which themes the elders favour when Auto-fill picks"));
-        _peopleWebButton = UiKit.Secondary("People & Stores", () => OpenPeoplePanel(PeopleTab.Overview, int.MinValue),
+        _peopleWebButton = UiKit.Primary("People, Resources & Research", () => OpenPeoplePanel(PeopleTab.Overview, int.MinValue),
             "See what is slowing your people down, what you hold, who does what, and what your research is paying off", UiGlyph.People, UiTokens.ControlS, true);
         footer.AddChild(_peopleWebButton);
         _footerNote = UiKit.Text("Drag projects above to reprioritize · Star: age count · Link: prerequisite · Age: transition", "CaptionTertiary", right: true, ellipsis: true);
@@ -265,10 +253,6 @@ public partial class Game
 
         _queuePopover = new UiPopover("CardPanel") { Dismissed = CloseQueuePopover };
         _hudRoot.AddChild(_queuePopover);
-        _leaningPopover = new UiPopover("CardPanel") { Dismissed = CloseLeaningPopover };
-        BuildLeaningPopover();
-        _hudRoot.AddChild(_leaningPopover);
-
         _webLayer = RegisterLayer("research", false, HandleWebEscape);
     }
 
@@ -499,34 +483,6 @@ public partial class Game
         _inspector.AddChild(_leadsBlock);
     }
 
-    private void BuildLeaningPopover()
-    {
-        VBoxContainer body = UiKit.Column(UiTokens.Sp3);
-        body.CustomMinimumSize = new Vector2(377, 0);
-        body.AddChild(UiKit.Text("Elders' leaning", "Heading"));
-        body.AddChild(UiKit.Text("When Auto-fill picks, the elders favour these themes.", "BodySecondary", wrap: true));
-        for (int theme = 0; theme < 3; theme++)
-        {
-            int captured = theme;
-            var row = UiKit.Row(UiTokens.Sp2);
-            row.AddChild(new UiIcon(UiDraw.ThemeGlyph((ResearchTheme)theme), 16, UiTokens.ThemeColor((ResearchTheme)theme)));
-            row.AddChild(UiKit.Text(UiText.ThemeNames[theme], "BodyStrong", UiTokens.ThemeText((ResearchTheme)theme), minWidth: 64));
-            var slider = new HSlider { MinValue = 0, MaxValue = 100, Step = 1, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(120, 24) };
-            slider.ValueChanged += value => { if (_leaningValues[captured] is Label l) l.Text = $"{value:0}%"; };
-            _leaningSliders[theme] = slider;
-            row.AddChild(slider);
-            _leaningValues[theme] = UiKit.Text("0%", "Num", minWidth: 44, right: true);
-            row.AddChild(_leaningValues[theme]!);
-            body.AddChild(row);
-        }
-        var actions = UiKit.Row(UiTokens.Sp2);
-        actions.Alignment = BoxContainer.AlignmentMode.End;
-        actions.AddChild(UiKit.Ghost("Cancel", CloseLeaningPopover));
-        actions.AddChild(UiKit.Primary("Apply", () => { ApplyLeanings(); CloseLeaningPopover(); }, null, UiGlyph.None, UiTokens.ControlM, true));
-        body.AddChild(actions);
-        _leaningPopover!.Body.AddChild(body);
-    }
-
     private void LayoutResearchWeb()
     {
         if (_webPanel is null) return;
@@ -577,14 +533,9 @@ public partial class Game
         var head = UiKit.Row(UiTokens.Sp2);
         head.AddChild(UiKit.Text("SELECTED PROJECT", "EyebrowTertiary"));
         head.AddChild(UiKit.Spacer(expand: true));
-        head.AddChild(UiKit.IconButton(UiGlyph.ChevronRight, "Hide details (I)", ToggleInspectorCard, UiTokens.ControlS, 16));
         _inspectorCardBody.AddChild(head);
         _inspectorCard.AddChild(_inspectorCardBody);
         _webOverlay.AddChild(_inspectorCard);
-
-        _inspectorTab = UiKit.Secondary("Details", ToggleInspectorCard, "Show the selected project (I)", UiGlyph.ChevronDown, UiTokens.ControlS);
-        _inspectorTab.Visible = false;
-        _webOverlay.AddChild(_inspectorTab);
     }
 
     private static void MoveTo(Control child, Node parent, int index = -1)
@@ -662,7 +613,6 @@ public partial class Game
         if (_hudRoot is null || _webScrim is null || _webPanel is null) return;
         var sheet = new List<Control> { _webScrim, _webPanel };
         if (_queuePopover is not null) sheet.Add(_queuePopover);
-        if (_leaningPopover is not null) sheet.Add(_leaningPopover);
         void PlaceBefore(Control c, Control anchor)
         {
             int at = anchor.GetIndex();
@@ -675,7 +625,6 @@ public partial class Game
             var order = new List<Control> { _webScrim, _webPanel };
             foreach (ColorRect? bar in _pauseFrame) if (bar is not null) order.Add(bar);
             if (_queuePopover is not null) order.Add(_queuePopover);
-            if (_leaningPopover is not null) order.Add(_leaningPopover);
             foreach (Control c in order) PlaceBefore(c, anchor);
         }
         else
@@ -692,7 +641,7 @@ public partial class Game
     /// <summary>Places the floating controls and tells the map how much of its area they cover.</summary>
     private void PositionWebStage()
     {
-        if (_webTopBar is null || _webDock is null || _inspectorCard is null || _inspectorTab is null || _noticeBar is null || _mapView is null) return;
+        if (_webTopBar is null || _webDock is null || _inspectorCard is null || _noticeBar is null || _mapView is null) return;
         float m = _compact ? 8 : 12;
         float W = _logicalSize.X, H = _logicalSize.Y;
         _webDockBox!.Vertical = _compact;
@@ -704,18 +653,13 @@ public partial class Game
 
         // the card is never narrower than what its chips need
         float cardWidth = Math.Max(_compact ? 300 : W >= 2200 ? 380 : 340, _inspectorCard.GetCombinedMinimumSize().X);
-        bool showCard = !_inspectorCollapsed;
-        _inspectorCard.Visible = showCard;
-        _inspectorTab.Visible = !showCard;
         AnchorTo(_inspectorCard, 1, 0, 1, 1, -(m + cardWidth), top, -m, -m, Control.GrowDirection.Begin);
         _inspectorHost!.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _inspectorHost.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         _inspectorHost.CustomMinimumSize = new Vector2(0, 0);
-        const float tabWidth = 120;
-        AnchorTo(_inspectorTab, 1, 0, 1, 0, -(m + tabWidth), top, -m, top, Control.GrowDirection.Begin);
 
         // the slot chips and footer controls sit in a second bar right under the top bar, beside the card
-        float dockRight = showCard ? m + cardWidth + m : m;
+        float dockRight = m + cardWidth + m;
         AnchorTo(_webDock, 0, 0, 1, 0, m, top, -dockRight, top);
         float dockHeight = _webDock.GetCombinedMinimumSize().Y;
         float mapTop = top + dockHeight + m;
@@ -723,19 +667,10 @@ public partial class Game
 
         AnchorTo(_noticeBar, 0.5f, 0, 0.5f, 0, 0, mapTop, 0, mapTop, Control.GrowDirection.Both);
 
-        // with the card collapsed its tab sits at the right end of the dock row, so the dock gives it room
-        if (!showCard) AnchorTo(_webDock, 0, 0, 1, 0, m, top, -(m + tabWidth + m), top);
-        _mapView.SetOverlayInsets(0, mapTop, showCard ? cardWidth + m : 0, m, true, showCard ? 0 : 0);
+        _mapView.SetOverlayInsets(0, mapTop, cardWidth + m, m, true, 0);
     }
 
-    private void ToggleInspectorCard()
-    {
-        if (!_webStageApplied) return;
-        _inspectorCollapsed = !_inspectorCollapsed;
-        PositionWebStage();
-    }
-
-    /// <summary>Inspector width, toggle glyph and footer hint for the current expanded state.</summary>
+    /// <summary>Inspector width and footer hint for the current expanded state.</summary>
     private void ApplyWebExpandedLook()
     {
         if (_inspectorHost is not null && !_webStageApplied)
@@ -769,8 +704,6 @@ public partial class Game
         _uiSettings.Save();
         // the popovers were placed once at open time, so they would end up misplaced
         CloseQueuePopover();
-        CloseLeaningPopover();
-        _inspectorCollapsed = false;
         LayoutResearchWeb();
         _mapCenterNext = true; // the layout changed under the map: keep the zoom, re-centre on the selection
         _webSignature = int.MinValue;
@@ -851,7 +784,6 @@ public partial class Game
             _uiSettings.Save();
         }
         CloseQueuePopover();
-        CloseLeaningPopover();
         if (_webScrim is not null) _webScrim.Visible = false;
         if (_webPanel is not null) UiKit.Fade(_webPanel, false, UiTokens.SlowCloseS);
         if (_webLayer is not null) _ui.Remove(_webLayer);
@@ -1017,7 +949,6 @@ public partial class Game
         if (fromPath && _selectedResearchProject >= 0 && _selectedResearchProject != project) _backProject = _selectedResearchProject;
         else if (!fromPath) _backProject = -1;
         _selectedResearchProject = project;
-        if (_webStageApplied && _inspectorCollapsed) { _inspectorCollapsed = false; PositionWebStage(); }
         _replaceRowOpen = false;
         _inspSignature = int.MinValue;
         _webSignature = int.MinValue;
