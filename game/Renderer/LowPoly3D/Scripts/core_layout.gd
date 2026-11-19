@@ -1432,7 +1432,7 @@ func _outer_far_candidates(ring2: Array) -> Array:
 	return out
 
 ## Place a Fief work on an unclaimed outer land hex and record its footprint for the layout inspector.
-func _fief_outer_site(candidates: Array, taken: Dictionary, kind: String, mesh: String, scale: float, tint: Color):
+func _fief_outer_site(candidates: Array, taken: Dictionary, kind: String, mesh: String, scale: float, tint: Color) -> Variant:
 	for tile in candidates:
 		if taken.has(tile) or not w.is_land(tile) or w.plot_kind[tile] >= 0 or w.biome[tile] >= M7WorldData.Biome.PEAK:
 			continue
