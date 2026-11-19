@@ -86,6 +86,29 @@ public static class Combat
     public static Fix64 MilitiaStrength(string weapon) => E3WeaponStrength(weapon) * Fix64.FromRatio(6, 10);
     public static Fix64 ShieldCasualtyFactor(Fix64 shieldedShare)
         => Fix64.One - Fix64.FromRatio(3, 10) * Fix64.Clamp(shieldedShare, Fix64.Zero, Fix64.One);
+
+    /// <summary>
+    /// Whether a kit improves the expected casualty exchange against an equally armed, non-bolt foe.
+    /// In one combat round, own losses are proportional to enemyStrength² / ownStrength and inflicted
+    /// losses to ownStrength² / enemyStrength. Therefore a fighter at candidate strength C with own
+    /// casualty factor q improves on baseline B exactly when C³ &gt; q·B³. Equal scores keep the baseline.
+    /// </summary>
+    public static bool ImprovesCombatExchange(Fix64 candidateStrength, Fix64 ownCasualtyFactor, Fix64 baselineStrength)
+        => ImprovesCombatExchange(candidateStrength, ownCasualtyFactor, baselineStrength, Fix64.One);
+
+    /// <summary>Compares two choices by their expected exchange score, strength³ divided by own casualty factor.</summary>
+    public static bool ImprovesCombatExchange(Fix64 candidateStrength, Fix64 ownCasualtyFactor,
+        Fix64 baselineStrength, Fix64 baselineCasualtyFactor)
+    {
+        if (candidateStrength <= Fix64.Zero || baselineStrength <= Fix64.Zero ||
+            ownCasualtyFactor <= Fix64.Zero || baselineCasualtyFactor <= Fix64.Zero)
+            return false;
+
+        Fix64 candidateCube = candidateStrength * candidateStrength * candidateStrength;
+        Fix64 baselineCube = baselineStrength * baselineStrength * baselineStrength;
+        return candidateCube * baselineCasualtyFactor > baselineCube * ownCasualtyFactor;
+    }
+
     public static readonly Fix64 ChariotCasualtyFactor = Fix64.Half;
     /// <summary>Factors multiply, so shielded chariot crew take 0.7 × 0.5 casualties (07d §6, F5).</summary>
     public static Fix64 E3CasualtyFactor(Fix64 shieldedShare, Fix64 chariotCrewShare = default)

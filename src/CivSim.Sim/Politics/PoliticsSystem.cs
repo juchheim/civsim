@@ -1986,6 +1986,40 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         return list;
     }
 
+    /// <summary>Stack-only selection state: the best combat exchange among the base weapon and available local kits.</summary>
+    private struct FighterArmChoice
+    {
+        public int Kit { get; private set; }
+        public Fix64 WeaponStrength { get; private set; }
+        public Fix64 EffectiveStrength { get; private set; }
+        public Fix64 CasualtyFactor { get; private set; }
+        public bool Bolt { get; private set; }
+        public bool LevyBow { get; private set; }
+
+        public FighterArmChoice(Fix64 baselineStrength, Fix64 baselineTraining)
+        {
+            Kit = 0;
+            WeaponStrength = baselineStrength;
+            EffectiveStrength = baselineStrength * baselineTraining;
+            CasualtyFactor = Fix64.One;
+            Bolt = false;
+            LevyBow = false;
+        }
+
+        public void Consider(int kit, Fix64 candidateStrength, Fix64 candidateCasualtyFactor,
+            Fix64 training, bool bolt = false, bool levyBow = false)
+        {
+            Fix64 effective = candidateStrength * training;
+            if (!Combat.ImprovesCombatExchange(effective, candidateCasualtyFactor, EffectiveStrength, CasualtyFactor)) return;
+            Kit = kit;
+            WeaponStrength = candidateStrength;
+            EffectiveStrength = effective;
+            CasualtyFactor = candidateCasualtyFactor;
+            Bolt = bolt;
+            LevyBow = levyBow;
+        }
+    }
+
     /// <summary>
     /// <see cref="Fighters"/> into caller-owned lists, so a per-frame readout can reuse them and allocate nothing. <paramref name="ids"/> may be null when only the
     /// strengths are wanted; the lists are cleared first.
@@ -2041,16 +2075,39 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Fix64 casualtiesTaken = Fix64.One;
             Fix64 shieldFactor = Fix64.One;
             bool bolt = false, levyBow = false;
+            Fix64 regularTraining = r.Age >= 45 ? Fix64.FromRatio(3, 10)
+                : r.Soldier ? Combat.ProfessionalTraining
+                : warrior ? Fix64.FromRatio(13, 10)
+                : attacking ? Fix64.One : Fix64.FromRatio(6, 10);
+            Fix64 levyTraining = r.Age < 45 && !r.Soldier && !warrior ? Fix64.One : regularTraining;
+            var choice = new FighterArmChoice(weaponStrength, regularTraining);
             bool mayUseAdvanced = r.Soldier || crucibleArms + steelArms + ironArms > soldiersLeft;
-            if (mayUseAdvanced && crucibleArms > 0) { crucibleArms--; weaponStrength = Fix64.FromRatio(36, 10); issued = issued with { Crucible = issued.Crucible + 1 }; }
-            else if (mayUseAdvanced && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); issued = issued with { Steel = issued.Steel + 1 }; }
-            else if (mayUseAdvanced && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); issued = issued with { Iron = issued.Iron + 1 }; }
-            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; issued = issued with { Tin = issued.Tin + 1 }; }
-            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; issued = issued with { Arsenical = issued.Arsenical + 1 }; }
-            else if (crossbows > 0 && Combat.BoltStrength > weaponStrength) { crossbows--; bolt = true; levyBow = true; weaponStrength = Combat.BoltStrength; issued = issued with { Crossbow = issued.Crossbow + 1 }; }
-            else if (longbows > 0 && Combat.BoltStrength > weaponStrength) { longbows--; levyBow = true; weaponStrength = Combat.BoltStrength; issued = issued with { Longbow = issued.Longbow + 1 }; }
-            else if (warBows > 0 && warBowStrength > weaponStrength) { warBows--; weaponStrength = warBowStrength; issued = issued with { WarBow = issued.WarBow + 1 }; }
-            else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); issued = issued with { Copper = issued.Copper + 1 }; }
+            if (mayUseAdvanced && crucibleArms > 0) choice.Consider(1, Fix64.FromRatio(36, 10), Fix64.One, regularTraining);
+            if (mayUseAdvanced && steelArms > 0) choice.Consider(2, Combat.IronWeaponStrength(steelEdge: true), Fix64.One, regularTraining);
+            if (mayUseAdvanced && ironArms > 0) choice.Consider(3, Combat.IronWeaponStrength(steelEdge: false), Fix64.One, regularTraining);
+            if (tinArms > 0) choice.Consider(4, Combat.E3WeaponStrength("tin"), Combat.ShieldCasualtyFactor(Fix64.One), regularTraining);
+            if (arsenicalArms > 0) choice.Consider(5, Combat.E3WeaponStrength("arsenical"), Combat.ShieldCasualtyFactor(Fix64.One), regularTraining);
+            if (crossbows > 0) choice.Consider(6, Combat.BoltStrength, Fix64.One, levyTraining, bolt: true, levyBow: true);
+            if (longbows > 0) choice.Consider(7, Combat.BoltStrength, Fix64.One, levyTraining, levyBow: true);
+            if (warBows > 0) choice.Consider(8, warBowStrength, Fix64.One, regularTraining);
+            if (copperArms > 0) choice.Consider(9, Combat.E3WeaponStrength("copper"), Fix64.One, regularTraining);
+            weaponStrength = choice.WeaponStrength;
+            casualtiesTaken = choice.CasualtyFactor;
+            shieldFactor = choice.CasualtyFactor;
+            bolt = choice.Bolt;
+            levyBow = choice.LevyBow;
+            switch (choice.Kit)
+            {
+                case 1: crucibleArms--; issued = issued with { Crucible = issued.Crucible + 1 }; break;
+                case 2: steelArms--; issued = issued with { Steel = issued.Steel + 1 }; break;
+                case 3: ironArms--; issued = issued with { Iron = issued.Iron + 1 }; break;
+                case 4: tinArms--; issued = issued with { Tin = issued.Tin + 1 }; break;
+                case 5: arsenicalArms--; issued = issued with { Arsenical = issued.Arsenical + 1 }; break;
+                case 6: crossbows--; issued = issued with { Crossbow = issued.Crossbow + 1 }; break;
+                case 7: longbows--; issued = issued with { Longbow = issued.Longbow + 1 }; break;
+                case 8: warBows--; issued = issued with { WarBow = issued.WarBow + 1 }; break;
+                case 9: copperArms--; issued = issued with { Copper = issued.Copper + 1 }; break;
+            }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
             else if (r.Soldier) strength = weaponStrength * Combat.ProfessionalTraining;
