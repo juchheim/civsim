@@ -135,7 +135,9 @@ public sealed partial class LivingEconomyModel
         IronGood otherTierKit = steel ? IronGood.Kit11 : IronGood.Kit12;
         // ExpandWants subtracts stock of the selected output tier from this terminal target.
         // Pre-net the other tier only, since either tier can satisfy the shared holder deficit.
-        plan.Terminal[IronSlot(targetKit)] = Fix64.Max(Fix64.Zero, wanted - IronStock(s, otherTierKit));
+        int targetSlot = IronSlot(targetKit);
+        plan.Terminal[targetSlot] = Fix64.Max(plan.Terminal[targetSlot],
+            Fix64.Max(IronStock(s, targetKit), wanted - IronStock(s, otherTierKit)));
     }
 
     /// <summary>Provisional aggregate forest-share threshold where the Iron chain's demand factor reaches full strength.</summary>
@@ -1708,13 +1710,22 @@ public sealed partial class LivingEconomyModel
         int soldiers = 0;
         foreach (FigureState f in Residents(s.Id)) if (f.Role == Role.Soldier) soldiers++;
         if (soldiers == 0) return;
-        Fix64 have = IronStock(s, IronGood.Arms3) + IronStock(s, IronGood.Arms4) + Stock(s, FiefSlot(FiefGood.Arms5));
+        // Each post has its own upgrade target. Lower-grade or previously-issued stock covers the ordinary arms
+        // baseline; it must not make the planner believe the newly researched professional tier is already equipped.
         if (FiefChain && Done(s.Civilization, "MET-11"))
-            plan.Terminal[FiefSlot(FiefGood.Arms5)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+        {
+            int slot = FiefSlot(FiefGood.Arms5);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), Stock(s, slot)));
+        }
+        else if (Done(s.Civilization, "MET-10"))
+        {
+            int slot = IronSlot(IronGood.Arms4);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), IronStock(s, IronGood.Arms4)));
+        }
         else
         {
-            IronGood tier = Done(s.Civilization, "MET-10") ? IronGood.Arms4 : IronGood.Arms3;
-            plan.Terminal[IronSlot(tier)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(soldiers + 1) - have);
+            int slot = IronSlot(IronGood.Arms3);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(soldiers + 1), IronStock(s, IronGood.Arms3)));
         }
     }
 
@@ -1773,7 +1784,7 @@ public sealed partial class LivingEconomyModel
     {
         if (m.IronGoods is not { } iron) return;
         SpoilIronLiquids(m);
-        foreach (IronGood g in new[] { IronGood.Arms3, IronGood.Arms4, IronGood.Engine, IronGood.Barrel })
+        foreach (IronGood g in new[] { IronGood.Barrel })
         {
             int t = _content.TradeGoodIndex(IronGoodId(g));
             int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
@@ -2232,7 +2243,8 @@ public sealed partial class LivingEconomyModel
         int soldiers = m.IronSoldiersSupplied;
         int wanted = Math.Min(2, soldiers / 4);
         if (wanted <= 0) return;
-        plan.Terminal[IronSlot(IronGood.Engine)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(wanted) - IronStock(s, IronGood.Engine));
+        int slot = IronSlot(IronGood.Engine);
+        plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(Fix64.FromInt(wanted), IronStock(s, IronGood.Engine)));
     }
 
     /// <summary>Takes up to <paramref name="max"/> whole engines from a settlement's store for a campaign train; returns how many left.</summary>
@@ -2720,8 +2732,16 @@ public sealed partial class LivingEconomyModel
             if (!shelvedWorked || CanPayIronBuild(s, m, millSpec)) SwitchIronBuild(s, m, millKind);
             else
             {
-                if (millSpec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(millSpec.Block) - m.Goods[(int)MetalGood.Block]);
-                if (millSpec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(millSpec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
+                if (millSpec.Block > 0)
+                {
+                    int slot = MetalSlot(MetalGood.Block);
+                    plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)MetalGood.Block], Fix64.FromInt(millSpec.Block)));
+                }
+                if (millSpec.Wheel > 0)
+                {
+                    int slot = MetalSlot(MetalGood.Wheel);
+                    plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)MetalGood.Wheel], Fix64.FromInt(millSpec.Wheel)));
+                }
             }
         }
         if (m.IronBuildKind < 0)
@@ -2732,12 +2752,22 @@ public sealed partial class LivingEconomyModel
         }
         if (m.IronBuildKind < 0) return;
         IronSpec spec = IronSpecs[m.IronBuildKind];
-        if (spec.Block > 0) plan.Terminal[MetalSlot(MetalGood.Block)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Block) - m.Goods[(int)MetalGood.Block]);
-        if (spec.Ashlar > 0) plan.Terminal[MetalSlot(MetalGood.Ashlar)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Ashlar) - m.Goods[(int)MetalGood.Ashlar]);
-        if (spec.Bloom > 0) plan.Terminal[MetalSlot(MetalGood.Iron)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Bloom) - m.Goods[(int)MetalGood.Iron]);
-        if (spec.Wheel > 0) plan.Terminal[MetalSlot(MetalGood.Wheel)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Wheel) - m.Goods[(int)MetalGood.Wheel]);
-        if (spec.Plank > 0) plan.Terminal[IronSlot(IronGood.Plank)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Plank) - IronStock(s, IronGood.Plank));
-        if (spec.Glass > 0) plan.Terminal[MetalSlot(MetalGood.Glass)] += Fix64.Max(Fix64.Zero, Fix64.FromInt(spec.Glass) - m.Goods[(int)MetalGood.Glass]);
+        if (spec.Block > 0) SetMetalMaterial(MetalGood.Block, spec.Block);
+        if (spec.Ashlar > 0) SetMetalMaterial(MetalGood.Ashlar, spec.Ashlar);
+        if (spec.Bloom > 0) SetMetalMaterial(MetalGood.Iron, spec.Bloom);
+        if (spec.Wheel > 0) SetMetalMaterial(MetalGood.Wheel, spec.Wheel);
+        if (spec.Plank > 0)
+        {
+            int slot = IronSlot(IronGood.Plank);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(IronStock(s, IronGood.Plank), Fix64.FromInt(spec.Plank)));
+        }
+        if (spec.Glass > 0) SetMetalMaterial(MetalGood.Glass, spec.Glass);
+
+        void SetMetalMaterial(MetalGood good, int amount)
+        {
+            int slot = MetalSlot(good);
+            plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(m.Goods[(int)good], Fix64.FromInt(amount)));
+        }
     }
 
     /// <summary>

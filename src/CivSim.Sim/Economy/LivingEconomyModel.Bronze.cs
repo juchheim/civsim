@@ -240,9 +240,8 @@ public sealed partial class LivingEconomyModel
 
     private static readonly ulong BronzeTag = 0x42524F4E5A452033UL; // "BRONZE 3"
     private static readonly Fix64 KitNewQuality = Fix64.FromRatio(12, 10);
-    private static readonly Fix64 HaulPerLitreTile = Fix64.FromRatio(1, 40); // 0.1 ws per L per 4 tiles (docs/MVP/22 §5.2)
+    private static readonly Fix64 HaulPerLitreTile = Fix64.FromRatio(1, 60); // 0.1 ws per L per 6 tiles (candidate input-flow fit)
     private static readonly Fix64 WoodReserve = Fix64.FromInt(12);
-    private static readonly Fix64 CharcoalWoodPerL = Fix64.FromInt(6);
     private static readonly Fix64 ExpectedSeasonWear = Fix64.FromRatio(7, 10);
 
     private BronzeConstants _bronzeConstants;
@@ -320,18 +319,18 @@ public sealed partial class LivingEconomyModel
         InitializeFood();
     }
 
-    /// <summary>Litres of ore a deposit holds (docs/MVP/22 §5.1; tin by WP4's quantity tiers 1 = 100, 2 = 150, 3 = 600 L).</summary>
+    /// <summary>Candidate finite reserves: three times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
     private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false) => d.Kind switch
     {
-        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 600, 2 => 150, _ => 100 }),
-        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 900 : 300),
-        DepositKind.ArsenicalCopper => Fix64.FromInt(800),
-        DepositKind.Iron => Fix64.FromInt(1000),
-        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(40),
-        DepositKind.Salt => Fix64.FromInt(400),
+        DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 1800, 2 => 450, _ => 300 }),
+        DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 2700 : 900),
+        DepositKind.ArsenicalCopper => Fix64.FromInt(2400),
+        DepositKind.Iron => Fix64.FromInt(3000),
+        DepositKind.Gold or DepositKind.Silver => Fix64.FromInt(120),
+        DepositKind.Salt => Fix64.FromInt(1200),
         // Draft Fief fit hypotheses until WP-E5-11 promotes the registered quantities.
-        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(150),
-        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(100),
+        DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(450),
+        DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(300),
         _ => Fix64.Zero,
     };
 
@@ -570,14 +569,14 @@ public sealed partial class LivingEconomyModel
         int q = 0;
         foreach (FigureState f in Residents(s.Id))
             if (f.Kit is 9 or 10) { quality += KitQuality(f); q++; }
-        Fix64 stone = BaseRate("chop", Fix64.FromInt(2)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
+        Fix64 stone = BaseRate("chop", Fix64.FromInt(3)) * MethodMult(s.Civilization, "chop", 4) * (q == 0 ? Fix64.One : quality / q);
         return (n == 0 ? Fix64.Zero : sum / n, stone);
     }
 
     /// <summary>Mining output per work-season at a deposit with a mine head for a bronze-kit holder, against surface digging by hand (B11).</summary>
     internal (Fix64 Best, Fix64 Surface) MineRates(int civ)
     {
-        Fix64 surface = BaseRate("mine", Fix64.One);
+        Fix64 surface = BaseRate("mine", Fix64.Parse("1.5"));
         Fix64 shaft = MethodMult(civ, "mine", 1);
         Fix64 picks = _tierDefs[10]?.Mod("mine") ?? Fix64.One;
         return (surface * (shaft > Fix64.Zero ? shaft : Fix64.One) * picks, surface);

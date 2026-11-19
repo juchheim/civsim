@@ -30,7 +30,7 @@ public class AiScaffoldTests
         DifficultyProfile warlord = DifficultyProfile.From(TestPack.Pack, Difficulty.Warlord);
         Assert.Equal((3, 9, 0, OpponentModel.Full, ReplanCadence.SeasonAndEvents), (warlord.HorizonEras, warlord.BeamWidth, warlord.CouncilPriorPercent, warlord.Opponent, warlord.Replan));
         DifficultyProfile legend = DifficultyProfile.From(TestPack.Pack, Difficulty.Legend);
-        Assert.Equal((3, 18), (legend.HorizonEras, legend.BeamWidth));
+        Assert.Equal((3, 15, OpponentModel.FullCoalition), (legend.HorizonEras, legend.BeamWidth, legend.Opponent));
     }
 
     [Fact]

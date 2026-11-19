@@ -147,6 +147,7 @@ internal static class IronMatchCommand
         bool noBuildWood = false, noChopReach = false, noStoneShare = false, fief = false, grantE5 = false, noFurnace = false, fiefPowerLedger = false;
         bool fiefLandAnchor = false, fiefLandControl = false, fiefLandLongHorizon = false;
         bool fiefHealthTrace = false;
+        bool fiefArmsLifecycleTrace = FiefArmsLifecycleTrace.IsRequested(args);
         bool fiefInstitutionTrace = false;
         bool fiefSiegeTrace = false;
         bool fiefSiegeStrategistTrace = false;
@@ -177,6 +178,7 @@ internal static class IronMatchCommand
                 case "--grant-e5": grantE5 = true; break;
                 case "--fief-power-ledger": fiefPowerLedger = true; break;
                 case "--fief-health-trace": fiefHealthTrace = true; break;
+                case "--fief-arms-lifecycle-trace": fiefArmsLifecycleTrace = true; break;
                 case "--fief-institution-trace": fiefInstitutionTrace = true; break;
                 case "--fief-siege-trace": fiefSiegeTrace = true; break;
                 case "--fief-siege-strategist-trace": fiefSiegeStrategistTrace = true; break;
@@ -202,7 +204,7 @@ internal static class IronMatchCommand
                 case "--iron-fuel-reach-buffer": ironFuelReachBufferOverride = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--bronze-control": bronzeControl = true; break;
                 default:
-                    Console.Error.WriteLine($"usage: civsim-harness {(fiefCommand ? "fief-match" : "iron-match")} --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-health-trace] [--fief-institution-trace] [--fief-siege-trace] [--fief-siege-strategist-trace] [--fief-wp7-trace|--fief-wp7-paired] [--fief-territory-trace] [--fief-sea10-trace] [--fief-land-anchor|--fief-land-control] [--fief-land-focus-civ N] [--fief-land-long-horizon] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
+                    Console.Error.WriteLine($"usage: civsim-harness {(fiefCommand ? "fief-match" : "iron-match")} --pack FILE [--seed N] [--seeds N] [--minutes N] [--countdown SEASONS] [--grant-e4] [--no-build-wood] [--no-chop-reach] [--no-stone-share] [--fief] [--grant-e5] [--no-furnace] [--fief-power-ledger] [--fief-health-trace] [--fief-arms-lifecycle-trace] [--fief-institution-trace] [--fief-siege-trace] [--fief-siege-strategist-trace] [--fief-wp7-trace|--fief-wp7-paired] [--fief-territory-trace] [--fief-sea10-trace] [--fief-land-anchor|--fief-land-control] [--fief-land-focus-civ N] [--fief-land-long-horizon] [--it6-accounting] [--it6-supply-diagnostic] [--it2-kit-trace] [--iron-kit-production-trace SETTLEMENT FROM-SEASON THROUGH-SEASON] [--iron-hub-fuel-sharing] [--iron-fission-coverage-preserving] [--iron-fuel-reach-buffer N] [--bronze-control]");
                     return 2;
             }
         }
@@ -224,11 +226,11 @@ internal static class IronMatchCommand
             throw new ArgumentException("--checkpoint-continuation must name a directory that does not already exist.");
         if (seedsFile is not null && (seedGiven || seedsGiven))
             throw new ArgumentException("--seeds-file cannot be combined with --seed or --seeds.");
-        if (checkpointDirectory is not null && (grantE4 || grantE5 || noBuildWood || noChopReach || noStoneShare || noFurnace || fiefPowerLedger ||
+        if (checkpointDirectory is not null && (grantE4 || grantE5 || noBuildWood || noChopReach || noStoneShare || noFurnace || fiefPowerLedger || fiefArmsLifecycleTrace ||
             fiefLandAnchor || fiefHealthTrace || fiefInstitutionTrace || fiefSiegeTrace || fiefSiegeStrategistTrace || fiefWp7Trace || fiefTerritoryTrace || fiefSea10Trace || it6Accounting || ironHubFuelSharing || ironFissionCoveragePreserving || ironFuelReachBufferOverride >= 0 || bronzeControl))
             throw new ArgumentException("--checkpoint-continuation requires the standard Fief match configuration without diagnostic overrides.");
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        if ((fiefHealthTrace || fiefInstitutionTrace || fiefSiegeTrace || fiefSiegeStrategistTrace || fiefWp7Trace || fiefTerritoryTrace || fiefSea10Trace) && !fiefCommand && !fief) throw new ArgumentException("Fief traces require fief-match or --fief.");
+        if ((fiefHealthTrace || fiefArmsLifecycleTrace || fiefInstitutionTrace || fiefSiegeTrace || fiefSiegeStrategistTrace || fiefWp7Trace || fiefTerritoryTrace || fiefSea10Trace) && !fiefCommand && !fief) throw new ArgumentException("Fief traces require fief-match or --fief.");
         if (fiefWp7Paired && (!fief || bronzeControl || grantE4 || grantE5 || noBuildWood || noChopReach || noStoneShare || noFurnace ||
             ironHubFuelSharing || ironFissionCoveragePreserving || ironFuelReachBufferOverride >= 0 ||
             fiefLandControl || fiefLandFocusCiv >= 0 || fiefLandLongHorizon))
@@ -244,7 +246,7 @@ internal static class IronMatchCommand
             ironHubFuelSharing, ironFissionCoveragePreserving, bronzeControl, ironFuelReachBufferOverride, noBuildWood, noChopReach, noStoneShare, fief, grantE5, noFurnace, fiefPowerLedger, fiefLandAnchor, fiefLandControl, fiefLandFocusCiv, fiefLandLongHorizon,
             fiefCommand ? "fief-match" : bronzeControl ? "bronze-control" : "iron-match", fiefHealthTrace, fiefInstitutionTrace, fiefSiegeTrace, fiefSiegeStrategistTrace, fiefWp7Trace, fiefTerritoryTrace, fiefSea10Trace,
             recordDirectory is null ? null : Path.Combine(recordDirectory, $"{runSeeds[n]}.replay"),
-            checkpointDirectory is null ? null : Path.Combine(checkpointDirectory, $"{runSeeds[n]}.continuation.csv"), fiefWp7Paired));
+            checkpointDirectory is null ? null : Path.Combine(checkpointDirectory, $"{runSeeds[n]}.continuation.csv"), fiefWp7Paired, fiefArmsLifecycleTrace));
         return 0;
     }
 
@@ -265,7 +267,7 @@ internal static class IronMatchCommand
 
     private static string Play(ulong seed, ContentPack pack, int minutes, int countdown, bool grantE4, bool it6Accounting, bool it6SupplyDiagnostic, bool it2KitTrace,
         int ironKitTraceSettlement, int ironKitTraceFromSeason, int ironKitTraceThroughSeason,
-        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false, int fiefLandFocusCiv = -1, bool fiefLandLongHorizon = false, string matchLabel = "iron-match", bool fiefHealthTrace = false, bool fiefInstitutionTrace = false, bool fiefSiegeTrace = false, bool fiefSiegeStrategistTrace = false, bool fiefWp7Trace = false, bool fiefTerritoryTrace = false, bool fiefSea10Trace = false, string? replayPath = null, string? continuationPath = null, bool fiefWp7Paired = false)
+        bool ironHubFuelSharing, bool ironFissionCoveragePreserving, bool bronzeControl, int ironFuelReachBufferOverride, bool noBuildWood = false, bool noChopReach = false, bool noStoneShare = false, bool fief = false, bool grantE5 = false, bool noFurnace = false, bool fiefPowerLedger = false, bool fiefLandAnchor = false, bool fiefLandControl = false, int fiefLandFocusCiv = -1, bool fiefLandLongHorizon = false, string matchLabel = "iron-match", bool fiefHealthTrace = false, bool fiefInstitutionTrace = false, bool fiefSiegeTrace = false, bool fiefSiegeStrategistTrace = false, bool fiefWp7Trace = false, bool fiefTerritoryTrace = false, bool fiefSea10Trace = false, string? replayPath = null, string? continuationPath = null, bool fiefWp7Paired = false, bool fiefArmsLifecycleTrace = false)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
@@ -385,6 +387,8 @@ internal static class IronMatchCommand
         var routeStats = new MetalStatistics[civs];
         var routeTrace = new IT6AccountingSnapshot[civs];
         var fiefHealthRows = fiefHealthTrace ? new StringBuilder() : null;
+        var fiefArmsLifecycleRows = fiefArmsLifecycleTrace ? new StringBuilder() : null;
+        FiefArmsLifecycleTrace? armsLifecycleTrace = fiefArmsLifecycleTrace ? new FiefArmsLifecycleTrace() : null;
         var fiefInstitutionRows = fiefInstitutionTrace ? new StringBuilder() : null;
         var fiefSiegeRows = fiefSiegeTrace ? new StringBuilder() : null;
         var fiefSiegeStrategistRows = fiefSiegeStrategistTrace ? new StringBuilder() : null;
@@ -659,6 +663,8 @@ internal static class IronMatchCommand
             }
             if (fiefInstitutionRows is not null)
                 FiefInstitutionTrace.Append(fiefInstitutionRows, match.Economy, research, checked((int)(runner.Tick / 150L) - 1));
+            if (armsLifecycleTrace is not null)
+                armsLifecycleTrace.AppendSeason(fiefArmsLifecycleRows!, seed, checked((int)(runner.Tick / 150L) - 1), match.Economy, match.Politics, research);
             if (it6Accounting)
             {
                 int season = (int)(runner.Tick / 150L);
@@ -840,6 +846,7 @@ internal static class IronMatchCommand
         string Min(long tick) => tick < 0 ? "-" : (tick / 600.0).ToString("F1", CultureInfo.InvariantCulture);
         L($"== {matchLabel} seed {seed}: {runner.Tick / 600.0:F1} minutes simulated, chapter end {end.Reason} at season {(end.HasEnd ? end.EndSeason.ToString(CultureInfo.InvariantCulture) : "none")} (ended: {end.IsOver(runner.Tick)})");
         if (fiefHealthRows is not null) L(fiefHealthRows.ToString().TrimEnd('\n', '\r'));
+        if (fiefArmsLifecycleRows is not null) L(fiefArmsLifecycleRows.ToString().TrimEnd('\n', '\r'));
         if (fiefInstitutionRows is not null) L(fiefInstitutionRows.ToString().TrimEnd('\n', '\r'));
         if (fiefWp7Rows is not null) L(fiefWp7Rows.ToString().TrimEnd('\n', '\r'));
         if (fiefTerritoryRows is not null) L(fiefTerritoryRows.ToString().TrimEnd('\n', '\r'));

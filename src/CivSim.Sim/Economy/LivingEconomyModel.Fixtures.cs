@@ -492,6 +492,117 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureSetSoldiersSupplied(int settlementIndex, int count) => EnsureMetal(_settlements[settlementIndex]).IronSoldiersSupplied = count;
+
+    internal void FixtureSetSoldierRoles(int settlementIndex, int count)
+    {
+        int remaining = Math.Max(0, count);
+        foreach (FigureState f in Residents(_settlements[settlementIndex].Id))
+        {
+            if (f.Age >= 14 && remaining > 0) { f.Role = Role.Soldier; remaining--; }
+            else if (f.Role == Role.Soldier) f.Role = Role.None;
+        }
+    }
+
+    internal Fix64 FixtureProfessionalArmsWant(int settlementIndex, string goodId)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        IronArmsWant(settlement, EnsureMetal(settlement), plan);
+        int slot = SlotOf(goodId);
+        return slot == NoSlot ? Fix64.Zero : plan.Terminal[slot];
+    }
+
+    internal Fix64 FixtureEngineWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        IronEngineWant(settlement, metal, plan);
+        return plan.Terminal[IronSlot(IronGood.Engine)];
+    }
+
+    internal Fix64 FixtureChariotWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        SecondaryWants(settlement, metal, plan, Population(settlement.Id));
+        return plan.Terminal[MetalSlot(MetalGood.Chariot)];
+    }
+
+    internal (Fix64 Crossbows, Fix64 Longbows) FixtureFiefBowWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots);
+        FiefBowWants(settlement, metal, plan);
+        return (plan.Terminal[BowSlot(BowGood.Crossbow)], plan.Terminal[BowSlot(BowGood.Longbow)]);
+    }
+
+    internal Fix64 FixtureBaselineArmsWant(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { Tier = BestCastTier(settlement) };
+        WantBaselineArms(settlement, metal, plan);
+        Fix64 total = Fix64.Zero;
+        foreach (MetalGood good in new[] { MetalGood.Arms1, MetalGood.Arms2A, MetalGood.Arms2T }) total += plan.Terminal[MetalSlot(good)];
+        return total;
+    }
+
+    internal Fix64 FixtureMakeLevyBows(int settlementIndex, Fix64 work)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        Fix64 remaining = work;
+        MakeLevyBows(settlement, ref remaining);
+        return remaining;
+    }
+
+    internal Fix64 FixturePlanMilitaryAssemblyNeed(int settlementIndex, Fix64 totalWork)
+        => PlanMetal(_settlements[settlementIndex], totalWork).MilitaryAssemblyNeed;
+
+    internal (bool MilitaryAssembly, bool DeferredAsDiscretionary) FixtureFinishingRecipePolicy(string recipeId)
+    {
+        foreach (CompiledRecipe recipe in _compiledRecipes)
+            if (recipe.Def.Id == recipeId)
+                return (IsMilitaryAssemblyRecipe(recipe.OutputSlot), IsDiscretionaryFinishingRecipe(recipe));
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    internal Fix64 FixturePlannedMilitaryRecipeBatches(int settlementIndex, string recipeId)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalState metal = EnsureMetal(settlement);
+        var plan = new MetalPlan(_compiledRecipes.Length, PlanSlots) { Tier = BestCastTier(settlement) };
+        SecondaryWants(settlement, metal, plan, Population(settlement.Id));
+        IronArmsWant(settlement, metal, plan);
+        IronEngineWant(settlement, metal, plan);
+        ExpandWants(settlement, plan);
+        for (int i = 0; i < _compiledRecipes.Length; i++)
+            if (_compiledRecipes[i].Def.Id == recipeId) return plan.Batches[i];
+        throw new ArgumentException($"Unknown recipe '{recipeId}'.", nameof(recipeId));
+    }
+
+    internal void FixtureRunMetalPlan(int settlementIndex, Fix64 totalWork, Fix64 craftWork)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        MetalPlan plan = PlanMetal(settlement, totalWork);
+        RunMetal(settlement, plan, craftWork, new Fix64[_figures.Count], checked((int)_seasonsCompleted));
+    }
+
+    internal (Fix64 Remaining, Fix64 Reserved, Fix64 Tool1Stock) FixtureCraftToolsWithAssemblyReserve(int settlementIndex, Fix64 work, Fix64 reserve)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        Fix64 remaining = CraftTools(settlement, work, reserve, out Fix64 protectedAssembly);
+        return (remaining, protectedAssembly, settlement.Stores[(int)Good.Tool1]);
+    }
+
+    internal void FixtureWearMilitaryStockBeforePlanning(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        WearLevyArms(settlement);
+        WearMilitaryGoodsBeforePlanning(settlement);
+    }
     /// <summary>Runs the completion step of an Iron structure (counts it, earns a Wonder's Legacy, claims a terrace tile) as a finished build would.</summary>
     internal void FixtureCompleteIron(int settlementIndex, string name)
     {
@@ -887,6 +998,16 @@ public sealed partial class LivingEconomyModel
 
     internal Fix64 FixtureDomesticHerdWorkNeed(int settlementIndex)
         => DomesticHerdWorkNeed(_settlements[settlementIndex]);
+
+    /// <summary>Runs one full-maintenance domestic-herd byproduct pass for yield regressions.</summary>
+    internal void FixtureRunDomesticHerdByproducts(int settlementIndex)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        HerdAnimals(settlement, Fix64.FromInt(100), Fix64.FromInt(100), checked((int)(_seasonsCompleted / 4)));
+    }
+
+    internal void FixtureApplyAggregateHuntByproducts(int settlementIndex, Fix64 meatYield)
+        => AddAggregateHuntByproducts(_settlements[settlementIndex], meatYield);
 
     internal bool FixtureCanTameFromRange(int settlementIndex) => CanTameFromRange(_settlements[settlementIndex]);
 

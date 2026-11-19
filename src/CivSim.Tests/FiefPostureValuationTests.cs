@@ -11,8 +11,8 @@ namespace CivSim.Tests;
 public sealed class FiefPostureValuationTests
 {
     [Theory]
-    [InlineData(ChapterMode.Fief, 75, 10, 35, 3150)]
-    [InlineData(ChapterMode.Fief, 75, 0, 0, 3150)]
+    [InlineData(ChapterMode.Fief, 75, 10, 35, 3450)]
+    [InlineData(ChapterMode.Fief, 75, 0, 0, 3450)]
     [InlineData(ChapterMode.Fief, 39, 0, 0, 0)]
     [InlineData(ChapterMode.Fief, 75, 45, 0, 0)]
     [InlineData(ChapterMode.Fief, 75, 0, 45, 0)]
@@ -50,8 +50,8 @@ public sealed class FiefPostureValuationTests
     }
 
     [Theory]
-    [InlineData(Difficulty.Warlord, 3150)]
-    [InlineData(Difficulty.Legend, 3600)]
+    [InlineData(Difficulty.Warlord, 3450)]
+    [InlineData(Difficulty.Legend, 6000)]
     public void Fief_posture_value_steps_up_with_Warlord_and_Legend_difficulty(Difficulty difficulty, int expectedBonusHundredths)
     {
         const ulong seed = 20261046;

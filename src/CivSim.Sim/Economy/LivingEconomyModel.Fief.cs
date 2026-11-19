@@ -111,8 +111,10 @@ public sealed partial class LivingEconomyModel
             IronWorksCount(settlement, IronStructure.PowderMill) == 0 ||
             Stock(settlement, FiefSlot(FiefGood.Saltpeter)) <= Fix64.Zero && !HasFiefDepositInReach(settlement, FiefGood.Saltpeter) ||
             Stock(settlement, FiefSlot(FiefGood.Sulfur)) <= Fix64.Zero && !HasFiefDepositInReach(settlement, FiefGood.Sulfur)) return;
-        plan.Terminal[FiefSlot(FiefGood.Cannon)] = Fix64.One;
-        plan.Terminal[FiefSlot(FiefGood.Powder)] = PowderPerCannonShot;
+        int cannon = FiefSlot(FiefGood.Cannon);
+        plan.Terminal[cannon] = Fix64.Max(plan.Terminal[cannon], Fix64.Max(Fix64.One, Stock(settlement, cannon)));
+        int powder = FiefSlot(FiefGood.Powder);
+        plan.Terminal[powder] = Fix64.Max(plan.Terminal[powder], Fix64.Max(PowderPerCannonShot, Stock(settlement, powder)));
     }
 
     internal void FixtureSetGoodStock(int settlementIndex, string goodId, Fix64 amount)

@@ -53,15 +53,15 @@ public class IronChainTests
         LivingEconomyModel e = f.Economy;
         e.FixtureStock(0, "G-IRON", Fix64.FromInt(2));
         e.FixtureStock(0, "G-CHAR", F("0.5"));
-        // 0.5 G-IRON + 0.25 G-CHAR -> 0.4 G-WROUGHT: charcoal allows 2 batches, iron 4, labor 25.
+        // 0.5 G-IRON + 0.25 G-CHAR -> 0.4 G-WROUGHT: charcoal allows 2 batches, iron 4; labor is now 0.32 per batch.
         Fix64 made = e.FixtureRunRecipe(0, "forge_wrought", Fix64.FromInt(10), Fix64.FromInt(10));
         Near(Fix64.FromInt(2), made);
         Near(F("1.0"), e.GoodStock(0, "G-IRON"));
         Near(Fix64.Zero, e.GoodStock(0, "G-CHAR"));
         Near(F("0.8"), e.GoodStock(0, "G-WROUGHT"));
-        // Labor limits it too: 0.4 ws a batch leaves room for 0.5 batches on 0.2 ws.
+        // Labor limits it too: 0.32 ws a batch leaves room for 0.625 batches on 0.2 ws.
         e.FixtureStock(0, "G-CHAR", Fix64.FromInt(2));
-        Near(F("0.5"), e.FixtureRunRecipe(0, "forge_wrought", Fix64.FromInt(10), F("0.2")));
+        Near(F("0.625"), e.FixtureRunRecipe(0, "forge_wrought", Fix64.FromInt(10), F("0.2")));
     }
 
     [Fact]
@@ -84,13 +84,13 @@ public class IronChainTests
         Near(Fix64.One, kit);
 
         Near(F("0.4"), oreStock - e.GoodStock(0, Ore));                  // 0.4 G-IRONORE
-        Near(F("0.73"), charStock - e.GoodStock(0, Char));              // 0.73 G-CHAR = 4.38 G-WOOD at 6 per charcoal
-        Near(F("4.38"), (charStock - e.GoodStock(0, Char)) * Fix64.FromInt(6));
-        Near(Fix64.Zero, e.GoodStock(0, "G-IRON"));                     // no bloom left over: the bloomery charge is not counted twice
+        Near(F("0.73"), charStock - e.GoodStock(0, Char));              // 0.73 G-CHAR = 2.92 G-WOOD at 4 per charcoal
+        Near(F("2.92"), (charStock - e.GoodStock(0, Char)) * Fix64.FromInt(4));
+        Near(F("0.05"), e.GoodStock(0, "G-IRON"));                    // the 0.75 L bloom output leaves a small intermediate surplus
         Near(Fix64.Zero, e.GoodStock(0, "G-WROUGHT"));
         Near(Fix64.One, e.GoodStock(0, "G-TOOL11"));
-        // Labor excluding charcoal burning: bloomery 0.16 + forging 0.08 + kit 0.2 = 0.44 ws (the doc's 0.732 adds 0.292 for the charcoal).
-        Near(F("0.44"), F("0.8") * F("0.2") + F("0.4") * F("0.2") + F("0.2"));
+        // Labor excluding charcoal burning: bloomery 0.16 + forging 0.064 + kit 0.2 = 0.424 ws.
+        Near(F("0.424"), F("0.8") * F("0.2") + F("0.32") * F("0.2") + F("0.2"));
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class IronChainTests
         Assert.True(held > 0, "kits made should reach hands");
         Fix64 allKits = kits + Fix64.FromInt(held);
         Fix64 bloomEquivalent = e.GoodStock(0, "G-IRON") + (e.GoodStock(0, "G-WROUGHT") + allKits * F("0.08")) * F("1.25");
-        Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromInt(4));
+        Near(ore - e.GoodStock(0, "G-IRONORE"), bloomEquivalent * Fix64.FromRatio(8, 3));
     }
 
     [Fact]
@@ -1609,11 +1609,11 @@ public class IronChainTests
             if (mill) f.Economy.FixtureBuildIronStructure(0, "water_mill");
             f.Economy.FixtureStock(0, "G-IRON", Fix64.FromInt(2));
             f.Economy.FixtureStock(0, "G-CHAR", Fix64.FromInt(2));
-            // 0.4 work-seasons of forge labor: one unit by hand, two by water.
+            // 0.4 work-seasons of forge labor: 1.25 batches by hand, 2.5 by water.
             return f.Economy.FixtureRunRecipe(0, "forge_wrought", Fix64.FromInt(3), Fix64.FromRatio(4, 10));
         }
-        Assert.Equal(Fix64.One, Smith(false));
-        Assert.Equal(Fix64.FromInt(2), Smith(true));
+        Near(F("1.25"), Smith(false));
+        Near(F("2.5"), Smith(true));
     }
 
     [Fact]

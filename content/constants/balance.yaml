@@ -125,8 +125,8 @@ constants:
   - {id: WarriorSpareKits, value: 2, unit: kits, source: "§4.2 (decided here)"}
   - {id: MilitiaArmsShareFortify, value: 0.25, unit: "× adults", source: "§4.2 (decided here)"}
   - {id: FireSettingWoodPerL, value: 0.5, unit: L wood per L ore, source: "22 §5.2"}
-  - {id: ForestStock, value: 30, unit: L, source: "10 §5.1"}
-  - {id: ForestRegrowth, value: 0.5, unit: L/season, source: "10 §5.1"}
+  - {id: ForestStock, value: 60, unit: L, source: "candidate input-flow fit; doubles existing temperate-forest stock"}
+  - {id: ForestRegrowth, value: 0.75, unit: L/season, source: "candidate input-flow fit; 1.5× existing seasonal rate"}
   - {id: ForestClearedBelow, value: 5, unit: L, source: "22 §5.5; §7.4"}
   - {id: ForestGrassBelow, value: 1, unit: L, source: "22 §5.5; §7.4"}
   - {id: ForestGrassSeasons, value: 4, unit: seasons, source: "22 §5.5; §7.4"}

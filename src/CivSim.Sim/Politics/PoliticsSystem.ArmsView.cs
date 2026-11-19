@@ -22,7 +22,12 @@ public readonly record struct SettlementArms(
     int Fighters, int Wounded, int Warriors, int Soldiers,
     int StockSteel, int StockIron, int StockTin, int StockArsenical, int StockCopper,
     int Steel, int Iron, int Tin, int Arsenical, int Copper,
-    int Chariots, int ChariotCrew, int Engines, int AttackStrength);
+    int Chariots, int ChariotCrew, int Engines, int AttackStrength,
+    int StockCrucible = 0, int Crucible = 0, int StockCrossbow = 0, int Crossbow = 0,
+    int StockLongbow = 0, int Longbow = 0, int StockWarBow = 0, int WarBow = 0, int BaseOnly = 0);
+
+internal readonly record struct ArmsIssueSummary(int Crucible, int Steel, int Iron, int Tin, int Arsenical, int Copper,
+    int Crossbow, int Longbow, int WarBow, int ChariotCrew);
 
 public sealed partial class PoliticsSystem
 {
@@ -71,22 +76,23 @@ public sealed partial class PoliticsSystem
         int stockArsenical = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS2A").FloorToInt() : 0;
         int stockCopper = _economy.BronzeActive ? _economy.GoodStock(settlement, "G-ARMS1").FloorToInt() : 0;
 
-        // The same order Fighters uses: soldiers take steel, then iron; whoever is left takes tin bronze, arsenical bronze, copper.
-        int steel = System.Math.Min(stockSteel, soldiers);
-        int iron = System.Math.Min(stockIron, soldiers - steel);
-        int open = fighters - steel - iron;
-        int tin = System.Math.Min(stockTin, open); open -= tin;
-        int arsenical = System.Math.Min(stockArsenical, open); open -= arsenical;
-        int copper = System.Math.Min(stockCopper, open);
-
         int chariots = _economy.BronzeActive && _research.IsDone(civ, _p.War06) ? _economy.GoodStock(settlement, "G-CHARIOT").FloorToInt() : 0;
         int engines = _economy.IronChain && _research.IsDone(civ, _p.War09) ? _economy.GoodStock(settlement, "G-ENGINE").FloorToInt() : 0;
 
         Fix64 strength = Fix64.Zero;
-        FightersInto(settlement, attacking: true, -1, _armsRecords, _armsFighters, null);
+        FightersInto(settlement, attacking: true, -1, _armsRecords, _armsFighters, null, out ArmsIssueSummary issued);
         foreach (Fighter f in _armsFighters) strength += f.Strength;
+        int steel = issued.Steel, iron = issued.Iron, tin = issued.Tin, arsenical = issued.Arsenical, copper = issued.Copper;
+        int stockCrucible = _economy.FiefChain ? _economy.GoodStock(settlement, "G-ARMS5").FloorToInt() : 0;
+        int stockCrossbow = _economy.FiefChain && _research.IsDone(civ, _p.War11) ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
+        int stockLongbow = _economy.FiefChain && _research.IsDone(civ, _p.War11) ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
+        int stockWarBow = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        int issuedNonBase = issued.Crucible + issued.Steel + issued.Iron + issued.Tin + issued.Arsenical + issued.Copper +
+            issued.Crossbow + issued.Longbow + issued.WarBow;
         return new SettlementArms(fighters, wounded, warriors, soldiers,
             stockSteel, stockIron, stockTin, stockArsenical, stockCopper, steel, iron, tin, arsenical, copper,
-            chariots, System.Math.Min(chariots * 2, fighters), engines, (strength * Fix64.FromInt(100) + Fix64.Half).FloorToInt());
+            chariots, issued.ChariotCrew, engines, (strength * Fix64.FromInt(100) + Fix64.Half).FloorToInt(),
+            stockCrucible, issued.Crucible, stockCrossbow, issued.Crossbow, stockLongbow, issued.Longbow,
+            stockWarBow, issued.WarBow, System.Math.Max(0, fighters - issuedNonBase));
     }
 }

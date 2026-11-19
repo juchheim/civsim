@@ -1317,6 +1317,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             if (season % 4 == 2) settlement.LateWinterForecast = ForecastWinterFood(settlement, ScoutPlan.Empty);
         }
 
+        ShareFinishedMilitaryGoods(season);
+
         CompactPendingDeaths();
         if (!_holdPopulation && season % 4 == 3) AgePopulationByOneYear(firstFigureIdBornThisSeason);
         if (_bronzeActive) CivicSeasonEnd(season);
@@ -1849,6 +1851,11 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private void PlanAndWork(SettlementState settlement, int season)
     {
+        // Stock that survived the last season pays its age-wear before current-season demand is planned.
+        // Goods made below therefore stay whole through the season in which they are produced.
+        WearLevyArms(settlement);
+        if (settlement.Metal is not null && CivInBronze(settlement.Civilization))
+            WearMilitaryGoodsBeforePlanning(settlement);
         MetalStatistics traceStatsBefore = settlement.Id == 35 ? MetalStats(settlement.Civilization) : default;
         Fix64[,] actionWork = _actionWorkScratch;
         foreach (int row in _actionWorkTouchedRows)
@@ -2055,7 +2062,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             constructionWoodShortfall: constructionWoodShortfall);
         if (!HasResourceInRange(settlement, _woodStock)) woodShortWork = Fix64.Zero;
         bool gatherDemand = HasGatherableMaterialDemand(settlement);
-        bool craftToolDemand = HasCraftableToolDemand(settlement);
+        bool militaryAssemblyDemand = metalPlan is not null && metalPlan.MilitaryAssemblyNeed > Fix64.Zero &&
+            settlement.FoodSecurity >= Fix64.FromRatio(8, 10);
+        bool craftToolDemand = HasCraftableToolDemand(settlement) || militaryAssemblyDemand;
         // When the town can also gather inputs or replace tools, keep half of the material budget moving those chains.
         // An isolated construction-wood gap can still use the full share and clear more quickly.
         if (constructionWoodShortfall && (gatherDemand || craftToolDemand))
@@ -2260,7 +2269,6 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
 
         ReplaceWornTools(settlement);
-        WearLevyArms(settlement);
         Fix64 forageMod = Modifier(settlement.Civilization, "forage.yield");
         Fix64 appliedForageWork = LimitActionWorkByTool(settlement, "forage", forageWork);
         ScaleSkillWork(actionWork, SkillFamily.Forage, forageWork, appliedForageWork);
@@ -2301,11 +2309,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 : Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2,
                     SustainableHuntLimit(settlement));
             huntedUnits = huntedYield;
-            if (!_hasIndividualHerds)
-            {
-                settlement.Stores[(int)Good.Hide] += huntedYield * Fix64.Parse("0.05");
-                settlement.Stores[(int)Good.Bone] += huntedYield * Fix64.Parse("0.03");
-            }
+            if (!_hasIndividualHerds) AddAggregateHuntByproducts(settlement, huntedYield);
         }
         else if (huntWork > Fix64.Zero)
             Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2, Fix64.Zero);
@@ -2359,7 +2363,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             chopApplied = appliedChopWork;
             if (settlement.Id == 35 && _b28LocalWoodLedger is { } chopLedger) chopLedger.EffectiveChopWork += appliedChopWork;
             ScaleSkillWork(actionWork, SkillFamily.Chop, chopWork, appliedChopWork);
-            Fix64 chopRate = ActionRate("chop", Fix64.FromInt(2), settlement, "chop",
+            Fix64 chopRate = ActionRate("chop", Fix64.FromInt(3), settlement, "chop",
                 toolWork: appliedChopWork) * Modifier(settlement.Civilization, "wood_yield");
             if (metalPlan is not null)
                 AddMetalStat(settlement.Civilization, StatChopWood, HarvestWoodSpread(settlement,
@@ -2381,7 +2385,19 @@ public sealed partial class LivingEconomyModel : ISimModel
             PracticeSkill(actionWork, SkillFamily.Gather);
         }
         Fix64 craftLeft = Fix64.Zero;
-        if (craftWork > Fix64.Zero) craftLeft = CraftTools(settlement, craftWork);
+        if (craftWork > Fix64.Zero)
+        {
+            Fix64 assemblyReserve = Fix64.Zero;
+            if (militaryAssemblyDemand && metalPlan is not null)
+                assemblyReserve = Fix64.Min(metalPlan.MilitaryAssemblyNeed, craftWork);
+            if (metalPlan is not null) metalPlan.CraftWorkBeforeTools = craftWork;
+            craftLeft = CraftTools(settlement, craftWork, assemblyReserve, out Fix64 protectedAssembly);
+            if (metalPlan is not null)
+            {
+                metalPlan.MilitaryAssemblyReserved = protectedAssembly;
+                metalPlan.CraftWorkAfterTools = craftLeft;
+            }
+        }
         if (preserveWork > Fix64.Zero) Preserve(settlement, preserveWork);
         if (assignedHerdWork > Fix64.Zero)
         {
@@ -2687,9 +2703,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 maintenanceShare = maintenanceNeed <= Fix64.Zero ? Fix64.Zero : maintenanceWork / maintenanceNeed;
         Fix64 herdYield = FiefHerdYield(settlement);
         settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare * herdYield;
-        settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.2") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.3") / 4 * maintenanceShare;
         settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare * herdYield;
-        settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.3") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.45") / 4 * maintenanceShare;
         settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare * herdYield;
         if (settlement.Civic is not null) Milk(settlement, DomesticAnnualMeat(settlement) / 4 * maintenanceShare);
         // No separate waste inventory exists. Approximate pig waste as stored-food consumption.
@@ -2838,6 +2854,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         return harvested;
     }
 
+    private static void AddAggregateHuntByproducts(SettlementState settlement, Fix64 meatYield)
+    {
+        settlement.Stores[(int)Good.Hide] += meatYield * Fix64.Parse("0.075");
+        settlement.Stores[(int)Good.Bone] += meatYield * Fix64.Parse("0.03");
+    }
+
     private Fix64 HuntIndividualHerds(SettlementState settlement, Fix64 work, Fix64 rate, int season, bool cooperativeDrive,
         bool enforceSustainableLimit = true, int huntersAssigned = 0)
     {
@@ -2869,7 +2891,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             DisplaceHerdIfAfraid(herd, drive, season, settlement);
             settlement.Stores[(int)Good.Meat] += take;
             // Yield convention: hides for animals other than small game, plus 0.3 bone/antler per kill.
-            if (herd.Species != HerdSpecies.SmallGame) settlement.Stores[(int)Good.Hide] += kills;
+            if (herd.Species != HerdSpecies.SmallGame) settlement.Stores[(int)Good.Hide] += kills * Fix64.Parse("1.5");
             settlement.Stores[(int)Good.Bone] += kills * Fix64.Parse("0.3");
             remainingWork -= take / herdRate;
             if (enforceSustainableLimit) remainingSustainableHarvest -= take;
@@ -3043,7 +3065,11 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     /// <summary>The E0–E2 craft step; returns the craft work it left unused, which the Bronze craft step may take.</summary>
     private Fix64 CraftTools(SettlementState settlement, Fix64 work)
+        => CraftTools(settlement, work, Fix64.Zero, out _);
+
+    private Fix64 CraftTools(SettlementState settlement, Fix64 work, Fix64 assemblyReserve, out Fix64 protectedAssembly)
     {
+        protectedAssembly = Fix64.Zero;
         if (work <= Fix64.Zero) return Fix64.Zero;
         Fix64 remaining = work;
         int civ = settlement.Civilization;
@@ -3062,6 +3088,12 @@ public sealed partial class LivingEconomyModel : ISimModel
             MakeGoods(settlement, ref remaining, Good.Tool2, Fix64.Parse("0.08"), Good.Stone, Fix64.Parse("0.4"), targetStock: Fix64.FromInt(2));
         if (HasProject(civ, "STN-01"))
             MakeGoods(settlement, ref remaining, Good.Tool1, Fix64.Parse("0.05"), Good.Stone, Fix64.Parse("0.3"), targetStock: Fix64.FromInt(2));
+
+        // Hold a bounded share of post-food material work for finishing military recipes. Core tool replacement above keeps first claim;
+        // the protected share then survives optional craft stockpiles and is returned to the metal recipe pass.
+        // Cap the military hold to one fifth of labor left after core tool replacement.
+        protectedAssembly = Fix64.Min(remaining * Fix64.FromRatio(1, 5), assemblyReserve);
+        remaining -= protectedAssembly;
 
         if (HasProject(civ, "FOR-07"))
             MakeGoods(settlement, ref remaining, Good.Sapling, Fix64.Parse("0.1"), Good.Wood,
@@ -3126,7 +3158,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 remaining -= batches * Fix64.Parse("0.3");
             }
         }
-        return Fix64.Max(Fix64.Zero, remaining);
+        return Fix64.Max(Fix64.Zero, remaining) + protectedAssembly;
     }
 
     private static void AdvanceMudbrickDrying(SettlementState settlement)
@@ -3242,7 +3274,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * surfaceWork / remaining;
                 Fix64 rate = GatherRate(settlement,
-                    ActionRate("collect_flint_ochre", Fix64.One, settlement, "collect_flint_ochre"), surfaceWork);
+                    ActionRate("collect_flint_ochre", Fix64.Parse("1.5"), settlement, "collect_flint_ochre"), surfaceWork);
                 if (flintInRange)
                     Harvest(settlement, EconomyJob.Gather, productive, rate, Good.Flint, _flintStock, 7, flintNeed);
                 if (ochreInRange)
@@ -3261,7 +3293,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             {
                 Fix64 productive = remaining <= Fix64.Zero ? Fix64.Zero : remainingProductive * clayWork / remaining;
                 Fix64 rate = GatherRate(settlement,
-                    ActionRate("gather_clay", Fix64.FromInt(3), settlement, "gather_clay"), clayWork);
+                    ActionRate("gather_clay", Fix64.Parse("4.5"), settlement, "gather_clay"), clayWork);
                 Fix64 gathered = Harvest(settlement, EconomyJob.Gather, productive,
                     rate, Good.Clay, _clayStock, 6, clayNeed);
                 WearGatherTool(settlement, clayWork);
@@ -4506,7 +4538,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     // mortality; since M5 raids and assaults kill fighters in the simulation itself (docs/MVP/14 §17).
     private ArchetypeProfile Profile(int civ) => _archetypes[civ] switch
     {
-        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.05"), Fix64.Parse("1.03"), Fix64.One, Fix64.Zero),
+        EconomyArchetype.Grower => new ArchetypeProfile(GrowerFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.03"), Fix64.Parse("1.03"), Fix64.One, Fix64.Zero),
         EconomyArchetype.Builder => new ArchetypeProfile(BuilderFertilityMultiplierForDiagnostics ?? Fix64.Parse("1.00"), Fix64.Parse("1.05"), Fix64.One, Fix64.Parse("-0.02")),
         EconomyArchetype.Wanderer => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),
         EconomyArchetype.Warlord => new ArchetypeProfile(Fix64.One, Fix64.One, Fix64.One, Fix64.Zero),

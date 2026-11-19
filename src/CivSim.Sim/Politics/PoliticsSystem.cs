@@ -1992,7 +1992,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     /// </summary>
     private void FightersInto(int settlement, bool attacking, int battleTile,
         List<LivingEconomyModel.FighterRecord> records, List<Fighter> list, List<long>? ids)
+        => FightersInto(settlement, attacking, battleTile, records, list, ids, out _);
+
+    private void FightersInto(int settlement, bool attacking, int battleTile,
+        List<LivingEconomyModel.FighterRecord> records, List<Fighter> list, List<long>? ids, out ArmsIssueSummary issued)
     {
+        issued = default;
         int civ = _sCiv[settlement];
         Fix64 weapon = FieldWeapon(civ, out _);
         bool warriors = _research.IsDone(civ, _p.War04);
@@ -2019,6 +2024,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
         int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
         int warBows = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        int soldiersLeft = 0;
+        foreach (var r in records) if (r.Soldier && !r.Wounded) soldiersLeft++;
         Fix64 warBowStrength = Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One);
         bool openTerrain = IsChariotOpenTerrain(battleTile);
         Defenses targetDefenses = DefensesAtTile(battleTile);
@@ -2027,21 +2034,23 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         foreach (var r in records)
         {
             if (r.Wounded) continue;
+            if (r.Soldier) soldiersLeft--;
             bool warrior = r.Age < 45 && !r.Female && !r.Soldier && warriorSlots > 0;
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
             Fix64 casualtiesTaken = Fix64.One;
             Fix64 shieldFactor = Fix64.One;
             bool bolt = false, levyBow = false;
-            if (r.Soldier && crucibleArms > 0) { crucibleArms--; weaponStrength = Fix64.FromRatio(36, 10); }
-            else if (r.Soldier && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); }
-            else if (r.Soldier && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); }
-            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
-            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; }
-            else if (crossbows > 0 && Combat.BoltStrength > weaponStrength) { crossbows--; bolt = true; levyBow = true; weaponStrength = Combat.BoltStrength; }
-            else if (longbows > 0 && Combat.BoltStrength > weaponStrength) { longbows--; levyBow = true; weaponStrength = Combat.BoltStrength; }
-            else if (warBows > 0 && warBowStrength > weaponStrength) { warBows--; weaponStrength = warBowStrength; }
-            else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); }
+            bool mayUseAdvanced = r.Soldier || crucibleArms + steelArms + ironArms > soldiersLeft;
+            if (mayUseAdvanced && crucibleArms > 0) { crucibleArms--; weaponStrength = Fix64.FromRatio(36, 10); issued = issued with { Crucible = issued.Crucible + 1 }; }
+            else if (mayUseAdvanced && steelArms > 0) { steelArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: true); issued = issued with { Steel = issued.Steel + 1 }; }
+            else if (mayUseAdvanced && ironArms > 0) { ironArms--; weaponStrength = Combat.IronWeaponStrength(steelEdge: false); issued = issued with { Iron = issued.Iron + 1 }; }
+            else if (tinArms > 0) { tinArms--; weaponStrength = Combat.E3WeaponStrength("tin"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; issued = issued with { Tin = issued.Tin + 1 }; }
+            else if (arsenicalArms > 0) { arsenicalArms--; weaponStrength = Combat.E3WeaponStrength("arsenical"); shieldFactor = Combat.ShieldCasualtyFactor(Fix64.One); casualtiesTaken *= shieldFactor; issued = issued with { Arsenical = issued.Arsenical + 1 }; }
+            else if (crossbows > 0 && Combat.BoltStrength > weaponStrength) { crossbows--; bolt = true; levyBow = true; weaponStrength = Combat.BoltStrength; issued = issued with { Crossbow = issued.Crossbow + 1 }; }
+            else if (longbows > 0 && Combat.BoltStrength > weaponStrength) { longbows--; levyBow = true; weaponStrength = Combat.BoltStrength; issued = issued with { Longbow = issued.Longbow + 1 }; }
+            else if (warBows > 0 && warBowStrength > weaponStrength) { warBows--; weaponStrength = warBowStrength; issued = issued with { WarBow = issued.WarBow + 1 }; }
+            else if (copperArms > 0) { copperArms--; weaponStrength = Combat.E3WeaponStrength("copper"); issued = issued with { Copper = issued.Copper + 1 }; }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
             else if (r.Soldier) strength = weaponStrength * Combat.ProfessionalTraining;
@@ -2053,6 +2062,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (chariotCrew > 0)
             {
                 chariotCrew--;
+                issued = issued with { ChariotCrew = issued.ChariotCrew + 1 };
                 casualtiesTaken *= Combat.ChariotCasualtyFactor;
                 if (openTerrain && !targetDefenses.Hillfort && !targetDefenses.StoneWalls) strength *= Fix64.FromInt(2);
             }

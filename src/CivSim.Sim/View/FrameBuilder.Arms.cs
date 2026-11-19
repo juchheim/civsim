@@ -36,7 +36,8 @@ public sealed partial class FrameBuilder
             if (ProjectDone(match.Research, _catalog.IndexOf(project))) f.Research |= bit;
 
         int fighters = 0, wounded = 0, warriors = 0, soldiers = 0, sSteel = 0, sIron = 0, sTin = 0, sArs = 0, sCu = 0,
-            steel = 0, iron = 0, tin = 0, ars = 0, cu = 0, chariots = 0, crew = 0, engines = 0, strength = 0;
+            steel = 0, iron = 0, tin = 0, ars = 0, cu = 0, chariots = 0, crew = 0, engines = 0, strength = 0,
+            sCrucible = 0, crucible = 0, sCrossbow = 0, crossbow = 0, sLongbow = 0, longbow = 0, sWarBow = 0, warBow = 0, baseOnly = 0;
         for (int w = 0; w < n; w++)
         {
             int s = target.SettlementIndex[w];
@@ -49,8 +50,11 @@ public sealed partial class FrameBuilder
             sSteel += a.StockSteel; sIron += a.StockIron; sTin += a.StockTin; sArs += a.StockArsenical; sCu += a.StockCopper;
             steel += a.Steel; iron += a.Iron; tin += a.Tin; ars += a.Arsenical; cu += a.Copper;
             chariots += a.Chariots; crew += a.ChariotCrew; engines += a.Engines; strength += a.AttackStrength;
+            sCrucible += a.StockCrucible; crucible += a.Crucible; sCrossbow += a.StockCrossbow; crossbow += a.Crossbow;
+            sLongbow += a.StockLongbow; longbow += a.Longbow; sWarBow += a.StockWarBow; warBow += a.WarBow; baseOnly += a.BaseOnly;
         }
-        f.Total = new SettlementArms(fighters, wounded, warriors, soldiers, sSteel, sIron, sTin, sArs, sCu, steel, iron, tin, ars, cu, chariots, crew, engines, strength);
+        f.Total = new SettlementArms(fighters, wounded, warriors, soldiers, sSteel, sIron, sTin, sArs, sCu, steel, iron, tin, ars, cu, chariots, crew, engines, strength,
+            sCrucible, crucible, sCrossbow, crossbow, sLongbow, longbow, sWarBow, warBow, baseOnly);
     }
 
     /// <summary>
@@ -60,7 +64,6 @@ public sealed partial class FrameBuilder
     private void FillBows(MatchModel match, MatchFrame target)
     {
         int n = target.SettlementCount;
-        LivingEconomyModel eco = match.Economy;
         for (int w = 0; w < n; w++)
         {
             int o = w * 3;
@@ -70,11 +73,14 @@ public sealed partial class FrameBuilder
             if ((flags & (SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) != 0 || (uint)s >= (uint)_settlementCount) continue;
             int civ = target.SettlementCiv[w];
             if ((uint)civ >= (uint)_civs) continue;
-            bool crossbows = Done(match.Research, civ, _war11);
-            bool warBow = Done(match.Research, civ, _hnt06) && Done(match.Research, civ, _war03);
-            if (!crossbows && !warBow) continue;
-            eco.BowSharesAt(s, crossbows, warBow, out int cb, out int lb, out int wb);
-            target.SettlementBowPct[o] = (byte)cb; target.SettlementBowPct[o + 1] = (byte)lb; target.SettlementBowPct[o + 2] = (byte)wb;
+            bool crossbowsKnown = Done(match.Research, civ, _war11);
+            bool warBowKnown = Done(match.Research, civ, _hnt06) && Done(match.Research, civ, _war03);
+            if (!crossbowsKnown && !warBowKnown) continue;
+            SettlementArms arms = match.Politics.ArmsOf(s);
+            int eligible = System.Math.Max(1, arms.Fighters);
+            target.SettlementBowPct[o] = (byte)(arms.Crossbow * 100 / eligible);
+            target.SettlementBowPct[o + 1] = (byte)(arms.Longbow * 100 / eligible);
+            target.SettlementBowPct[o + 2] = (byte)(arms.WarBow * 100 / eligible);
         }
     }
 }

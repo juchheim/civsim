@@ -54,7 +54,7 @@ public sealed partial class LivingEconomyModel
         if (!FiefChain || !Done(s.Civilization, "WAR-11") || s.FoodSecurity < LevyBowFoodFloor) return;
         int target = LevyBowTarget(s);
         Fix64 crossbows = Stock(s, BowSlot(BowGood.Crossbow)), longbows = Stock(s, BowSlot(BowGood.Longbow));
-        Fix64 deficit = Fix64.FromInt(target) - crossbows - longbows;
+        Fix64 deficit = Fix64.FromInt(Math.Max(0, target - TotalIssuedWeaponStock(s)));
         if (deficit <= Fix64.Zero) return;
 
         Fix64 spareWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve) * LevyBowWoodShare;
@@ -91,6 +91,17 @@ public sealed partial class LivingEconomyModel
         return Math.Min(levy, LevyBowCap);
     }
 
+    /// <summary>Levy recipients not already covered by another usable weapon; bows do not create duplicate demand for the same people.</summary>
+    private int LevyBowDeficit(SettlementState s)
+    {
+        int target = LevyBowTarget(s);
+        if (target <= 0) return 0;
+        int bows = Stock(s, BowSlot(BowGood.Crossbow)).FloorToInt() +
+                   Stock(s, BowSlot(BowGood.Longbow)).FloorToInt() + s.Stores[(int)Good.Bow].FloorToInt();
+        int otherArms = Math.Max(0, TotalIssuedWeaponStock(s) - bows);
+        return Math.Max(0, target - Math.Min(target, otherArms));
+    }
+
     /// <summary>The planner's recipe for an output slot, or null.</summary>
     private CompiledRecipe? ProducerOf(int slot)
     {
@@ -119,21 +130,25 @@ public sealed partial class LivingEconomyModel
     /// <summary>
     /// Archery Warfare's bows (WAR-03, 36 §3), called in place of the hunting bow's craft in a Fief match. The bow becomes a routine craft (0.4 work and 0.05 L of wood for the
     /// bow and its arrows, which are bone-headed and fire-hardened, so no flint) instead of the E2 first bow's 10 work. Until WAR-11 the settlement keeps a G-BOW for every levy fighter, up to
-    /// <see cref="LevyBowCap"/>, the same good the hunters use; after WAR-11 the levy turns to crossbows and longbows and only the hunting bow is kept.
+    /// <see cref="LevyBowCap"/>, the same good the hunters use; after WAR-11 it remains a cheap replacement fallback for levy recipients not covered by
+    /// crossbows, longbows or other usable arms.
     /// The first bow may take all the craft work, as the hunting bow did; the rest of the levy's take at most a quarter of what is left, only in a
     /// season of enough food and from no more than half the cut wood above the reserve.
     /// </summary>
     private void MakeLevyBows(SettlementState s, ref Fix64 remaining)
     {
+        int civ = s.Civilization;
         if (remaining <= Fix64.Zero) return;
         Fix64 start = s.Stores[(int)Good.Bow], have = start;
         if (have < Fix64.One)
             MakeGoods(s, ref remaining, Good.Bow, LevyBowWork, Good.Wood, LevyBowWood, targetStock: Fix64.One);
         have = s.Stores[(int)Good.Bow];
-        if (HasProject(s.Civilization, "WAR-11") || s.FoodSecurity < LevyBowFoodFloor || remaining <= Fix64.Zero) return;
+        if (s.FoodSecurity < LevyBowFoodFloor || remaining <= Fix64.Zero) return;
         // At most three bows in all this season, the first one included. The wood is so little (a twentieth of a litre a bow) that it needs no reserve rule: a town
         // makes a bow whenever it holds the wood, and MakeGoods stops at what the stores can supply.
-        Fix64 target = Fix64.Min(Fix64.FromInt(LevyBowTarget(s)), start + Fix64.FromInt(LevyBowsPerSeason));
+        int advancedBowStock = Stock(s, BowSlot(BowGood.Crossbow)).FloorToInt() + Stock(s, BowSlot(BowGood.Longbow)).FloorToInt();
+        int bowTarget = HasProject(civ, "WAR-11") ? Math.Max(0, LevyBowDeficit(s) - advancedBowStock) : LevyBowTarget(s);
+        Fix64 target = Fix64.Min(Fix64.FromInt(bowTarget), start + Fix64.FromInt(LevyBowsPerSeason));
         if (target <= have) return;
         Fix64 budget = Fix64.Min(remaining, LevyBowWork * (Fix64.FromInt(LevyBowsPerSeason) - Fix64.Min(Fix64.FromInt(LevyBowsPerSeason), have - start)));
         Fix64 granted = budget;
