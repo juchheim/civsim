@@ -275,6 +275,7 @@ internal static class IronMatchCommand
         ChapterRules rules = fief ? ChapterRules.Fief : bronzeControl ? ChapterRules.Bronze :
             countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+        match.Research.DiagnosticDraftProjectGrantsEnabled = grantE5;
         var fiefWp7Rows = fiefWp7Trace ? new StringBuilder() : null;
         var fiefTerritoryRows = fiefTerritoryTrace ? new StringBuilder() : null;
         var fiefSea10Rows = fiefSea10Trace ? new StringBuilder() : null;

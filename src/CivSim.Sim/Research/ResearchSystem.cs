@@ -68,6 +68,8 @@ public sealed partial class ResearchSystem : IResearchView
     // Harness-only gross-generation counters. They are opt-in and never read by research decisions or snapshots.
     private Fix64[]? _diagnosticInsightGenerated;
     private Fix64[][]? _diagnosticKnowHowGenerated;
+    // Harness-only switch used to exercise the draft Fief tree after KEY-5 without promoting its numeric rows.
+    internal bool DiagnosticDraftProjectGrantsEnabled { get; set; }
 
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
@@ -415,7 +417,9 @@ public sealed partial class ResearchSystem : IResearchView
             case CommandKind.CompleteProject:
                 // A grant (fixtures, debugging): complete without spending Insight. The economy receives the
                 // same command from its caller, so it is not forwarded again.
-                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] && _catalog.Projects[command.A].Numeric)
+                if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] &&
+                    (_catalog.Projects[command.A].Numeric || DiagnosticDraftProjectGrantsEnabled && Rules.IsFief &&
+                        _catalog.Projects[command.A].Era == Rules.LastResearchEra))
                 {
                     ProjectDef project = _catalog.Projects[command.A];
                     bool beforeOwnKey5 = Rules.IsFief && project.Era == Rules.LastResearchEra &&
