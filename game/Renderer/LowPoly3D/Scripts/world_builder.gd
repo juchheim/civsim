@@ -782,7 +782,9 @@ func _vegetation() -> void:
 					trees = 2
 					tree_kind = "conifer"
 		var grove := _grove(xy.x, xy.y)
-		if tree_kind == "acacia" or tree_kind == "broadleaf":
+		# Open woodland holds 30 L of standing wood a tile (a forest to the sim and the Forest layer), so its trees thin only a
+		# little with the grove noise; grassland and savanna keep the strong thinning that makes them scattered-tree country.
+		if tree_kind == "acacia" or (tree_kind == "broadleaf" and b != B.OPEN_WOODLAND):
 			trees = int(round(trees * (0.1 + 2.0 * grove * grove)))
 			tufts += int(4.0 * (1.0 - grove))
 		elif trees > 0:

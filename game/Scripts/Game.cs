@@ -447,6 +447,9 @@ public partial class Game : Node3D
         return (uint)at < (uint)frame.SettlementStores.Length && frame.SettlementStores[at] > 0;
     }
 
+    /// <summary>Biomes the economy treats as forest (standing wood of 15 L or more per tile).</summary>
+    internal static bool IsForestBiome(Biome biome) => biome is Biome.TemperateForest or Biome.OpenWoodland or Biome.TropicalForest or Biome.Taiga;
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
         MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null,
         int figureLimit = 0, SimulationSession? session = null)
@@ -941,9 +944,11 @@ public partial class Game : Node3D
         byte[] methodOverlay = BuildMethodOverlay(frame);
         byte[] methodFallbackOverlay = BuildMethodFallbackOverlay(frame);
         byte[] e3OverlayBytes = BuildE3OverlayBytes(frame, world);
+        // Only forest biomes are tinted. Wetland (5 L), mountain (10 L) and scrub also hold a little wood, and they used to light up
+        // as "Low" or "Depleted" forest on ground that has no trees.
         var forestOverlay = new byte[tiles];
         for (int tile = 0; tile < tiles; tile++)
-            if (frame.Visibility[tile] == (byte)TileVisibility.Visible) forestOverlay[tile] = (byte)(frame.ForestBand[tile] + 1);
+            if (frame.Visibility[tile] == (byte)TileVisibility.Visible && IsForestBiome((Biome)world.Biome[tile])) forestOverlay[tile] = (byte)(frame.ForestBand[tile] + 1);
 
         // Texture bytes are built here (fast) instead of pixel by pixel in the renderer's script.
         var stateBytes = new byte[tiles * 4];

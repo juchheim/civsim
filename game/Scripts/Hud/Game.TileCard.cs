@@ -256,7 +256,7 @@ public partial class Game
         string deposit = depositKnown && tileDeposit != DepositKind.None
             ? $"{SpacedName(tileDeposit.ToString())} deposit{(world.DepositDepth[tile] >= 2 ? " (deep: needs Shaft Mining)" : "")}" :
             frame.DepositClues[tile] != 0 ? DepositClueText(frame.DepositClues[tile]) : "No known deposit";
-        string liveTile = visibility == TileVisibility.Visible
+        string liveTile = visibility == TileVisibility.Visible && IsForestBiome((Biome)world.Biome[tile])
             ? $"Forest band {frame.ForestBand[tile]}" : "";
         if (frame.KnownDeposits[tile] != 0 && frame.DepositWorked[tile] != 0) liveTile = JoinTileDetail(liveTile, "worked");
         else if (frame.KnownDeposits[tile] != 0 && frame.MiningReach[tile] != 0)
@@ -283,7 +283,7 @@ public partial class Game
                     : visibility == TileVisibility.Explored ? "last seen only" : "beyond sight";
                 extra = $"Claims: {claims}\nElevation {world.Elevation[tile]}";
                 if (work.Fallbacks > 0 && work.FirstDetail.Length > 0) extra += $"\n{work.FirstDetail}";
-                if (visibility == TileVisibility.Visible) extra += $"\nForest stock band {frame.ForestBand[tile]}";
+                if (visibility == TileVisibility.Visible && IsForestBiome((Biome)world.Biome[tile])) extra += $"\nForest stock band {frame.ForestBand[tile]}";
                 if (visibility == TileVisibility.Visible)
                 {
                     for (int camp = 0; camp < frame.CampCount; camp++)
