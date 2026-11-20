@@ -572,6 +572,8 @@ public partial class Game : Node3D
         bool forcedBlockade = HasArgument("--dev-blockade");
         bool forcedTerraces = HasArgument("--dev-terraces");
         int forcedSite = ArgumentValue("--dev-site=") is { } siteArg && int.TryParse(siteArg, out int siteStage) ? siteStage : -1;
+        // --dev-arsenal=0|1|2 (Fief): each of the viewer's towns has an Arsenal going up (0), standing dark (1) or working lit (2)
+        int forcedArsenal = ArgumentValue("--dev-arsenal=") is { } arsenalArg && int.TryParse(arsenalArg, out int arsenalState) ? arsenalState : -1;
         int forcedWorkAt = -1;
         if (forcedForge >= 0 || forcedSoldiers >= 0 || forcedWorks || forcedSite > 0 || forcedWonders || forcedFaith >= 0 || forcedProvince || forcedTrades)
             for (int i = 0; i < frame.SettlementCount; i++)
@@ -738,6 +740,17 @@ public partial class Game : Node3D
                         settlement["ironBuildPermille"] = Math.Clamp(forcedSite, 1, 3) * 333 - 200;
                     }
                 }
+            }
+            if (forcedArsenal >= 0 && frame.SettlementCiv[i] == Math.Max(0, frame.ViewerCiv) && (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) == 0
+                && IronKindIndex("arsenal") is >= 0 and int arsenalAt)
+            {
+                // every one of the viewer's towns, so it shows wherever the camera starts
+                var arsenalWorks = new int[IronWorkKindCount()];
+                if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(arsenalWorks, 0);
+                if (forcedArsenal == 0) { settlement["ironBuildKind"] = arsenalAt; settlement["ironBuildPermille"] = 500; }
+                else arsenalWorks[arsenalAt] = 1;
+                settlement["ironWorks"] = arsenalWorks;
+                settlement["fiefArsenalStocked"] = forcedArsenal >= 2;
             }
             if (i == forcedHarborAt)
             {
