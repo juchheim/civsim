@@ -32,6 +32,7 @@ public sealed partial class LivingEconomyModel
                 IronChain = true;
                 _compiledRecipes = _allRecipes;
             }
+            ConfigureMetalRecipeExecutionOrder();
         }
     }
 

@@ -700,6 +700,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // only after compilation has populated the chapter-specific arrays.
         if (_fiefChain) _compiledRecipes = _allRecipes;
         else if (_ironChain) _compiledRecipes = _ironChainRecipes;
+        ConfigureMetalRecipeExecutionOrder();
     }
 
     public long Tick => _tick;

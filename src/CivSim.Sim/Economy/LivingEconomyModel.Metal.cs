@@ -38,6 +38,8 @@ public sealed partial class LivingEconomyModel
     private const int FiefArsenicalReach = 25;
     private static int MetalSlot(MetalGood good) => (int)Good.Count + (int)good;
     private static int SlotCount => (int)Good.Count + (int)MetalGood.Count;
+    // Derived run order for the Fief craft pass; planning and recipe slot indices keep registry order unchanged.
+    private int[] _metalRecipeExecutionOrder = Array.Empty<int>();
 
     private sealed class CompiledRecipe
     {
@@ -197,6 +199,43 @@ public sealed partial class LivingEconomyModel
         _ironChainRecipes = ironChain.ToArray();
         _allRecipes = merged.ToArray();
     }
+
+    private void ConfigureMetalRecipeExecutionOrder()
+    {
+        var executionOrder = new int[_compiledRecipes.Length];
+        for (int i = 0; i < executionOrder.Length; i++) executionOrder[i] = i;
+        if (_fiefChain)
+        {
+            Array.Sort(executionOrder, (left, right) =>
+            {
+                CompiledRecipe a = _compiledRecipes[left], b = _compiledRecipes[right];
+                int aKitTier = FiefWeaponKitTier(a.Def.Id), bKitTier = FiefWeaponKitTier(b.Def.Id);
+                int aGroup = a.Def.Order < CraftOrder ? 0 : a.Def.Id == "crucible_steel" ? 1 : aKitTier > 0 ? 2 : 3;
+                int bGroup = b.Def.Order < CraftOrder ? 0 : b.Def.Id == "crucible_steel" ? 1 : bKitTier > 0 ? 2 : 3;
+                int byGroup = aGroup.CompareTo(bGroup);
+                if (byGroup != 0) return byGroup;
+                if (aGroup == 2)
+                {
+                    int byTier = bKitTier.CompareTo(aKitTier);
+                    if (byTier != 0) return byTier;
+                }
+                int byOrder = a.Def.Order.CompareTo(b.Def.Order);
+                return byOrder != 0 ? byOrder : StringComparer.Ordinal.Compare(a.Def.Id, b.Def.Id);
+            });
+        }
+        _metalRecipeExecutionOrder = executionOrder;
+    }
+
+    private static int FiefWeaponKitTier(string recipeId) => recipeId switch
+    {
+        "make_crucible_arms" => 6,
+        "make_steel_arms" => 5,
+        "make_iron_arms" => 4,
+        "cast_arms2t" => 3,
+        "cast_arms2a" => 2,
+        "cast_arms1" => 1,
+        _ => -1,
+    };
 
     private int SlotOf(string goodId)
     {
@@ -1381,7 +1420,8 @@ public sealed partial class LivingEconomyModel
     private bool IsEssentialTransportRecipe(int outputSlot) => SlotOf("G-CART") == outputSlot;
 
     private bool IsDiscretionaryFinishingRecipe(CompiledRecipe recipe)
-        => recipe.Def.Order >= CraftOrder && !IsMilitaryAssemblyRecipe(recipe.OutputSlot) && !IsEssentialTransportRecipe(recipe.OutputSlot);
+        => recipe.Def.Order >= CraftOrder && !(FiefChain && recipe.Def.Id == "crucible_steel") &&
+            !IsMilitaryAssemblyRecipe(recipe.OutputSlot) && !IsEssentialTransportRecipe(recipe.OutputSlot);
 
     private string MilitaryInputReadiness(SettlementState s, CompiledRecipe recipe, Fix64 batches)
     {
@@ -2271,8 +2311,9 @@ public sealed partial class LivingEconomyModel
             QuarryBlocks(s, m, plan, ref craftLeft);
         }
         var deferredFinishing = new Fix64[_compiledRecipes.Length];
-        for (int r = 0; r < _compiledRecipes.Length; r++)
+        for (int executionIndex = 0; executionIndex < _metalRecipeExecutionOrder.Length; executionIndex++)
         {
+            int r = _metalRecipeExecutionOrder[executionIndex];
             CompiledRecipe recipe = _compiledRecipes[r];
             if (IsDiscretionaryFinishingRecipe(recipe))
             {

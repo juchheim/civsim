@@ -100,6 +100,7 @@ public sealed partial class LivingEconomyModel
             _ironChain = value;
             // Iron-only recipes join the planner in Iron; Fief's additional recipes join only after its own mode flag is set.
             if (value) _compiledRecipes = _ironChainRecipes;
+            ConfigureMetalRecipeExecutionOrder();
         }
     }
 

@@ -14,7 +14,9 @@ public sealed partial class LivingEconomyModel
     };
 
     private const int MilitaryInputBufferBatches = 5;
-    private const int SisterIntermediateSupportBatches = 2;
+    // A capable sister producer should plan enough ABRONZE/CSTEEL to fill the same working buffer
+    // that the receiving forge uses for its next-season military queue.
+    private const int SisterIntermediateSupportBatches = MilitaryInputBufferBatches;
 
     // The nearest settlement that can make each strategic intermediate for a receiver this season.
     // 0 = arsenical bronze, 1 = crucible steel. This is derived from the current season's structures,
