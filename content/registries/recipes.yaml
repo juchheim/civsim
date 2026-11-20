@@ -64,7 +64,7 @@ recipes:
   - {id: print_book, name: Print a book, unlocked_by: [COM-10], structure: [print_shop], inputs: {G-PAPER: 4, G-PIGMENT: 0.1}, outputs: {G-BOOK: 1}, labor: 0.8, order: 72, practice: scribe}
   - {id: copy_manuscript, name: Copy a manuscript, unlocked_by: [ART-09], structure: [monastery], inputs: {G-PAPER: 4, G-PIGMENT: 0.3, G-GOLD: 0.01}, outputs: {G-MANUSCRIPT: 1}, labor: 6, order: 73, practice: scribe}
   # E6 Discovery recipes (docs/MVP/38 §5); provisional.
-  - {id: make_coke, name: Coke coal, unlocked_by: [FIR-12], structure: [coke_oven], inputs: {G-COAL: 1.5}, outputs: {G-COKE: 1}, labor: 0.4, order: 74, practice: smelt}
+  - {id: make_coke, name: Coke coal, unlocked_by: [FIR-12], structure: [kiln, coke_oven], inputs: {G-COAL: 1.5}, outputs: {G-COKE: 1}, labor: 0.4, order: 74, practice: smelt}
   - {id: coke_smelt, name: Coke-smelt iron, unlocked_by: [MET-13], structure: [blast_furnace], inputs: {G-IRONORE: 6, G-COKE: 3}, outputs: {G-IRON: 3}, labor: 1.2, order: 75, practice: smelt, note: "no charcoal: coke replaces it (docs/MVP/38 §5.1)"}
   - {id: refine_sugar, name: Refine sugar, unlocked_by: [FOD-10], inputs: {G-CANE: 4, "G-COAL|G-WOOD": 0.5}, outputs: {G-SUGAR: 1}, labor: 0.5, order: 76, practice: craft}
   - {id: salt_cod, name: Salt cod and herring, unlocked_by: [HNT-12], inputs: {G-FISH: 3, G-SALT: 1}, outputs: {G-COD: 3}, labor: 0.2, order: 77, practice: preserve}

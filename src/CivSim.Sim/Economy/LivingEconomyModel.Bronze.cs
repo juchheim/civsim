@@ -309,7 +309,7 @@ public sealed partial class LivingEconomyModel
         for (int tile = 0; tile < tiles; tile++)
         {
             WorldDeposit d = _world.Deposit(tile);
-            _ore[tile] = OreLitres(d, FiefChain);
+            _ore[tile] = OreLitres(d, FiefChain, DiscoveryChain);
         }
         _metalStats = new Fix64[_completedProjects.Length * StatCount];
         _metalOutputCurrent = new Fix64[_completedProjects.Length * StatCount];
@@ -320,7 +320,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Candidate finite reserves: six times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
-    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false)
+    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false, bool includeDiscoveryResources = false)
     {
         Fix64 mapped = d.Kind switch
         {
@@ -333,6 +333,8 @@ public sealed partial class LivingEconomyModel
         // Draft Fief fit hypotheses until WP-E5-11 promotes the registered quantities.
         DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(900),
         DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(600),
+        // Draft Discovery fit hypothesis (docs/MVP/38 §5.1): a coal basin tile holds as much as an iron tile, with no strategic multiplier.
+        DepositKind.Coal when includeDiscoveryResources => Fix64.FromInt(6000),
         _ => Fix64.Zero,
         };
         bool strategicFiefMineral = d.Kind is DepositKind.Tin or DepositKind.CopperOre or DepositKind.ArsenicalCopper or
@@ -393,7 +395,7 @@ public sealed partial class LivingEconomyModel
     public bool DepositWorked(int tile)
     {
         if (!_bronzeActive || unchecked((uint)tile) >= unchecked((uint)_ore.Length)) return false;
-        return _ore[tile] < OreLitres(_world.Deposit(tile), FiefChain);
+        return _ore[tile] < OreLitres(_world.Deposit(tile), FiefChain, DiscoveryChain);
     }
 
     /// <summary>The view's forest band of a tile (docs/MVP/23 §7.4): 0 under 5 L, 1 for 5–14, 2 for 15–24, 3 from 25 L.</summary>

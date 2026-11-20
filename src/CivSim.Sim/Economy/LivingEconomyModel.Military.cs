@@ -384,7 +384,8 @@ public sealed partial class LivingEconomyModel
         if (slot < IronSlotBase) return MetalGoodId((MetalGood)(slot - (int)Good.Count));
         if (slot < FiefSlotBase) return IronGoodId((IronGood)(slot - IronSlotBase));
         if (slot < BowSlotBase) return FiefGoodId((FiefGood)(slot - FiefSlotBase));
-        return BowGoodId((BowGood)(slot - BowSlotBase));
+        if (slot < DiscoverySlotBase) return BowGoodId((BowGood)(slot - BowSlotBase));
+        return DiscoveryGoodId((DiscoveryGood)(slot - DiscoverySlotBase));
     }
 
     /// <summary>

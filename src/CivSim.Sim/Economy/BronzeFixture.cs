@@ -91,6 +91,24 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
             extraProjects, fiefChain: true);
 
+    /// <summary>
+    /// The camp settlement in the Discovery chapter (which contains the Faith &amp; Fief chain), with one own coal deposit three tiles out: no saltpeter
+    /// or sulfur, and the camp tile left as copper. For the coal, coke and steam systems of docs/MVP/38 §5.1.
+    /// </summary>
+    public static BronzeFixture CreateDiscoveryWithCoal(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
+            extraProjects, fiefChain: true, discoveryChain: true, coalDeposit: true);
+
+    /// <summary>The Discovery camp settlement with no coal deposit anywhere near, for the towns that must keep the Fief furnace.</summary>
+    public static BronzeFixture CreateDiscoveryWithoutCoal(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
+            extraProjects, fiefChain: true, discoveryChain: true, coalDeposit: false);
+
+    /// <summary>The Faith &amp; Fief camp settlement with a coal deposit on own land: outside Discovery coal must stay inert.</summary>
+    public static BronzeFixture CreateFiefWithCoalDeposit(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
+            extraProjects, fiefChain: true, coalDeposit: true);
+
     public static BronzeFixture CreateFiefWithPowderDeposits(ContentPack pack, ulong seed, int people, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true,
             ironCamp: true, extraProjects, fiefChain: true, fiefChemistryDeposits: true);
@@ -152,7 +170,8 @@ internal sealed class BronzeFixture
     private static BronzeFixture Build(ContentPack pack, ulong seed, int people, bool coppice, bool tin, bool arsenic,
         bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
         bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false,
-        FiefLandGeography? landGeography = null, bool fiefChemistryDeposits = false, bool fiefChemistryCamp = false)
+        FiefLandGeography? landGeography = null, bool fiefChemistryDeposits = false, bool fiefChemistryCamp = false,
+        bool discoveryChain = false, bool coalDeposit = false)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -191,6 +210,7 @@ internal sealed class BronzeFixture
                 campTile = t;
         }
         if (campTile >= 0) deposits[campTile] = new WorldDeposit(DepositKind.CopperOre, 2, 1);
+        if (coalDeposit) deposits[range[3]] = new WorldDeposit(DepositKind.Coal, 2, 1);
         if (fiefChemistryDeposits && fiefChemistryCamp && campTile >= 0)
             deposits[campTile] = new WorldDeposit(DepositKind.Saltpeter, 2, 1);
         int ironTile = -1;
@@ -265,7 +285,7 @@ internal sealed class BronzeFixture
         for (int c = 0; c < starts.Length; c++) starts[c] = source.StartingTile(c);
         var world = new WorldEconomyInput(source.Width, source.Height, tiles, starts, source.Herds, deposits);
         var content = EconomyContent.FromPack(pack);
-        ChapterMode contentFingerprintMode = fiefChain ? ChapterMode.Fief : ironChain ? ChapterMode.Iron : ChapterMode.Bronze;
+        ChapterMode contentFingerprintMode = discoveryChain ? ChapterMode.Discovery : fiefChain ? ChapterMode.Fief : ironChain ? ChapterMode.Iron : ChapterMode.Bronze;
         var economy = new LivingEconomyModel(seed, content, world, ReadOnlySpan<EconomyArchetype>.Empty,
             contentFingerprintMode: contentFingerprintMode)
         {
@@ -273,6 +293,7 @@ internal sealed class BronzeFixture
             FixtureHoldPopulation = holdPopulation,
             IronChain = ironChain,
             FiefChain = fiefChain,
+            DiscoveryChain = discoveryChain,
         };
 
         var projects = new List<string>();

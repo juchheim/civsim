@@ -178,6 +178,12 @@ public sealed partial class LivingEconomyModel
                     touchesFief |= slot >= FiefSlotBase;
                     touchesIron |= slot >= IronSlotBase && slot < FiefSlotBase;
                 }
+            // Recipes that touch coal or coke (docs/MVP/38 §5.1) exist only in a Discovery match.
+            bool touchesDiscovery = output >= DiscoverySlotBase;
+            foreach (int[] alternatives in slots)
+                foreach (int slot in alternatives)
+                    touchesDiscovery |= slot >= DiscoverySlotBase;
+            if (touchesDiscovery && !_discoveryChain) enabled = false;
             if (output == NoSlot || output < (int)Good.Count) enabled = false; // the craft step stocks E3 goods only
             var entry = new CompiledRecipe
             {
@@ -210,12 +216,15 @@ public sealed partial class LivingEconomyModel
             if (FiefGoodId((FiefGood)g) == goodId) return FiefSlot((FiefGood)g);
         for (int g = 0; g < (int)BowGood.Count; g++)
             if (BowGoodId((BowGood)g) == goodId) return BowSlot((BowGood)g);
+        for (int g = 0; g < (int)DiscoveryGood.Count; g++)
+            if (DiscoveryGoodId((DiscoveryGood)g) == goodId) return DiscoverySlot((DiscoveryGood)g);
         return NoSlot;
     }
 
     private static Fix64 Stock(SettlementState s, int slot)
     {
         if (slot < (int)Good.Count) return s.Stores[slot];
+        if (slot >= DiscoverySlotBase) return s.DiscoveryGoods is { Length: > 0 } discovery ? discovery[slot - DiscoverySlotBase] : Fix64.Zero;
         if (slot >= BowSlotBase) return s.FiefGoods is { Length: > 0 } bows ? bows[slot - BowSlotBase] : Fix64.Zero;
         if (slot >= FiefSlotBase) return s.Metal is { FiefGoods.Length: > 0 } metal ? metal.FiefGoods[slot - FiefSlotBase] : Fix64.Zero;
         if (slot >= IronSlotBase) return s.Metal?.IronGoods is { } iron ? iron[slot - IronSlotBase] : Fix64.Zero;
@@ -230,6 +239,11 @@ public sealed partial class LivingEconomyModel
         {
             if (slot == (int)Good.Wood && amount < Fix64.Zero) RecordLocalWoodUse(s, -amount, "metal");
             s.Stores[slot] = Fix64.Max(Fix64.Zero, s.Stores[slot] + amount);
+        }
+        else if (slot >= DiscoverySlotBase)
+        {
+            Fix64[] discovery = s.DiscoveryGoods ??= new Fix64[(int)DiscoveryGood.Count];
+            discovery[slot - DiscoverySlotBase] = Fix64.Max(Fix64.Zero, discovery[slot - DiscoverySlotBase] + amount);
         }
         else if (slot >= BowSlotBase)
         {
@@ -474,6 +488,7 @@ public sealed partial class LivingEconomyModel
         DepositKind.Gold or DepositKind.Silver => Done(civ, "MET-07"),
         DepositKind.Salt => Done(civ, "MIN-06"),
         DepositKind.Saltpeter or DepositKind.Sulfur => FiefChain && Done(civ, "CHM-07"),
+        DepositKind.Coal => DiscoveryChain && Done(civ, "MIN-09"),
         _ => false,
     };
 
@@ -499,7 +514,7 @@ public sealed partial class LivingEconomyModel
     private bool DepositWorkable(int civ, int tile)
     {
         WorldDeposit d = _world.Deposit(tile);
-        if (_ore[tile] <= Fix64.Zero || (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null)) || !OreUnlocked(civ, d.Kind)) return false;
+        if (_ore[tile] <= Fix64.Zero || (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null) && (!DiscoveryChain || DiscoveryOreGood(d.Kind) is null)) || !OreUnlocked(civ, d.Kind)) return false;
         return d.Depth < 2 || Done(civ, "MIN-04");
     }
 
@@ -939,6 +954,8 @@ public sealed partial class LivingEconomyModel
     private bool RecipeAvailable(SettlementState s, CompiledRecipe r)
     {
         if (!r.Enabled || !AnyDone(s.Civilization, r.Def.UnlockedBy)) return false;
+        // Where iron can be coke-smelted the bloomery gives way to it (docs/MVP/38 §5.1); everywhere else the Fief bloomery and furnace run as before.
+        if (DiscoveryChain && r.Def.Id == "bloomery" && CokeSmeltingActive(s)) return false;
         if (r.Def.Structures.Length == 0) return true;
         MetalState? m = s.Metal;
         foreach (string id in r.Def.Structures)
@@ -1647,6 +1664,7 @@ public sealed partial class LivingEconomyModel
             foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
                 if (BestRangeFiefDeposit(s, ore, out _) >= 0 || HasFiefOreCamp(s, ore) || HasFiefDepositInReach(s, ore))
                     potential[FiefSlot(ore)] = Plenty;
+        if (DiscoveryChain && CoalObtainable(s)) potential[DiscoverySlot(DiscoveryGood.Coal)] = Plenty;
         var result = new Fix64[_compiledRecipes.Length];
         for (int r = 0; r < _compiledRecipes.Length; r++)
         {
@@ -2895,8 +2913,9 @@ public sealed partial class LivingEconomyModel
             if (camp.Parent != s.Id) continue;
             MetalGood? good = OreGood(_world.Deposit(camp.Tile).Kind);
             FiefGood? fiefGood = FiefChain ? FiefOreGood(_world.Deposit(camp.Tile).Kind) : null;
-            if (good is null && fiefGood is null) continue;
-            int goodSlot = good is { } metalGood ? MetalSlot(metalGood) : FiefSlot(fiefGood!.Value);
+            DiscoveryGood? discoveryGood = DiscoveryChain ? DiscoveryOreGood(_world.Deposit(camp.Tile).Kind) : null;
+            if (good is null && fiefGood is null && discoveryGood is null) continue;
+            int goodSlot = good is { } metalGood ? MetalSlot(metalGood) : fiefGood is { } fiefSlotGood ? FiefSlot(fiefSlotGood) : DiscoverySlot(discoveryGood!.Value);
             Fix64 want = plan.Want[goodSlot];
             Fix64 net = want * 2 - Stock(s, goodSlot);
             Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
@@ -2935,7 +2954,9 @@ public sealed partial class LivingEconomyModel
                         Fix64 litres = Fix64.Min(net, left / perLitre);
                         Fix64 dug = good is { } g
                             ? Dig(s, camp.Tile, effective, litres / effective, litres, camp.MineHead)
-                            : DigFiefOre(s, camp.Tile, fiefGood!.Value, effective, litres / effective, litres);
+                            : fiefGood is not null
+                                ? DigFiefOre(s, camp.Tile, fiefGood.Value, effective, litres / effective, litres)
+                                : DigDiscoveryOre(s, camp.Tile, discoveryGood!.Value, effective, litres / effective, litres);
                         if (B12CopperShareTraceEnabled && s.Id == 11 && season is >= 255 and <= 267 && good == MetalGood.CopperOre)
                             copperCampDug += dug;
                         Fix64 spent = dug * perLitre;
@@ -3048,6 +3069,7 @@ public sealed partial class LivingEconomyModel
                     break;
                 }
             }
+        if (DiscoveryChain) OpenCoalCampIfWanted(s, plan, season);
         if (TraceTargetCampDecision(s, season)) AppendB12CampOpenTrace(s, season, plan, targetDecision);
     }
 
@@ -3135,7 +3157,7 @@ public sealed partial class LivingEconomyModel
     {
         int civ = parent.Civilization;
         WorldDeposit d = _world.Deposit(tile);
-        if (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null) || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
+        if (OreGood(d.Kind) is null && (!FiefChain || FiefOreGood(d.Kind) is null) && (!DiscoveryChain || DiscoveryOreGood(d.Kind) is null) || _ore[tile] <= Fix64.Zero) return MiningCampResult.NoDeposit;
         if (!OreUnlocked(civ, d.Kind)) return MiningCampResult.NotUnlocked;
         if (d.Depth >= 2 && !Done(civ, "MIN-04")) return MiningCampResult.NeedsShaftMining;
         if (IsRivalTile(civ, tile)) return MiningCampResult.RivalOwned;

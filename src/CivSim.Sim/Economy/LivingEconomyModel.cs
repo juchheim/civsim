@@ -376,6 +376,8 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64 SurfaceOchre;
         /// <summary>Faith &amp; Fief chapter's crossbows and longbows (docs/MVP/36); null until a levy arm is stocked.</summary>
         public Fix64[]? FiefGoods;
+        /// <summary>Discovery chapter's coal and coke (docs/MVP/38); null until one is stocked, and never set outside a Discovery match.</summary>
+        public Fix64[]? DiscoveryGoods;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
         public Fix64[]? GainBaseline;
@@ -7112,6 +7114,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         HashIron(ref hash);
         HashFiefKnowHow(ref hash);
         HashFiefGoods(ref hash);
+        HashDiscoveryGoods(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -7208,6 +7211,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteIron(writer);
         WriteFiefKnowHow(writer);
         WriteFiefGoods(writer);
+        WriteDiscoveryGoods(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7370,6 +7374,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             reader.BaseStream.Position = position;
         }
         ReadFiefGoods(reader);
+        ReadDiscoveryGoods(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7647,6 +7652,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             SiteTile = source.SiteTile,
             SurfaceOchre = source.SurfaceOchre,
             FiefGoods = source.FiefGoods is null ? null : (Fix64[])source.FiefGoods.Clone(),
+            DiscoveryGoods = source.DiscoveryGoods is null ? null : (Fix64[])source.DiscoveryGoods.Clone(),
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,

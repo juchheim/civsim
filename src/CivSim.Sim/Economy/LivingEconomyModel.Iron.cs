@@ -86,7 +86,7 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Slots the planner tracks: the E3 and Bronze goods, plus the Iron goods in the Iron chapter.</summary>
-    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0) + (_fiefChain ? (int)FiefGood.Count + (int)BowGood.Count : 0);
+    private int PlanSlots => SlotCount + (_ironChain ? (int)IronGood.Count : 0) + (_fiefChain ? (int)FiefGood.Count + (int)BowGood.Count + (int)DiscoveryGood.Count : 0);
 
     /// <summary>
     /// True when the match plays the Iron chapter (<c>MatchModel</c> sets it from the chapter rules). Off, the Iron recipes cannot run, no Iron

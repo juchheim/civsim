@@ -408,6 +408,7 @@ public sealed partial class LivingEconomyModel
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
         if (s.FiefGoods is { } bows) Array.Clear(bows);
+        if (s.DiscoveryGoods is { } discovery) Array.Clear(discovery);
         if (s.Metal is { } metal)
         {
             if (metal.IronGoods is { } iron)
