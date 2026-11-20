@@ -32,6 +32,7 @@ internal sealed class FiefArmsLifecycleTrace
     private readonly HashSet<int> _levyBowReadyMilestones = new();
     private readonly Dictionary<int, string> _forgeQueueState = new();
     private readonly Dictionary<(int Settlement, string Producer), string> _producerQueueState = new();
+    private readonly Dictionary<int, MetalStatistics> _lastMetalStats = new();
     private bool _coverageWritten;
     private Fix64[] _arsenicalBronzeDeliveredByCiv = Array.Empty<Fix64>();
     private Fix64[] _crucibleSteelDeliveredByCiv = Array.Empty<Fix64>();
@@ -59,7 +60,7 @@ internal sealed class FiefArmsLifecycleTrace
 
     private static readonly Recipe[] Recipes =
     [
-        new("cosmelt_arsenical", ["MET-04"], [["G-ASORE"], ["G-CHAR"]], [2, 2], "smelter"),
+        new("cosmelt_arsenical", ["MET-04"], [["G-ASORE"], ["G-CHAR"]], [2, 2], "kiln_or_smelter"),
         new("crucible_steel", ["MET-11"], [["G-STEEL"], ["G-CLAY"], ["G-CHAR"]], [0.4, 0.3, 0.4], "forge"),
         new("cast_arms1", ["MET-03"], [["G-COPPER"], ["G-WOOD"]], [0.2, 0.5], "forge"),
         new("cast_arms2a", ["WAR-05"], [["G-ABRONZE"], ["G-WOOD"], ["G-LEATHER", "G-HIDE"]], [0.3, 1, 1], "forge"),
@@ -130,6 +131,7 @@ internal sealed class FiefArmsLifecycleTrace
 
             MetalReadout metal = economy.Metal(settlement);
             int forge = metal.Forges;
+            int kiln = economy.StructureCount(settlement, LivingEconomyModel.StructureIndex("kiln"));
             foreach (string intermediate in new[] { "G-ABRONZE", "G-CSTEEL" })
                 if (economy.GoodStock(settlement, intermediate) > Fix64.Zero &&
                     _intermediateStockMilestones.Add((lite.Id, intermediate)))
@@ -222,10 +224,12 @@ internal sealed class FiefArmsLifecycleTrace
             if (relevant && season % 4 == 3)
             {
                 double idleStock = stock.Select((value, i) => Math.Max(0, value - carried[i])).Sum();
-                output.AppendLine($"fief-arms-state seed={seed} season={season} civ={civ} settlement={lite.Id} pop={economy.Population(lite.Id)} forge={forge} smelter={metal.Smelters} arsenicAccess={metal.ArsenicAccess.ToString().ToLowerInvariant()} blastFurnace={ProducerCount(economy, settlement, "blast_furnace", forge)} powderMill={ProducerCount(economy, settlement, "powder_mill", forge)} forgeQueue={(forgeItem is null ? "none" : forgeItem.Status.ToString())} forgeCause={(forgeItem is null ? "none" : forgeItem.Gate.Cause.ToString())} forgeShortages={(shortages.Length == 0 ? "none" : shortages)} research={researchBits} fighters={arms.Fighters} soldiers={arms.Soldiers} warriors={arms.Warriors} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stockCarriedByTier={tierStocks} idleStock={F(idleStock)} chariots={arms.Chariots} chariotCrew={arms.ChariotCrew} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} activeSieges={activeSieges} inputs={materials} recipeInputsReady={recipeReadiness}");
+                output.AppendLine($"fief-arms-state seed={seed} season={season} civ={civ} settlement={lite.Id} pop={economy.Population(lite.Id)} forge={forge} kiln={kiln} smelter={metal.Smelters} arsenicAccess={metal.ArsenicAccess.ToString().ToLowerInvariant()} blastFurnace={ProducerCount(economy, settlement, "blast_furnace", forge)} powderMill={ProducerCount(economy, settlement, "powder_mill", forge)} forgeQueue={(forgeItem is null ? "none" : forgeItem.Status.ToString())} forgeCause={(forgeItem is null ? "none" : forgeItem.Gate.Cause.ToString())} forgeShortages={(shortages.Length == 0 ? "none" : shortages)} research={researchBits} fighters={arms.Fighters} soldiers={arms.Soldiers} warriors={arms.Warriors} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stockCarriedByTier={tierStocks} idleStock={F(idleStock)} chariots={arms.Chariots} chariotCrew={arms.ChariotCrew} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} activeSieges={activeSieges} inputs={materials} recipeInputsReady={recipeReadiness}");
             }
 
-            civRows[civ].Add(new SiteRow(arms, stock, carried, forge > 0, metal.Smelters > 0, forgeItem is not null, recipeBits,
+            civRows[civ].Add(new SiteRow(lite.Id, arms, stock, carried, forge > 0, kiln > 0, metal.Smelters > 0,
+                metal.ArsenicAccess, economy.GoodStock(settlement, "G-ASORE"), economy.GoodStock(settlement, "G-CHAR"),
+                economy.GoodStock(settlement, "G-ABRONZE"), forgeItem is not null, recipeBits,
                 engineStock, cannonStock, powderStock, siegeEngines, siegeCannons));
         }
 
@@ -267,18 +271,38 @@ internal sealed class FiefArmsLifecycleTrace
             Fix64 arsenicalBronzeDelivered = _arsenicalBronzeDeliveredByCiv[civ];
             Fix64 crucibleSteelDelivered = _crucibleSteelDeliveredByCiv[civ];
             output.AppendLine($"fief-arms-summary seed={seed} season={season} civ={civ} settlements={rows.Count} forgeSites={rows.Count(row => row.Forge)} smelterSites={rows.Count(row => row.Smelter)} queuedForgeSites={rows.Count(row => row.ForgeQueued)} fighters={fighters} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stock={F(stockTotal)} idleStock={F(idle)} idleStockSites={idleSites} withoutWeaponSites={baseOnlySites} localOverlapSites={overlap} chariots={chariots} chariotCrew={chariotCrew} idleChariots={idleChariots} chariotStockSites={chariotStockSites} chariotCrewSites={chariotCrewSites} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} intermediateDelivered=ABRONZE:{F(arsenicalBronzeDelivered)},CSTEEL:{F(crucibleSteelDelivered)} oneBatchInputReadiness={recipes}");
+
+            int arsenicalCamps = 0, builtArsenicalCamps = 0, arsenicalCrew = 0;
+            Fix64 arsenicalOreLeft = Fix64.Zero;
+            for (int campIndex = 0; campIndex < economy.MiningCampCount; campIndex++)
+            {
+                MiningCampView camp = economy.MiningCamp(campIndex);
+                if (camp.Civilization != civ || camp.Deposit != CivSim.Sim.World.DepositKind.ArsenicalCopper) continue;
+                arsenicalCamps++;
+                if (camp.Built) builtArsenicalCamps++;
+                arsenicalCrew += camp.Crew;
+                arsenicalOreLeft += camp.OreLeft;
+            }
+            MetalStatistics stats = economy.MetalStats(civ);
+            MetalStatistics previousStats = _lastMetalStats.GetValueOrDefault(civ);
+            _lastMetalStats[civ] = stats;
+            output.AppendLine($"fief-arms-supply seed={seed} season={season} civ={civ} arsenicAccessSites={rows.Count(row => row.ArsenicAccess)} kilnSites={rows.Count(row => row.Kiln)} smelterSites={rows.Count(row => row.Smelter)} arsenicalCamps={arsenicalCamps} builtArsenicalCamps={builtArsenicalCamps} arsenicalCrew={arsenicalCrew} campOreLeft={F(arsenicalOreLeft)} localASORE={F(rows.Aggregate(Fix64.Zero, (sum, row) => sum + row.ArsenicalOre))} localCHAR={F(rows.Aggregate(Fix64.Zero, (sum, row) => sum + row.Charcoal))} localABRONZE={F(rows.Aggregate(Fix64.Zero, (sum, row) => sum + row.ArsenicalBronze))} smeltOutputABRONZE={F(stats.ArsenicalBronze - previousStats.ArsenicalBronze)} charcoalOutput={F(stats.Charcoal - previousStats.Charcoal)} totalOreMined={F(stats.OreMined - previousStats.OreMined)}");
             _arsenicalBronzeDeliveredByCiv[civ] = Fix64.Zero;
             _crucibleSteelDeliveredByCiv[civ] = Fix64.Zero;
         }
     }
 
-    private sealed record SiteRow(SettlementArms Arms, double[] Stock, int[] Carried, bool Forge, bool Smelter, bool ForgeQueued, string RecipeBits,
+    private sealed record SiteRow(int Settlement, SettlementArms Arms, double[] Stock, int[] Carried, bool Forge, bool Kiln, bool Smelter,
+        bool ArsenicAccess, Fix64 ArsenicalOre, Fix64 Charcoal, Fix64 ArsenicalBronze, bool ForgeQueued, string RecipeBits,
         Fix64 EngineStock, Fix64 CannonStock, Fix64 PowderStock, int SiegeEngines, int SiegeCannons);
 
     private static int ProducerCount(LivingEconomyModel economy, int settlement, string producer, int forge)
     {
         if (producer == "forge") return forge;
         if (producer == "smelter") return economy.Metal(settlement).Smelters;
+        if (producer == "kiln_or_smelter")
+            return economy.Metal(settlement).Smelters > 0 ||
+                economy.StructureCount(settlement, LivingEconomyModel.StructureIndex("kiln")) > 0 ? 1 : 0;
         if (producer is "none" or "hunt") return 1;
         for (int kind = 0; kind < LivingEconomyModel.IronWorkKindCount; kind++)
             if (LivingEconomyModel.IronWorkId(kind) == producer) return economy.IronWorkAt(settlement, kind);
