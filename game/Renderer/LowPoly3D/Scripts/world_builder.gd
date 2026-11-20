@@ -98,21 +98,27 @@ var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where e
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
 
-# Trees follow the tile's standing wood (docs: Wood layer). Every tree a tile can have is built once; those above the tile's
-# current share are shrunk to nothing in the MultiMesh buffer and brought back as the wood regrows.
+# Trees follow the tile's standing wood band (the Wood layer's four bands). Every tree a tile can have is built once; those above
+# the band's share are shrunk to nothing in the MultiMesh buffer and brought back as the wood regrows. Land that was still unknown
+# when the map was built gets its trees and ground cover too, hidden the same way until a viewer first sees the tile.
 var vegetation_batcher: M7Batcher
-var tree_group := PackedInt32Array()      # per tree: index into tree_group_keys
-var tree_slot := PackedInt32Array()       # per tree: instance index within its group
-var tree_hidden := PackedByteArray()      # per tree: 1 while shrunk away
+var tree_group := PackedInt32Array()      # per tracked instance (a tree, or ground cover on a tile unknown at build): index into tree_group_keys
+var tree_slot := PackedInt32Array()       # per tracked instance: instance index within its group
+var tree_hidden := PackedByteArray()      # per tracked instance: 1 while shrunk away
 var tree_group_keys: Array = []           # group keys (strings)
 var tree_group_ids := {}                  # group key -> index into tree_group_keys
-var tree_group_members: Array = []        # per group: Array of tree ids
+var tree_group_members: Array = []        # per group: Array of tracked instance ids
 var tree_first := PackedInt32Array()      # per tile: id of its first tree, -1 for none (a tile's trees are contiguous)
 var tree_count := PackedInt32Array()      # per tile: how many trees it has
 var tree_tiles := PackedInt32Array()      # tiles that have trees
-var tree_applied := PackedByteArray()     # per tile: the sixteenths of wood its trees were last drawn for
-var tree_seen_fill := PackedByteArray()
+var tree_applied := PackedByteArray()     # per tile: the wood band its trees were last drawn for (TREES_FULL, or TREES_UNSEEN until first seen)
+var tree_seen_band := PackedByteArray()
 var tree_seen_visibility := PackedByteArray()
+var unseen_tiles := PackedInt32Array()    # tiles still unknown (visibility 0) since the map was built
+var unseen_extra := {}                    # unseen tile -> tracked ids of its non-tree props, revealed with it
+var veg_dirty := {}                       # group ids whose MultiMesh buffer must be rewritten
+const TREES_FULL := 4
+const TREES_UNSEEN := 255
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
@@ -712,27 +718,54 @@ func _rand_in_hex(t: int, k: int, r: float) -> Vector2:
 			return c + p
 	return c
 
-## Shows as many of each visible tile's trees as its standing wood allows (a full stand shows them all).
+## How many of a tile's n trees show for a wood band (0 depleted, 1 low, 2 medium, 3 dense, TREES_FULL untouched): none or one lone tree,
+## a third, two thirds, all of them. The same four bands the Wood layer paints.
+func _trees_shown(n: int, band: int) -> int:
+	match band:
+		0: return n if n <= 2 else 0
+		1: return int(round(n / 3.0))
+		2: return int(round(n * 2.0 / 3.0))
+	return n
+
+## Keeps the drawn trees in step with each visible tile's wood band, and reveals the props of land explored since the map was built.
 func _update_tree_density() -> void:
-	if vegetation_batcher == null or tree_tiles.is_empty():
+	if vegetation_batcher == null:
 		return
 	var tiles := w.width * w.height
-	if w.forest_fill.size() != tiles or w.visibility.size() != tiles:
+	if w.visibility.size() != tiles:
 		return
-	if w.forest_fill == tree_seen_fill and w.visibility == tree_seen_visibility:
+	var have_band := w.forest_overlay.size() == tiles
+	if veg_dirty.is_empty() and w.visibility == tree_seen_visibility and (not have_band or w.forest_overlay == tree_seen_band):
 		return
-	tree_seen_fill = w.forest_fill
 	tree_seen_visibility = w.visibility
-	var dirty := {}
+	tree_seen_band = w.forest_overlay
+	var dirty := veg_dirty
+	veg_dirty = {}
+	if not unseen_tiles.is_empty():
+		var still := PackedInt32Array()
+		for t in unseen_tiles:
+			if w.visibility[t] == 0:
+				still.append(t)
+				continue
+			for id in unseen_extra.get(t, PackedInt32Array()):
+				tree_hidden[id] = 0
+				dirty[int(tree_group[id])] = true
+			unseen_extra.erase(t)
+		unseen_tiles = still
 	for t in tree_tiles:
-		if w.visibility[t] != 2:
+		var vis := int(w.visibility[t])
+		if vis == 0:
+			continue   # still unknown: hidden
+		if vis == 1 and int(tree_applied[t]) != TREES_UNSEEN:
 			continue   # out of sight: keep what was last seen
-		var sixteenths := int(w.forest_fill[t])
-		if sixteenths == int(tree_applied[t]):
+		var band := TREES_FULL
+		if vis == 2 and have_band and w.forest_overlay[t] > 0:
+			band = int(w.forest_overlay[t]) - 1
+		if band == int(tree_applied[t]):
 			continue
-		tree_applied[t] = sixteenths
+		tree_applied[t] = band
 		var n := int(tree_count[t])
-		var shown := n if sixteenths >= 15 else int(round(n * sixteenths / 15.0))
+		var shown := _trees_shown(n, band)
 		var first := int(tree_first[t])
 		for i in n:
 			var hide := 1 if i >= shown else 0
@@ -756,6 +789,32 @@ func _update_tree_density() -> void:
 			buffer[o + 8] = 0.0; buffer[o + 9] = 0.0; buffer[o + 10] = 0.0
 		(node as MultiMeshInstance3D).multimesh.buffer = buffer
 
+## Records a prop placed with add_tracked so its MultiMesh slot can be hidden and shown later; returns its tracked id.
+func _veg_register(placed: Array, hidden: int) -> int:
+	var gkey: String = placed[0]
+	if not tree_group_ids.has(gkey):
+		tree_group_ids[gkey] = tree_group_keys.size()
+		tree_group_keys.append(gkey)
+		tree_group_members.append([])
+	var gid: int = tree_group_ids[gkey]
+	var tid := tree_group.size()
+	tree_group.append(gid)
+	tree_slot.append(int(placed[1]))
+	tree_hidden.append(hidden)
+	tree_group_members[gid].append(tid)
+	if hidden != 0:
+		veg_dirty[gid] = true
+	return tid
+
+## Adds a ground-cover or rock prop. On a tile unknown at build time it is tracked and hidden until the tile is first seen.
+func _vadd(mesh_name: String, xf: Transform3D, custom: Color, unseen: bool, t: int) -> void:
+	if not unseen:
+		props.add(mesh_name, xf, custom)
+		return
+	var ids: PackedInt32Array = unseen_extra.get(t, PackedInt32Array())
+	ids.append(_veg_register(props.add_tracked(mesh_name, xf, custom), 1))
+	unseen_extra[t] = ids
+
 func _vegetation() -> void:
 	tree_points.clear()
 	var tile_total := w.width * w.height
@@ -764,17 +823,20 @@ func _vegetation() -> void:
 	tree_tiles.clear()
 	tree_first.resize(tile_total); tree_first.fill(-1)
 	tree_count.resize(tile_total); tree_count.fill(0)
-	tree_applied.resize(tile_total); tree_applied.fill(15)
-	tree_seen_fill = PackedByteArray()
+	tree_applied.resize(tile_total); tree_applied.fill(TREES_FULL)
+	tree_seen_band = PackedByteArray()
 	tree_seen_visibility = PackedByteArray()
+	unseen_tiles.clear(); unseen_extra.clear(); veg_dirty.clear()
 	var B := M7WorldData.Biome
 	var count := 0
 	for t in w.width * w.height:
 		var b := int(w.biome[t])
 		if b <= B.COAST:
 			continue
-		if t < w.visibility.size() and w.visibility[t] == 0:
-			continue
+		var unseen := t < w.visibility.size() and w.visibility[t] == 0
+		if unseen:
+			unseen_tiles.append(t)
+			tree_applied[t] = TREES_UNSEEN
 		var res := int(w.reserved[t])
 		if res >= 2:
 			# settlement tile or farmed plot: only a few tufts at the rim
@@ -808,7 +870,7 @@ func _vegetation() -> void:
 				tree_kind = "mixed"
 				bushes = 1
 			B.OPEN_WOODLAND:
-				trees = 3 + int(hk * 2.0)
+				trees = 5 + int(hk * 3.0)
 				tree_kind = "broadleaf"
 				bushes = 2
 				tufts = 6
@@ -845,12 +907,12 @@ func _vegetation() -> void:
 				var off := Vector2(M7WorldData.hash01(xy.x, xy.y, 59) - 0.5, M7WorldData.hash01(xy.x, xy.y, 60) - 0.5) * 0.36
 				var mc := w.tile_center(t) + off
 				var xf := Transform3D(rot_y(hk * TAU).scaled(Vector3(s, s * sy, s)), Vector3(mc.x, h - 0.03, mc.y))
-				props.add("mountain%d" % mi, xf, Color(1, 1, 1, hk))
+				_vadd("mountain%d" % mi, xf, Color(1, 1, 1, hk), unseen, t)
 				if M7WorldData.hash01(xy.x, xy.y, 61) > 0.6:
 					# a smaller satellite peak breaks the one-peak-per-hex rhythm
 					var mc2 := w.tile_center(t) - off * 1.4
 					var s2 := s * 0.55
-					props.add("mountain%d" % ((mi + 1) % 6), Transform3D(rot_y(hk * 5.0).scaled(Vector3(s2, s2 * sy, s2)), Vector3(mc2.x, h - 0.03, mc2.y)), Color(1, 1, 1, hk))
+					_vadd("mountain%d" % ((mi + 1) % 6), Transform3D(rot_y(hk * 5.0).scaled(Vector3(s2, s2 * sy, s2)), Vector3(mc2.x, h - 0.03, mc2.y)), Color(1, 1, 1, hk), unseen, t)
 				rocks = 1
 				if b == B.MOUNTAIN and hk < 0.5:
 					trees = 2
@@ -894,17 +956,7 @@ func _vegetation() -> void:
 			var s := 0.8 + 0.45 * M7WorldData.hash01(xy.x, xy.y + i, 63)
 			var y := w.height_at(p)
 			var placed: Array = props.add_tracked(name, _xf(p, y, hv * TAU, s), _tint(M7WorldData.hash01(xy.x + i, xy.y, 64)))
-			var gkey: String = placed[0]
-			if not tree_group_ids.has(gkey):
-				tree_group_ids[gkey] = tree_group_keys.size()
-				tree_group_keys.append(gkey)
-				tree_group_members.append([])
-			var gid: int = tree_group_ids[gkey]
-			var tid := tree_group.size()
-			tree_group.append(gid)
-			tree_slot.append(int(placed[1]))
-			tree_hidden.append(0)
-			tree_group_members[gid].append(tid)
+			var tid := _veg_register(placed, 1 if unseen else 0)
 			if tree_first[t] < 0:
 				tree_first[t] = tid
 				tree_tiles.append(t)
@@ -918,7 +970,7 @@ func _vegetation() -> void:
 				continue
 			var hv := M7WorldData.hash01(xy.x * 5 + i, xy.y, 71)
 			var nm := "shrub" if (b == B.TUNDRA or b == B.DESERT or b == B.SAVANNA) and hv > 0.4 else "bush"
-			props.add(nm, _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.5 * hv), _tint(hv))
+			_vadd(nm, _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.5 * hv), _tint(hv), unseen, t)
 		for i in tufts:
 			var p := _rand_in_hex(t, k, 0.95)
 			k += 1
@@ -926,7 +978,7 @@ func _vegetation() -> void:
 			var nm := tuft_kind
 			if (b == B.SAVANNA or b == B.GRASSLAND or b == B.OPEN_WOODLAND) and hv > 0.45:
 				nm = "tallgrass0" if b == B.SAVANNA else "tallgrass1"
-			props.add(nm, _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.6 * hv), _tint(hv))
+			_vadd(nm, _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.6 * hv), _tint(hv), unseen, t)
 		# close-range detail grass (faded out beyond ~30 units)
 		var detail := 0
 		var dname := ""
@@ -948,12 +1000,12 @@ func _vegetation() -> void:
 			var cl := _grove(int(p.x * 3.0), int(p.y * 3.0))
 			if hv > 0.35 + 0.6 * cl:
 				continue
-			props.add(dname, _xf(p, w.height_at(p), hv * TAU, 0.6 + 0.7 * hv), _tint(hv))
+			_vadd(dname, _xf(p, w.height_at(p), hv * TAU, 0.6 + 0.7 * hv), _tint(hv), unseen, t)
 		for i in rocks:
 			var p := _rand_in_hex(t, k, 0.8)
 			k += 1
 			var hv := M7WorldData.hash01(xy.x * 9 + i, xy.y, 91)
-			props.add("rock%d" % int(hv * 3.0), _xf(p, w.height_at(p) - 0.01, hv * TAU, 0.7 + 0.8 * hv), Color(1, 1, 1, hv))
+			_vadd("rock%d" % int(hv * 3.0), _xf(p, w.height_at(p) - 0.01, hv * TAU, 0.7 + 0.8 * hv), Color(1, 1, 1, hv), unseen, t)
 		for i in reeds:
 			var p: Vector2
 			if river:
@@ -963,7 +1015,7 @@ func _vegetation() -> void:
 				p = _shore_point(t, k)
 			k += 1
 			var hv := M7WorldData.hash01(xy.x * 11 + i, xy.y, 95)
-			props.add("reeds", _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.4 * hv), _tint(hv))
+			_vadd("reeds", _xf(p, w.height_at(p), hv * TAU, 0.8 + 0.4 * hv), _tint(hv), unseen, t)
 	stats.trees = count
 
 ## Smooth value noise over tiles (0..1): groves and clearings.

@@ -35,6 +35,7 @@ const ROCK_HI := Color("#a39c90")
 const SNOW := Color("#eef3f7")
 
 var meshes := {}
+const FAR_TREE_SCALE := 1.7
 var far_tree_meshes := {}
 
 func _init() -> void:
@@ -169,6 +170,9 @@ func _make_far_tree(kind: String, variant: int) -> ArrayMesh:
 	# The far camera covers many more trees at once. Keep their silhouettes and colours,
 	# but use a single canopy form so the 80k vegetation instances stay inexpensive.
 	var b := _b(811 + variant * 17 + kind.length() * 31)
+	if kind != "orchard":
+		# At regional zoom a tile is a few dozen pixels wide: full-size trees read as grass flecks, so stands are drawn bolder
+		b.xf = Transform3D(Basis.from_scale(Vector3.ONE * FAR_TREE_SCALE), Vector3.ZERO)
 	match kind:
 		"conifer":
 			b.prism(Vector3.ZERO, 0.013, 0.008, 0.065, 4, BARK, BARK)
