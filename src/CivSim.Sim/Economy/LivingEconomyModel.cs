@@ -1481,6 +1481,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         _ => Fix64.One,
     };
 
+    private static Fix64 HidePerAnimal(HerdSpecies species) => species switch
+    {
+        HerdSpecies.Aurochs or HerdSpecies.Bison => Fix64.FromInt(3),
+        HerdSpecies.SmallGame => Fix64.Zero,
+        _ => Fix64.Parse("1.5"),
+    };
+
     private Fix64 HerdFoodGrowthPerYear(int tile, bool includeTransientEvents = true)
     {
         if (!_hasIndividualHerds) return _world.Tile(tile).HerdFoodGrowthPerYear;
@@ -2311,7 +2318,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 : Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2,
                     SustainableHuntLimit(settlement));
             huntedUnits = huntedYield;
-            if (!_hasIndividualHerds) AddAggregateHuntByproducts(settlement, huntedYield);
+            if (!_hasIndividualHerds) AddAggregateHuntByproducts(settlement, huntedYield, FiefChain);
         }
         else if (huntWork > Fix64.Zero)
             Harvest(settlement, EconomyJob.Hunt, productiveHuntWork, rate, Good.Meat, _herdFoodStock, 2, Fix64.Zero);
@@ -2705,9 +2712,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         Fix64 maintenanceShare = maintenanceNeed <= Fix64.Zero ? Fix64.Zero : maintenanceWork / maintenanceNeed;
         Fix64 herdYield = FiefHerdYield(settlement);
         settlement.Stores[(int)Good.Meat] += settlement.DomesticSmallStock * Fix64.Parse("0.8") / 4 * maintenanceShare * herdYield;
-        settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.3") / 4 * maintenanceShare;
+        Fix64 fiefHideYield = FiefChain ? Fix64.FromRatio(3, 2) : Fix64.One;
+        settlement.Stores[(int)Good.Hide] += settlement.DomesticSmallStock * Fix64.Parse("0.3") / 4 * maintenanceShare * fiefHideYield;
         settlement.Stores[(int)Good.Meat] += settlement.DomesticCattle * Fix64.Parse("2.5") / 4 * maintenanceShare * herdYield;
-        settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.45") / 4 * maintenanceShare;
+        settlement.Stores[(int)Good.Hide] += settlement.DomesticCattle * Fix64.Parse("0.45") / 4 * maintenanceShare * fiefHideYield;
         settlement.Stores[(int)Good.Meat] += settlement.DomesticPigs * Fix64.Parse("1.2") / 4 * maintenanceShare * herdYield;
         if (settlement.Civic is not null) Milk(settlement, DomesticAnnualMeat(settlement) / 4 * maintenanceShare);
         // No separate waste inventory exists. Approximate pig waste as stored-food consumption.
@@ -2856,9 +2864,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         return harvested;
     }
 
-    private static void AddAggregateHuntByproducts(SettlementState settlement, Fix64 meatYield)
+    private static void AddAggregateHuntByproducts(SettlementState settlement, Fix64 meatYield, bool fiefChain)
     {
-        settlement.Stores[(int)Good.Hide] += meatYield * Fix64.Parse("0.075");
+        Fix64 hideYield = fiefChain ? Fix64.FromRatio(3, 2) : Fix64.One;
+        settlement.Stores[(int)Good.Hide] += meatYield * Fix64.Parse("0.075") * hideYield;
         settlement.Stores[(int)Good.Bone] += meatYield * Fix64.Parse("0.03");
     }
 
@@ -2892,8 +2901,13 @@ public sealed partial class LivingEconomyModel : ISimModel
             herd.Fear = Fix64.Min(Fix64.FromInt(4), herd.Fear + fearGain);
             DisplaceHerdIfAfraid(herd, drive, season, settlement);
             settlement.Stores[(int)Good.Meat] += take;
-            // Yield convention: hides for animals other than small game, plus 0.3 bone/antler per kill.
-            if (herd.Species != HerdSpecies.SmallGame) settlement.Stores[(int)Good.Hide] += kills * Fix64.Parse("1.5");
+            // Large bovids yield three hides, other game 1.5; Fief improves usable hide recovery by 50%.
+            if (herd.Species != HerdSpecies.SmallGame)
+            {
+                Fix64 hideYield = HidePerAnimal(herd.Species);
+                if (FiefChain) hideYield *= Fix64.FromRatio(3, 2);
+                settlement.Stores[(int)Good.Hide] += kills * hideYield;
+            }
             settlement.Stores[(int)Good.Bone] += kills * Fix64.Parse("0.3");
             remainingWork -= take / herdRate;
             if (enforceSustainableLimit) remainingSustainableHarvest -= take;

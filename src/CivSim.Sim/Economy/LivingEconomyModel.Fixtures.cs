@@ -1007,7 +1007,7 @@ public sealed partial class LivingEconomyModel
     }
 
     internal void FixtureApplyAggregateHuntByproducts(int settlementIndex, Fix64 meatYield)
-        => AddAggregateHuntByproducts(_settlements[settlementIndex], meatYield);
+        => AddAggregateHuntByproducts(_settlements[settlementIndex], meatYield, FiefChain);
 
     internal bool FixtureCanTameFromRange(int settlementIndex) => CanTameFromRange(_settlements[settlementIndex]);
 

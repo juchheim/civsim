@@ -532,6 +532,10 @@ public sealed partial class LivingEconomyModel
         if (rate > Fix64.Zero && FiefChain && Done(civ, "MIN-08") && _ore[tile] > Fix64.Zero &&
             d.Kind != DepositKind.None && IsOwnTile(civ, tile))
             rate *= Fix64.FromRatio(5, 4);
+        // Increase flow from the existing strategic deposits; the larger finite reserve and catchment provide no new nodes.
+        if (rate > Fix64.Zero && FiefChain && (d.Kind is DepositKind.Tin or DepositKind.CopperOre or DepositKind.ArsenicalCopper or
+            DepositKind.Iron or DepositKind.Saltpeter or DepositKind.Sulfur))
+            rate *= Fix64.FromRatio(3, 2);
         return rate;
     }
 
@@ -557,7 +561,10 @@ public sealed partial class LivingEconomyModel
         => TileOwnership is { } ownership && ownership.OwnerOf(tile) is int owner && owner >= 0 && owner != civ;
 
     private int ShareReach(int civ)
-        => Done(civ, "GOV-04") ? _bronzeConstants.ShareReachGov04 : Done(civ, "SOC-07") ? _bronzeConstants.ShareReach : -1;
+    {
+        int reach = Done(civ, "GOV-04") ? _bronzeConstants.ShareReachGov04 : Done(civ, "SOC-07") ? _bronzeConstants.ShareReach : -1;
+        return reach >= 0 && FiefChain ? reach + 4 : reach;
+    }
 
     /// <summary>
     /// Season start (before any settlement works): Bronze state for every settlement of a civilization past KEY-3, mining
@@ -1042,6 +1049,9 @@ public sealed partial class LivingEconomyModel
         PrimaryWants(s, m, plan, pop, needKits);
         var primaryTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
         SecondaryWants(s, m, plan, pop);
+        // Exports are secondary to equipping the supplier's own people. They still use residual chain capacity and are
+        // delivered through the ordinary military-input sharing pass after this season's local arms are made.
+        AddSisterMilitaryIntermediateProductionWants(s, plan);
         var fullTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
         Fix64 ironFuelDemandScale = IronFuelTerminalDemandScale(s, plan, fullTerminalUnscaled);
         Fix64[] primaryTerminal = ScaleIronFuelTerminalDemand(primaryTerminalUnscaled, ironFuelDemandScale);
@@ -1079,6 +1089,10 @@ public sealed partial class LivingEconomyModel
         // The mathematically equivalent absolute cap can round differently and shift discrete kit transfers.
         if (IronChain && Done(civ, "MET-09"))
             cap *= _bronzeConstants.IronPostRouteChainCap / _bronzeConstants.ChainCap;
+        // Fief's arms chain needs more ore and intermediate throughput than the earlier tool-only calibration.
+        // Give it a 50% margin when food security is stable; retain the food-stress throttle below.
+        if (FiefChain && s.FoodSecurity >= Fix64.FromRatio(8, 10))
+            cap *= Fix64.FromRatio(3, 2);
         // A local Iron hub that is below the 70% usable-holder floor gets a production margin until the next season's
         // coverage recovers. The 20% margin closes short route windows where the ordinary push cap leaves a few workers
         // unequipped; it expires as soon as the floor is met. Compact steel batches keep their existing 10% margin.
@@ -3058,6 +3072,9 @@ public sealed partial class LivingEconomyModel
         int reach = Done(civ, "TRN-05") ? _bronzeConstants.MineReachCarts : _bronzeConstants.MineReach;
         WorldEconomyTile t = _world.Tile(site);
         if (Done(civ, "SEA-05") && (t.River || t.Coast || t.Lake)) reach = Math.Max(reach, _bronzeConstants.MineReachWater);
+        // Fief's larger metal demand justifies a wider catchment for existing deposits. This changes access only;
+        // reserves remain finite and no resource nodes are added.
+        if (FiefChain) reach += 4;
         return reach;
     }
 

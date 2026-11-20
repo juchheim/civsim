@@ -320,8 +320,10 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>Candidate finite reserves: six times each existing deposit quantity in the docs/MVP/22 §5.1 mapping.</summary>
-    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false) => d.Kind switch
+    private static Fix64 OreLitres(WorldDeposit d, bool includeFiefResources = false)
     {
+        Fix64 mapped = d.Kind switch
+        {
         DepositKind.Tin => Fix64.FromInt(d.Tier switch { 3 => 3600, 2 => 900, _ => 600 }),
         DepositKind.CopperOre => Fix64.FromInt(d.Depth >= 2 ? 5400 : 1800),
         DepositKind.ArsenicalCopper => Fix64.FromInt(4800),
@@ -332,7 +334,13 @@ public sealed partial class LivingEconomyModel
         DepositKind.Saltpeter when includeFiefResources => Fix64.FromInt(900),
         DepositKind.Sulfur when includeFiefResources => Fix64.FromInt(600),
         _ => Fix64.Zero,
-    };
+        };
+        bool strategicFiefMineral = d.Kind is DepositKind.Tin or DepositKind.CopperOre or DepositKind.ArsenicalCopper or
+            DepositKind.Iron or DepositKind.Saltpeter or DepositKind.Sulfur;
+        // Fief's long horizon was exhausting the same metal deposits needed by several weapon tiers.
+        // Expand reserves on existing deposits only; do not add or relocate nodes.
+        return includeFiefResources && strategicFiefMineral ? mapped * Fix64.FromInt(3) : mapped;
+    }
 
     private void RefreshBronzeActive()
     {

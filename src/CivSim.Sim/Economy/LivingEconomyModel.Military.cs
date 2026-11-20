@@ -13,7 +13,14 @@ public sealed partial class LivingEconomyModel
         "G-CROSSBOW", "G-LONGBOW", "G-BOW", "G-CHARIOT", "G-ENGINE",
     };
 
-    private const int MilitaryInputBufferBatches = 3;
+    private const int MilitaryInputBufferBatches = 5;
+    private const int SisterIntermediateSupportBatches = 2;
+
+    // The nearest settlement that can make each strategic intermediate for a receiver this season.
+    // 0 = arsenical bronze, 1 = crucible steel. This is derived from the current season's structures,
+    // research and deposits, so it is deliberately not part of snapshots or simulation state.
+    private int _intermediateSupplierCacheSeason = int.MinValue;
+    private int[,] _intermediateSupplierCache = new int[0, 0];
 
     private sealed class MilitaryInputDemand
     {
@@ -206,6 +213,128 @@ public sealed partial class LivingEconomyModel
         }
 
         return demands;
+    }
+
+    /// <summary>
+    /// Put a small, explicit production order for scarce weapon intermediates at the nearest capable sister forge.
+    /// Existing input sharing then delivers the actual output after this season's crafts. Without this target, a forge
+    /// only makes enough intermediate for its own local weapon queue, so sharing can move surplus but cannot create it.
+    /// </summary>
+    private void AddSisterMilitaryIntermediateProductionWants(SettlementState supplier, MetalPlan plan)
+    {
+        if (!FiefChain || !IronSharingEnabled || SisterIntermediateSupportBatches <= 0) return;
+        EnsureIntermediateSupplierCache();
+
+        int civ = supplier.Civilization;
+        for (int receiverIndex = 0; receiverIndex < _settlements.Count; receiverIndex++)
+        {
+            if (_settlements[receiverIndex] == supplier) continue;
+            SettlementState receiver = _settlements[receiverIndex];
+            if (receiver.Civilization != civ || receiver.Metal is not { Forges: > 0 } || IsFreeFolk(receiver) ||
+                Population(receiver.Id) <= 0 || _intermediateSupplierCache[receiver.Id, 0] != supplier.Id &&
+                _intermediateSupplierCache[receiver.Id, 1] != supplier.Id) continue;
+
+            AddSupportWant(receiver, supplier, plan, kind: 0, MetalSlot(MetalGood.ArsenicalBronze),
+                Fix64.FromRatio(315, 1000));
+            AddSupportWant(receiver, supplier, plan, kind: 1, FiefSlot(FiefGood.CrucibleSteel),
+                Fix64.FromRatio(21, 100));
+        }
+
+        void AddSupportWant(SettlementState receiver, SettlementState producer, MetalPlan targetPlan,
+            int kind, int inputSlot, Fix64 inputPerWeaponBatch)
+        {
+            if (_intermediateSupplierCache[receiver.Id, kind] != producer.Id) return;
+            Fix64 demand = Fix64.Zero;
+            foreach (MilitaryInputDemand inputDemand in MilitaryProductionInputDemands(receiver))
+                if (Array.IndexOf(inputDemand.Slots, inputSlot) >= 0) demand += inputDemand.Quantity;
+            // The weapon buffer above misses arsenical bronze planned for castable T9 kits and general
+            // intermediate stock. Reuse the metal planner's existing shared-good target so a sister
+            // smelter can make bronze for those real queued wants too.
+            if (kind == 0 && receiver.Metal is { } receiverMetal)
+            {
+                int arsenicalIndex = Array.IndexOf(SharedGoods, MetalGood.ArsenicalBronze);
+                if (arsenicalIndex >= 0)
+                    demand = Fix64.Max(demand, receiverMetal.ShareWant[arsenicalIndex]);
+            }
+            Fix64 uncovered = Fix64.Max(Fix64.Zero, demand - Stock(receiver, inputSlot));
+            Fix64 support = Fix64.Min(uncovered, inputPerWeaponBatch * SisterIntermediateSupportBatches);
+            if (support <= Epsilon) return;
+
+            targetPlan.Terminal[inputSlot] += support;
+            targetPlan.SisterTerminal[inputSlot] += support;
+        }
+    }
+
+    private void EnsureIntermediateSupplierCache()
+    {
+        int season = checked((int)_seasonsCompleted);
+        if (_intermediateSupplierCacheSeason == season && _intermediateSupplierCache.GetLength(0) == _settlements.Count)
+            return;
+
+        _intermediateSupplierCache = new int[_settlements.Count, 2];
+        for (int receiver = 0; receiver < _settlements.Count; receiver++)
+            for (int kind = 0; kind < 2; kind++) _intermediateSupplierCache[receiver, kind] = -1;
+        for (int receiverIndex = 0; receiverIndex < _settlements.Count; receiverIndex++)
+        {
+            SettlementState receiver = _settlements[receiverIndex];
+            int reach = ShareReach(receiver.Civilization);
+            if (reach < 0 || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) <= 0) continue;
+
+            for (int kind = 0; kind < 2; kind++)
+            {
+                int bestId = -1;
+                int bestScore = 0;
+                int bestDistance = int.MaxValue;
+                for (int supplierIndex = 0; supplierIndex < _settlements.Count; supplierIndex++)
+                {
+                    SettlementState supplier = _settlements[supplierIndex];
+                    if (supplier.Civilization != receiver.Civilization || supplier.Metal is not { Forges: > 0 } ||
+                        supplier.Id == receiver.Id || IsFreeFolk(supplier) || Population(supplier.Id) <= 0 ||
+                        !CanSupplyMilitaryIntermediate(supplier, kind)) continue;
+                    int distance = HexGrid.Distance(supplier.SiteTile, receiver.SiteTile, _world.Width);
+                    int score = MilitaryIntermediateSupplyScore(supplier, kind);
+                    if (distance > reach || score < bestScore || score == bestScore &&
+                        (distance > bestDistance || distance == bestDistance && supplier.Id >= bestId)) continue;
+                    bestId = supplier.Id;
+                    bestScore = score;
+                    bestDistance = distance;
+                }
+                _intermediateSupplierCache[receiver.Id, kind] = bestId;
+            }
+        }
+        _intermediateSupplierCacheSeason = season;
+    }
+
+    private bool CanSupplyMilitaryIntermediate(SettlementState supplier, int kind)
+    {
+        string goodId = kind == 0 ? "G-ABRONZE" : "G-CSTEEL";
+        CompiledRecipe? recipe = ProducerOf(SlotOf(goodId));
+        if (recipe is null || !RecipeAvailable(supplier, recipe) || supplier.Metal is not { } metal) return false;
+
+        if (kind == 0)
+            return metal.Goods[(int)MetalGood.ArsenicalBronze] > Fix64.Zero ||
+                metal.Goods[(int)MetalGood.ArsenicalOre] > Fix64.Zero || CanObtainOre(supplier, MetalGood.ArsenicalOre);
+
+        return Stock(supplier, FiefSlot(FiefGood.CrucibleSteel)) > Fix64.Zero ||
+            IronStock(supplier, IronGood.Steel) > Fix64.Zero || IronStock(supplier, IronGood.Wrought) > Fix64.Zero ||
+            metal.Goods[(int)MetalGood.Iron] > Fix64.Zero || metal.Goods[(int)MetalGood.IronOre] > Fix64.Zero ||
+            CanDig(supplier, MetalGood.IronOre) || (metal.Access & AccessIron) != 0;
+    }
+
+    private int MilitaryIntermediateSupplyScore(SettlementState supplier, int kind)
+    {
+        MetalState metal = supplier.Metal!;
+        if (kind == 0)
+        {
+            if (metal.Goods[(int)MetalGood.ArsenicalBronze] >= Fix64.FromRatio(3, 10)) return 4;
+            if (metal.Goods[(int)MetalGood.ArsenicalOre] >= Fix64.FromRatio(3, 5)) return 3;
+            return CanDig(supplier, MetalGood.ArsenicalOre) ? 2 : 1;
+        }
+
+        if (Stock(supplier, FiefSlot(FiefGood.CrucibleSteel)) >= Fix64.FromRatio(1, 5)) return 5;
+        if (IronStock(supplier, IronGood.Steel) >= Fix64.FromRatio(2, 5)) return 4;
+        if (IronStock(supplier, IronGood.Wrought) >= Fix64.FromRatio(2, 5) || metal.Goods[(int)MetalGood.Iron] >= Fix64.FromRatio(1, 2)) return 3;
+        return CanDig(supplier, MetalGood.IronOre) || (metal.Access & AccessIron) != 0 ? 2 : 1;
     }
 
     private void AccumulateMilitaryInputReserve(SettlementState settlement, List<MilitaryInputDemand> demands, Fix64[] reserve)
