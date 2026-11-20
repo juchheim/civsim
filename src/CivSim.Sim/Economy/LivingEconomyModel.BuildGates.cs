@@ -45,6 +45,8 @@ public enum BuildWhy : byte
     HousingEnough, PlannerOnlyOne, WaterNotLimiting, CraneNoLargeWork, FlatFieldsRemain, CloseToCapital,
     // Faith & Fief (appended).
     MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle, MillCoverageMet, PowderNotNeeded, NeedsMasterMason,
+    // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
+    NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -71,6 +73,8 @@ public enum SupplyKind : byte
     NoSource,
     /// <summary>Only a trade (compact) or a different town can bring it.</summary>
     NeedsOutside,
+    /// <summary>Stone can be quarried in the Arsenal site's connected settlement network.</summary>
+    Networked,
 }
 
 public readonly record struct GoodSupply(SupplyKind Kind, string? Project = null, int Reach = 0);
@@ -258,12 +262,8 @@ public sealed partial class LivingEconomyModel
                 if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
                 return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
             case IronStructure.PowderMill:
-                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
-                if (!(gate = Built()).Open) return gate;
-                if (!(gate = Town()).Open) return gate;
-                if (!Done(civ, "CHM-07")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "CHM-07");
-                if (includeAppetite && !Done(civ, "WAR-12")) return Stop(BuildCause.NotNeeded, BuildWhy.PowderNotNeeded);
-                return BuildGate.Pass;
+                // Retired: gunpowder is milled at the Arsenal (docs/MVP/37). The entry keeps its number so saved games and hashes stay valid.
+                return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
             case IronStructure.PrintShop:
                 if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
                 if (!(gate = Built()).Open) return gate;
@@ -321,6 +321,21 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Size(80)).Open) return gate;
                 if (!HasMill(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsMill);
                 return s.Metal is { Forges: > 0, Smelters: > 0 } ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsForge);
+            case IronStructure.Arsenal:
+                // The player may choose any Town with a forge. Supply geography affects readiness, while the planner may prefer one site (docs/MVP/37).
+                if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!(gate = Size(_civic.TownMinPop)).Open) return gate;
+                if (!Done(civ, "WAR-12")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "WAR-12");
+                if (s.Metal is not { Forges: > 0 }) return Stop(BuildCause.Requires, BuildWhy.NeedsForge);
+                if (s.Metal?.IronBuildKind != (int)IronStructure.Arsenal && !ArsenalConstructionStoneCanFinish(s))
+                    return Stop(BuildCause.Materials, BuildWhy.ArsenalStoneSupply);
+                if (CivWorksCount(civ, IronStructure.Arsenal) >= 1) return Stop(BuildCause.Taken, BuildWhy.OnePerCivilization);
+                if (ArsenalInProgressElsewhere(civ, s.Id)) return Stop(BuildCause.Taken, BuildWhy.ArsenalInProgressElsewhere);
+                if (includeAppetite && !ArsenalWantedFor(civ)) return Stop(BuildCause.NotNeeded, BuildWhy.PowderNotNeeded);
+                if (includeAppetite && !IsPreferredArsenalSite(s)) return Stop(BuildCause.NotNeeded, BuildWhy.ArsenalPreferredElsewhere);
+                return BuildGate.Pass;
             case IronStructure.Colonnade:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
@@ -342,6 +357,15 @@ public sealed partial class LivingEconomyModel
             default:
                 return Built();
         }
+    }
+
+    /// <summary>Another town has reserved the civilization's single Arsenal while construction is underway.</summary>
+    private bool ArsenalInProgressElsewhere(int civ, int settlement)
+    {
+        foreach (SettlementState other in _settlements)
+            if (other.Id != settlement && other.Civilization == civ && other.Metal?.IronBuildKind == (int)IronStructure.Arsenal)
+                return true;
+        return false;
     }
 
     // ---- civic buildings ---------------------------------------------------------------------------------
@@ -429,10 +453,14 @@ public sealed partial class LivingEconomyModel
             {
                 case MetalGood.Block:
                     if (!Done(civ, "MIN-03")) return new GoodSupply(SupplyKind.NeedsProject, "MIN-03");
+                    if (ArsenalStoneNetworkApplies(s))
+                        return ArsenalConstructionStoneCanFinish(s) ? new GoodSupply(SupplyKind.Networked) : new GoodSupply(SupplyKind.NoSource, null, 0);
                     return ReachStone(s) > Fix64.Zero ? new GoodSupply(SupplyKind.Flowing) : new GoodSupply(SupplyKind.NoSource, null, 8);
                 case MetalGood.Ashlar:
                     if (!Done(civ, "MIN-03")) return new GoodSupply(SupplyKind.NeedsProject, "MIN-03");
                     if (!Done(civ, "STN-11")) return new GoodSupply(SupplyKind.NeedsProject, "STN-11");
+                    if (ArsenalStoneNetworkApplies(s))
+                        return ArsenalConstructionStoneCanFinish(s) ? new GoodSupply(SupplyKind.Networked) : new GoodSupply(SupplyKind.NoSource, null, 0);
                     return ReachStone(s) > Fix64.Zero || (s.Metal?.Goods[(int)MetalGood.Block] ?? Fix64.Zero) > Fix64.Zero
                         ? new GoodSupply(SupplyKind.Flowing) : new GoodSupply(SupplyKind.NoSource, null, 8);
                 case MetalGood.Iron:
@@ -477,4 +505,7 @@ public sealed partial class LivingEconomyModel
             if (_stoneStock[tile] > Fix64.Zero && !IsRivalTile(s.Civilization, tile)) total += _stoneStock[tile];
         return total;
     }
+
+    private bool ArsenalStoneNetworkApplies(SettlementState s)
+        => FiefChain && (s.Metal?.IronBuildKind == (int)IronStructure.Arsenal || ArsenalRecommendedSiteFor(s.Civilization) == s.Id);
 }

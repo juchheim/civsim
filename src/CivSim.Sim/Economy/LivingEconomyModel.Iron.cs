@@ -1381,6 +1381,9 @@ public sealed partial class LivingEconomyModel
     /// <summary>The E5-only structure slots belong to Fief snapshots, leaving the Iron snapshot layout unchanged.</summary>
     private const int IronStructuresBeforeFief = (int)IronStructure.Windmill;
 
+    /// <summary>Test hook: write the Iron section with this many structure kinds, as a snapshot from before the Arsenal did (Fief version 47 and older).</summary>
+    internal int? FixtureLegacyIronStructureCount { get; set; }
+
     private int SnapshotIronStructureCount => FiefChain ? (int)IronStructure.Count : IronStructuresBeforeFief;
 
     private static void HashLaterIronKinds(ref StateHasher hash, int[]? works, int kindCount)
@@ -1422,7 +1425,7 @@ public sealed partial class LivingEconomyModel
     private void WriteIron(BinaryWriter writer)
     {
         if (!IronChain) return;
-        int structureCount = SnapshotIronStructureCount;
+        int structureCount = FixtureLegacyIronStructureCount ?? SnapshotIronStructureCount;
         writer.Write(IronSnapshotMagic);
         int count = 0;
         for (int i = 0; i < _settlements.Count; i++) if (_settlements[i].Metal is { } m && HasIronState(m)) count++;
@@ -1454,7 +1457,8 @@ public sealed partial class LivingEconomyModel
     private void ReadIron(BinaryReader reader)
     {
         if (!IronChain) return;
-        int structureCount = SnapshotIronStructureCount;
+        // Snapshots written before the Arsenal (Fief version 47 and older) hold one structure kind fewer.
+        int structureCount = FiefChain && FiefSnapshotVersionForRestore < 48 ? (int)IronStructure.Arsenal : SnapshotIronStructureCount;
         if (reader.ReadUInt32() != IronSnapshotMagic) throw new InvalidDataException("The snapshot has no Iron-chapter economy section.");
         int count = reader.ReadInt32();
         if (count < 0 || count > _settlements.Count) throw new InvalidDataException("Invalid Iron-chapter settlement count.");
@@ -2544,6 +2548,8 @@ public sealed partial class LivingEconomyModel
         WaterMill, Colonnade,
         // Faith & Fief (docs/MVP/27 §5.1, §5.2; M12 WP-E5-5): built only in a Fief match, appended after the Iron structures and hashed only while non-zero.
         Windmill, Sawmill, BlastFurnace, Monastery, University, Hospital, ConcentricCastle, PowderMill, PrintShop, ClockTower, GothicCathedral, CathedralSchool,
+        // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
+        Arsenal,
         Count
     }
 
@@ -2603,6 +2609,8 @@ public sealed partial class LivingEconomyModel
         new("gothic_cathedral", "BLD-12", 120, 0, 40, 20, 0, Large: true, Stone: true, Glass: 4),
         // LRN-07 cathedral school: draft fit hypothesis matched to the monastery's construction scale.
         new("cathedral_school", "LRN-07", 30, 12, 0, 6, 0, Stone: true),
+        // Arsenal (docs/MVP/37-arsenal.md): provisional cost, above a castle and below a wonder.
+        new("arsenal", "WAR-12", 100, 12, 24, 12, 4, Large: true, Stone: true),
     };
 
     /// <summary>
@@ -2668,6 +2676,7 @@ public sealed partial class LivingEconomyModel
             IronStructure.WindlassWell => IronWorksCount(s, kind) < 2,
             IronStructure.Gatehouse => IronWorksCount(s, kind) == 0 && HasStoneWalls(s),
             IronStructure.FrontierWall => IronWorksCount(s, kind) < 2 && NextFrontierFacing(s) >= 0,
+            IronStructure.Arsenal => IronWorksCount(s, kind) == 0 && ArsenalConstructionStoneCanFinish(s),
             IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
             _ => IronWorksCount(s, kind) == 0,
         };
@@ -2682,7 +2691,9 @@ public sealed partial class LivingEconomyModel
         int civ = s.Civilization;
         if (m.IronBuildKind >= 0 && (!Done(civ, IronSpecs[m.IronBuildKind].Unlock) || !IronBuildFeasible(s, (IronStructure)m.IronBuildKind)))
         {
-            m.IronBuildKind = -1; // nothing is paid before completion, so there is nothing to refund (labor already spent is lost)
+            if (m.IronBuildKind == (int)IronStructure.Arsenal && m.IronBuildProgress > Fix64.Zero)
+                (m.IronShelf ??= new Fix64[(int)IronStructure.Count])[m.IronBuildKind] = m.IronBuildProgress;
+            m.IronBuildKind = -1; // nothing is paid before completion; Arsenal labor stays shelved if its stone network disappears.
             m.IronBuildProgress = Fix64.Zero;
         }
         // A player's build focus (docs/MVP/30): "build this next" takes the slot (the labor already put into the one it replaces is shelved and comes back when that
@@ -2793,6 +2804,9 @@ public sealed partial class LivingEconomyModel
     /// <summary>The first wanted structure kind in enum order (not <paramref name="skip"/>); kinds shelved fully worked and waiting on materials come last unless <paramref name="passShelved"/>.</summary>
     private int NextWantedIronKind(SettlementState s, MetalState m, int civ, int skip, bool passShelved)
     {
+        int arsenal = (int)IronStructure.Arsenal;
+        if (arsenal != skip && ArsenalConquestPriorityFor(civ) && IronKindOpen(s, m, civ, arsenal, passShelved)) return arsenal;
+
         CivilizationDirection direction = Guidance?.DirectionOf(civ) ?? CivilizationDirection.Balanced;
         if (direction != CivilizationDirection.Balanced)
         {
@@ -2835,7 +2849,7 @@ public sealed partial class LivingEconomyModel
         return IronBuildWanted(s, IronStructure.Windmill) && !BuildFocusSkips(s, BuildTrack.Iron, kind) ? kind : -1;
     }
 
-    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle, IronStructure.ConcentricCastle };
+    private static readonly IronStructure[] DefenseFirst = { IronStructure.Gatehouse, IronStructure.FrontierWall, IronStructure.Crane, IronStructure.Castle, IronStructure.ConcentricCastle, IronStructure.Arsenal };
 
     private bool IronKindOpen(SettlementState s, MetalState m, int civ, int k, bool passShelved)
     {
@@ -2892,6 +2906,8 @@ public sealed partial class LivingEconomyModel
             Fix64 got = TakeRangeStone(s, wanted);
             // The ground within three tiles is spent by the time Iron works are wanted (docs/MVP/28 §9): quarry on from the wider reach civic buildings and walls use.
             if (got < wanted) got += TakeReachStone(s, wanted - got);
+            if (got < wanted && (IronStructure)m.IronBuildKind == IronStructure.Arsenal)
+                got += TakeArsenalNetworkStone(s.Id, wanted - got);
             m.Goods[(int)MetalGood.Block] += got;
             used += got / rate;
         }

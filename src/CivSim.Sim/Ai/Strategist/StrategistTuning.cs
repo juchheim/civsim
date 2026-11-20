@@ -211,6 +211,8 @@ public static class StrategistTuning
     /// <summary>Relief from the defender's settlements within 8 tiles counts at this share (they bring 60% of their fighters).</summary>
     public static readonly Fix64 ReliefShare = Fix64.FromRatio(60, 100);
     public const int ReliefRange = 8;
+    /// <summary>Relief range for a walled target in a Fief match (docs/MVP/37 §7): a relief force must be this close to matter.</summary>
+    public const int FiefReliefRange = 4;
     /// <summary>The field army is drawn from settlements within this many tiles of the origin.</summary>
     public const int ArmyGatherRange = PoliticsSystem.CampaignGatherRange;
     /// <summary>Peace: when the force ratio falls below one, or own adults fall by this share since the war began (14 §6.3).</summary>

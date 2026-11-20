@@ -18,6 +18,7 @@ public sealed partial class FrameBuilder
     private static readonly int UniversityKind = IronWorkIndex("university");
     private static readonly int HospitalKind = IronWorkIndex("hospital");
     private static readonly int ConcentricCastleKind = IronWorkIndex("concentric_castle");
+    private static readonly int ArsenalKind = IronWorkIndex("arsenal");
 
     private void FillFief(MatchModel match, MatchFrame target)
     {
@@ -42,6 +43,7 @@ public sealed partial class FrameBuilder
         System.Array.Clear(f.IllPatients, 0, n); System.Array.Clear(f.WoundedPatients, 0, n); System.Array.Clear(f.TreatedPatients, 0, n);
         System.Array.Clear(f.Scholars, 0, n); System.Array.Clear(f.HospitalStaffed, 0, n); System.Array.Clear(f.ScholarInsightHeads, 0, n); System.Array.Clear(f.Key6Permille, 0, n);
         System.Array.Clear(f.BuildGuidance, 0, n);
+        System.Array.Clear(f.ArsenalStocked, 0, n);
         if (!f.Active) return;
 
         for (int w = 0; w < n; w++)
@@ -53,6 +55,8 @@ public sealed partial class FrameBuilder
             f.Monks[w] = (byte)System.Math.Min(255, eco.MonksAt(settlement));
             f.Monasteries[w] = (byte)System.Math.Min(255, eco.IronWorkAt(settlement, MonasteryKind));
             f.Universities[w] = (byte)System.Math.Min(255, eco.IronWorkAt(settlement, UniversityKind));
+            if (ArsenalKind >= 0 && eco.IronWorkAt(settlement, ArsenalKind) > 0)
+                f.ArsenalStocked[w] = (byte)(eco.FiefStock(settlement, "G-CANNON") > Fix64.Zero || eco.FiefStock(settlement, "G-POWDER") > Fix64.Zero ? 1 : 0);
             f.Hospitals[w] = (byte)System.Math.Min(255, eco.IronWorkAt(settlement, HospitalKind));
             f.ConcentricCastle[w] = (byte)(eco.ConcentricCastleBuilt(settlement) ? 1 : 0);
             var care = eco.FiefCareAndScholarCounts(settlement);

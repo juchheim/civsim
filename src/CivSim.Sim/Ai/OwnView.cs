@@ -195,7 +195,7 @@ internal static class OwnViewBuilder
                 LastRaidObservedSeason = politics.LastRaidObservedSeasonOf(s),
                 LastRaidObservedAttackers = politics.LastRaidObservedAttackersOf(s),
                 LastRaidObservedByCiv = politics.LastRaidObservedByCivOf(s),
-                CannonStock = economy.FiefStock(s, "G-CANNON"), PowderStock = economy.FiefStock(s, "G-POWDER"),
+                CannonStock = economy.FiefTrainStockAt(s).Cannons, PowderStock = economy.FiefTrainStockAt(s).Powder,
             };
             ownSettlement.Defenders.AddRange(politics.OwnDefendersOf(civ, s));
             view.Settlements.Add(ownSettlement);

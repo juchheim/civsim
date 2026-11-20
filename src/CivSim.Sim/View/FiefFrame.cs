@@ -16,6 +16,8 @@ public sealed class FiefFrame
     public long[] ScholarInsightHeads = Array.Empty<long>();
     public short[] Key6Permille = Array.Empty<short>();
     public string[] BuildGuidance = Array.Empty<string>();
+    /// <summary>1 while the town's Arsenal holds cannons or powder (it works), else 0; the renderer draws it lit or dark (docs/MVP/32 §4.13).</summary>
+    public byte[] ArsenalStocked = Array.Empty<byte>();
     /// <summary>Own Fief towns' monk count and counts of monastery, university and hospital buildings, plus concentric-castle presence.</summary>
     public byte[] Monks = Array.Empty<byte>(), Monasteries = Array.Empty<byte>(), Universities = Array.Empty<byte>(), Hospitals = Array.Empty<byte>(), ConcentricCastle = Array.Empty<byte>();
 
@@ -28,6 +30,7 @@ public sealed class FiefFrame
         GrindingDemand = new long[size]; GrindingUsed = new long[size]; SawingDemand = new long[size]; SawingUsed = new long[size]; CraftDemand = new long[size]; CraftUsed = new long[size];
         Physicians = new byte[size]; Attendants = new byte[size]; IllPatients = new byte[size]; WoundedPatients = new byte[size]; TreatedPatients = new byte[size]; Scholars = new byte[size]; HospitalStaffed = new byte[size];
         ScholarInsightHeads = new long[size]; Key6Permille = new short[size]; BuildGuidance = new string[size];
+        ArsenalStocked = new byte[size];
         Monks = new byte[size]; Monasteries = new byte[size]; Universities = new byte[size]; Hospitals = new byte[size]; ConcentricCastle = new byte[size];
     }
 }

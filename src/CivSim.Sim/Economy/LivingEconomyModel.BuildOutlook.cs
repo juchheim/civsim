@@ -95,7 +95,8 @@ public enum BuildHeadline : byte
 /// </summary>
 public sealed record BuildOutlook(
     int Settlement, int Season, BuildHeadline Headline, BuildItem[] Items, int FocusCode, bool FocusIsSkip, int FocusSince, int FocusUntil,
-    bool NeedsHousing, bool Cold, int FoodSecurityPermille, Fix64 BuildWorkLastSeason, Fix64 CivicWorkLastSeason, int Population)
+    bool NeedsHousing, bool Cold, int FoodSecurityPermille, Fix64 BuildWorkLastSeason, Fix64 CivicWorkLastSeason, int Population,
+    ArsenalSupplyReadiness? ArsenalSupply = null)
 {
     public static readonly BuildOutlook Empty = new(-1, 0, BuildHeadline.NothingWanted, Array.Empty<BuildItem>(), LivingEconomyModel.FocusCode.None, false, -1, -1,
         false, false, 1000, Fix64.Zero, Fix64.Zero, 0);
@@ -107,6 +108,13 @@ public sealed record BuildOutlook(
         return null;
     }
 }
+
+/// <summary>Live Arsenal inputs and the settlements that can feed them, for the player's Building panel.</summary>
+public sealed record ArsenalSupplyReadiness(
+    int SiteSettlement, int RecommendedSiteSettlement, int[] SaltpeterSources, int[] SulfurSources, int[] DisconnectedOreSources,
+    int ConnectedSettlements, Fix64 CartStock,
+    bool CannonResearchReady, bool PowderResearchReady, Fix64 Iron, Fix64 CastIron, Fix64 Charcoal,
+    Fix64 Saltpeter, Fix64 Sulfur, Fix64 Clay, Fix64 Wood);
 
 public sealed partial class LivingEconomyModel
 {
@@ -157,9 +165,19 @@ public sealed partial class LivingEconomyModel
         if (headline == BuildHeadline.NothingWanted)
             foreach (BuildItem item in items)
                 if (item.Status == BuildStatus.Short) { headline = BuildHeadline.WaitingOnMaterials; break; }
+        ArsenalSupplyReadiness? arsenalSupply = null;
+        if (FiefChain && Done(s.Civilization, "WAR-12"))
+        {
+            int site = ArsenalReadinessSiteFor(s.Civilization, s.Id);
+            var a = ArsenalReadinessFor(site);
+            arsenalSupply = new ArsenalSupplyReadiness(site, ArsenalRecommendedSiteFor(s.Civilization),
+                a.SaltpeterSources, a.SulfurSources, a.DisconnectedOreSources, a.ConnectedSettlements,
+                a.CartStock, a.CannonResearchReady, a.PowderResearchReady, a.Iron, a.CastIron, a.Charcoal,
+                a.Saltpeter, a.Sulfur, a.Clay, a.Wood);
+        }
         return new BuildOutlook(settlementIndex, season, headline, items.ToArray(), focusCode, focusSkip, since, until,
             ctx.NeedsHousing, cold, (Fix64.Clamp(s.FoodSecurity, Fix64.Zero, Fix64.FromInt(4)) * 1000).FloorToInt(),
-            s.LedgerBuildWork, s.LedgerCivicWork, pop);
+            s.LedgerBuildWork, s.LedgerCivicWork, pop, arsenalSupply);
     }
 
     // ---- assembling items ---------------------------------------------------------------------------------

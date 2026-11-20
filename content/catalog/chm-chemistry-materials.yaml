@@ -88,8 +88,7 @@ projects:
       - {kind: good, id: "G-POWDER"}
       - {kind: good, id: "G-SALTPETER"}
       - {kind: good, id: "G-SULFUR"}
-      - {kind: build, structure: powder_mill}
-      - {kind: rule, text: "Recipe make_powder: 0.75 saltpeter, 0.10 sulfur and 0.15 charcoal make 1 powder (P). Saltpeter comes from a deposit in own territory or by trade. A mine head holding powder digs x1.5 (blasting, P)."}
+      - {kind: rule, text: "Recipe make_powder (milled at the Arsenal, WAR-12): 0.75 saltpeter, 0.10 sulfur and 0.15 charcoal make 1 powder (P). Saltpeter comes from a deposit in own territory or by trade. A mine head holding powder digs x1.5 (blasting, P)."}
     practice: [{action: craft, share: 100}]
     flavor: "A black grain that breaks stone."
     moment: "A pinch of powder flashes in a clay dish."

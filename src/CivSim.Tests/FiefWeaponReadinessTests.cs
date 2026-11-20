@@ -183,7 +183,7 @@ public sealed class FiefWeaponReadinessTests
             economy.FixtureSetSoldierRoles(0, 1);
             economy.FixtureSetSoldiersSupplied(0, 1);
             economy.FixtureBuildIronStructure(0, "blast_furnace");
-            economy.FixtureBuildIronStructure(0, "powder_mill");
+            economy.FixtureBuildIronStructure(0, "arsenal");
             economy.FixtureSetGoodStock(0, "G-WOOD", Fix64.FromInt(200));
             economy.FixtureSetGoodStock(0, "G-WROUGHT", Fix64.FromInt(20));
             economy.FixtureSetGoodStock(0, "G-CORD", Fix64.FromInt(20));

@@ -156,7 +156,8 @@ projects:
       - {kind: role, id: gunner}
       - {kind: good, id: "G-CANNON"}
       - {kind: unlock_action, action: fire_cannon}
-      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per shot, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Needs cast iron, a blast furnace and powder."}
+      - {kind: build, structure: arsenal}
+      - {kind: combat, text: "A cannon (4 crew, 0.25 powder per shot, P) does twice an engine's damage to wall integrity each season (e5_combat_oracle reading B); walls count for less in the storm that follows a breach. Cannons and gunpowder are made at the Arsenal: one per civilization, a town of 60 or more with a forge (docs/MVP/37)."}
     practice: [{action: fire_cannon, share: 100}]
     flavor: "Thunder is taught to break walls."
     moment: "A gunner touches a match and a wall shudders."
