@@ -26,6 +26,8 @@ public partial class Game
         public bool Active, Sticky;
         public float Timer;
         public string Key = "";
+        public string AlertType = "";
+        public UiButton HideLink = null!;
         public int Tile = -1;
         public Action? Callback;
         public ToastKind Kind;
@@ -207,7 +209,18 @@ public partial class Game
         view.Action.AddThemeColorOverride("font_color", UiTokens.Accent);
         view.Action.AddThemeColorOverride("font_hover_color", UiTokens.AccentHover);
         view.Action.Pressed += () => { view.Callback?.Invoke(); DismissToast(view); };
-        column.AddChild(view.Action);
+        // "Hide these alerts" sits beside the action as a quieter text link and mutes this kind of alert for the rest of the game.
+        view.HideLink = UiKit.Ghost("Hide these alerts", () => HideAlertType(view), "Stop showing this kind of alert for the rest of the game.", UiGlyph.None, 30);
+        foreach (string state in new[] { "normal", "hover", "pressed", "focus", "hover_pressed" })
+            view.HideLink.AddThemeStyleboxOverride(state, new StyleBoxEmpty());
+        view.HideLink.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        view.HideLink.AddThemeColorOverride("font_color", UiTokens.TextTertiary);
+        view.HideLink.AddThemeColorOverride("font_hover_color", UiTokens.TextSecondary);
+        var links = UiKit.Row(UiTokens.Sp3);
+        links.MouseFilter = Control.MouseFilterEnum.Ignore;
+        links.AddChild(view.Action);
+        links.AddChild(view.HideLink);
+        column.AddChild(links);
         row.AddChild(column);
         var close = UiKit.IconButton(UiGlyph.Close, "Dismiss notification", () => DismissToast(view), 28, 14);
         close.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
@@ -341,9 +354,10 @@ public partial class Game
 
     // ---- toasts ------------------------------------------------------------------------------
 
-    private void ShowToast(string title, ToastKind kind, string body, int tile = -1, string actionLabel = "", Action? action = null, string key = "", bool sticky = false)
+    private void ShowToast(string title, ToastKind kind, string body, int tile = -1, string actionLabel = "", Action? action = null, string key = "", bool sticky = false, string alertType = "")
     {
         if (_toastStack is null) return;
+        if (alertType.Length > 0 && _hiddenAlertTypes.Contains(alertType)) return;
         if (key.Length > 0)
         {
             foreach (ToastView active in _toasts)
@@ -371,6 +385,8 @@ public partial class Game
         slot.Sticky = kind == ToastKind.Critical || sticky;
         slot.Timer = kind switch { ToastKind.Milestone => 8f, ToastKind.Warning => 6f, _ => 5f };
         slot.Key = key;
+        slot.AlertType = alertType;
+        slot.HideLink.Visible = alertType.Length > 0;
         slot.Tile = tile;
         UiKit.SetText(slot.Title, title);
         UiKit.SetText(slot.Body, body);
@@ -420,7 +436,31 @@ public partial class Game
             }
             return;
         }
-        ShowToast($"{UiText.CivName(civ)} entered the {UiText.AgeName(era)} age", ToastKind.Info, "", key: key);
+        ShowAlert($"{UiText.CivName(civ)} entered the {UiText.AgeName(era)} age", ToastKind.Info, "", key: key);
+    }
+
+    // ---- hidden alert types --------------------------------------------------------------------
+
+    /// <summary>Kinds of alert the player chose to hide; cleared when a new or loaded game replaces the session.</summary>
+    private readonly HashSet<string> _hiddenAlertTypes = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// A toast for a game event that the player can hide as a kind. The kind is the explicit <paramref name="type"/>, else the toast's
+    /// key without its trailing numbers ("first-12" and "first-31" are both "first"; "raid-resolved-1-205" is "raid-resolved").
+    /// </summary>
+    private void ShowAlert(string title, ToastKind kind, string body, int tile = -1, string actionLabel = "", Action? action = null, string key = "", bool sticky = false, string type = "")
+    {
+        if (type.Length == 0) type = System.Text.RegularExpressions.Regex.Replace(key, @"(-\d+)+$", "");
+        ShowToast(title, kind, body, tile, actionLabel, action, key, sticky, type.Length > 0 ? type : "alert");
+    }
+
+    private void HideAlertType(ToastView view)
+    {
+        string type = view.AlertType;
+        if (type.Length == 0) { DismissToast(view); return; }
+        _hiddenAlertTypes.Add(type);
+        foreach (ToastView other in _toasts)
+            if (other.Active && other.AlertType == type) DismissToast(other);
     }
 
     private void DismissToast(ToastView view)
@@ -951,21 +991,21 @@ public partial class Game
                     bool island = item.C == 1;
                     string text = item.A == 1 ? "Free Folk founded a camp." : island ? "Your people crossed the sea and settled an island." : "Your people founded a new settlement.";
                     AddChronicle(item, text, ChronicleClass.People, true);
-                    if (island) ShowToast("A village on an island", ToastKind.Milestone, "Outriggers carried a band across the water.", item.Tile, key: "island-settled");
-                    else if (item.A != 1) ShowToast("A new settlement", ToastKind.Info, "Your people have split and spread out.", item.Tile);
+                    if (island) ShowAlert("A village on an island", ToastKind.Milestone, "Outriggers carried a band across the water.", item.Tile, key: "island-settled");
+                    else if (item.A != 1) ShowAlert("A new settlement", ToastKind.Info, "Your people have split and spread out.", item.Tile, type: "new-settlement");
                     break;
                 }
             case ViewEventKind.SettlementAbandoned:
                 {
                     const string text = "No one remains at this settlement. The site can be resettled.";
                     AddChronicle(item, "Your settlement has been abandoned.", ChronicleClass.Danger, true);
-                    ShowToast("Settlement abandoned", ToastKind.Critical, text, item.Tile, key: "settlement-abandoned");
+                    ShowAlert("Settlement abandoned", ToastKind.Critical, text, item.Tile, key: "settlement-abandoned");
                     _chronicleUnseenCritical |= !_chronicleOpen;
                     break;
                 }
             case ViewEventKind.SettlementRevived:
                 AddChronicle(item, "Your people returned to an abandoned settlement.", ChronicleClass.People, true);
-                ShowToast("Settlement resettled", ToastKind.Info, "A new band has made the settlement active again.", item.Tile, key: "settlement-revived");
+                ShowAlert("Settlement resettled", ToastKind.Info, "A new band has made the settlement active again.", item.Tile, key: "settlement-revived");
                 break;
             case ViewEventKind.StructureBuilt:
                 {
@@ -974,24 +1014,24 @@ public partial class Game
                     if (item.A is >= 0 and < 60 && (_structureKindsSeen & (1L << item.A)) == 0)
                     {
                         _structureKindsSeen |= 1L << item.A;
-                        ShowToast($"{UiText.Sentence(name)} built", ToastKind.Info, "A new kind of building stands.", item.Tile);
+                        ShowAlert($"{UiText.Sentence(name)} built", ToastKind.Info, "A new kind of building stands.", item.Tile, type: "building-built");
                     }
                     break;
                 }
             case ViewEventKind.StructureLost:
                 AddChronicle(item, $"A {StructureName(item.A).ToLowerInvariant()} was lost.", ChronicleClass.Danger, true);
-                ShowToast("A building was lost", ToastKind.Critical, $"A {StructureName(item.A).ToLowerInvariant()} is gone.", item.Tile, key: "structure-lost");
+                ShowAlert("A building was lost", ToastKind.Critical, $"A {StructureName(item.A).ToLowerInvariant()} is gone.", item.Tile, key: "structure-lost");
                 _chronicleUnseenCritical |= !_chronicleOpen;
                 break;
             case ViewEventKind.FireOut:
                 AddChronicle(item, "A hearth has gone cold.", ChronicleClass.People, true);
-                ShowToast("A hearth went cold", ToastKind.Info, "Fire keeps people warm and fed.", item.Tile, key: "fire-out");
+                ShowAlert("A hearth went cold", ToastKind.Info, "Fire keeps people warm and fed.", item.Tile, key: "fire-out");
                 break;
             case ViewEventKind.FamineRisk:
                 {
                     string text = item.B == 1 ? "Food will run short this winter." : "A settlement is starving.";
                     AddChronicle(item, text, ChronicleClass.Danger, true);
-                    ShowToast(item.B == 1 ? "Winter food warning" : "Food warning",
+                    ShowAlert(item.B == 1 ? "Winter food warning" : "Food warning",
                         item.B == 1 ? ToastKind.Warning : ToastKind.Critical, text, item.Tile,
                         key: item.B == 1 ? "famine-forecast" : "famine");
                     if (item.B != 1) _chronicleUnseenCritical |= !_chronicleOpen;
@@ -1001,7 +1041,7 @@ public partial class Game
                 {
                     string text = item.A == (int)PartyKind.Assault ? "An assault party is coming." : "A raid party is coming.";
                     AddChronicle(item, text, ChronicleClass.Danger, true);
-                    ShowToast(item.A == (int)PartyKind.Assault ? "An assault is coming" : "Raiders are coming", ToastKind.Critical, "A hostile party was sighted heading for your settlement.", item.Tile, key: "party-incoming");
+                    ShowAlert(item.A == (int)PartyKind.Assault ? "An assault is coming" : "Raiders are coming", ToastKind.Critical, "A hostile party was sighted heading for your settlement.", item.Tile, key: "party-incoming");
                     _chronicleUnseenCritical |= !_chronicleOpen;
                     break;
                 }
@@ -1011,7 +1051,7 @@ public partial class Game
                 break;
             case ViewEventKind.CouncilPick:
                 AddChronicle(item, $"The elders chose {project} for {Slot(item.A)}: {UiText.CouncilReason(item.B)}.", ChronicleClass.Research, true);
-                ShowToast($"The elders chose {project}", ToastKind.Info, UiText.Sentence(UiText.CouncilReason(item.B)) + ".", key: "council-pick");
+                ShowAlert($"The elders chose {project}", ToastKind.Info, UiText.Sentence(UiText.CouncilReason(item.B)) + ".", key: "council-pick");
                 break;
             case ViewEventKind.ProjectCompleted:
                 AddChronicle(item, $"Your people learned {project}.", ChronicleClass.Research, true);
@@ -1025,7 +1065,7 @@ public partial class Game
                 if (item.Civ == viewer)
                 {
                     AddChronicle(item, $"Your people were the first in the world to learn {project}.", ChronicleClass.World, true);
-                    ShowToast("A world first", ToastKind.Milestone, $"Your people were first to learn {project}.", key: $"first-{item.Project}");
+                    ShowAlert("A world first", ToastKind.Milestone, $"Your people were first to learn {project}.", key: $"first-{item.Project}");
                 }
                 else AddChronicle(item, $"The {UiText.CivName(item.Civ)} were first to learn {project}.", ChronicleClass.World, false);
                 break;
@@ -1037,7 +1077,7 @@ public partial class Game
                     // The Bronze age (KEY-3) is when Mandate and Decrees open. Say so and where to find them, and keep the notice up until
                     // the player acts on it or dismisses it: a playtest found the one-time coach tip too easy to miss.
                     if (item.A == 3)
-                        ShowToast("Decrees available", ToastKind.Milestone,
+                        ShowAlert("Decrees available", ToastKind.Milestone,
                             "Found villages, explore, and mine.",
                             actionLabel: "Open Decrees", action: () => ToggleDecrees(true), key: "decrees-unlocked", sticky: true);
                 }
@@ -1054,14 +1094,14 @@ public partial class Game
                 {
                     string text = item.A == 1 ? $"{project} is blocked: its methods fall back." : $"{project} works again.";
                     AddChronicle(item, text, ChronicleClass.Research, true);
-                    ShowToast(item.A == 1 ? "A method is blocked" : "A method works again", ToastKind.Info, text, key: $"dormant-{item.Project}");
+                    ShowAlert(item.A == 1 ? "A method is blocked" : "A method works again", ToastKind.Info, text, key: $"dormant-{item.Project}");
                     break;
                 }
             case ViewEventKind.ResourceSeen:
                 {
                     string target = _catalog is not null && (uint)item.A < (uint)_catalog.GateTargets.Count ? _catalog.GateTargets[item.A].Replace('_', ' ') : "something new";
                     AddChronicle(item, $"Your people found {target}.", ChronicleClass.People, true);
-                    ShowToast("A discovery in the land", ToastKind.Info, $"Your people found {target}.", key: $"seen-{item.A}");
+                    ShowAlert("A discovery in the land", ToastKind.Info, $"Your people found {target}.", key: $"seen-{item.A}");
                     break;
                 }
             case ViewEventKind.ProjectUnlocked:
@@ -1073,20 +1113,20 @@ public partial class Game
                 break;
             case ViewEventKind.Contact:
                 AddChronicle(item, $"You met the {OtherName(item)}.", ChronicleClass.Rivals, true);
-                ShowToast($"You met the {OtherName(item)}", ToastKind.Milestone, "They are your neighbours now.", -1, "Open Diplomacy", () => ToggleDiplomacy(true), "contact");
+                ShowAlert($"You met the {OtherName(item)}", ToastKind.Milestone, "They are your neighbours now.", -1, "Open Diplomacy", () => ToggleDiplomacy(true), "contact");
                 break;
             case ViewEventKind.Skirmish:
                 AddChronicle(item, $"A border skirmish with the {OtherName(item)} left people hurt.", ChronicleClass.Danger, true);
-                ShowToast("A border skirmish", ToastKind.Critical, $"People were hurt in a clash with the {OtherName(item)}.", item.Tile, key: "skirmish");
+                ShowAlert("A border skirmish", ToastKind.Critical, $"People were hurt in a clash with the {OtherName(item)}.", item.Tile, key: "skirmish");
                 _chronicleUnseenCritical |= !_chronicleOpen;
                 break;
             case ViewEventKind.GiftArrived:
                 AddChronicle(item, $"A gift arrived from the {OtherName(item)}.", ChronicleClass.Rivals, true);
-                ShowToast("A gift arrived", ToastKind.Info, $"From the {OtherName(item)}.", key: "gift");
+                ShowAlert("A gift arrived", ToastKind.Info, $"From the {OtherName(item)}.", key: "gift");
                 break;
             case ViewEventKind.BarterDone:
                 AddChronicle(item, "Your barter party came home.", ChronicleClass.Rivals, true);
-                ShowToast("Barter done", ToastKind.Info, "Your trade party came home.", key: "barter");
+                ShowAlert("Barter done", ToastKind.Info, "Your trade party came home.", key: "barter");
                 break;
             case ViewEventKind.RaidLaunched:
                 {
@@ -1100,7 +1140,7 @@ public partial class Game
                     };
                     AddChronicle(item, text, ChronicleClass.Rivals, true);
                     int target = item.Tile;
-                    ShowToast(item.C == RaidTarget.Assault ? "An assault set out" : "Raiders set out", ToastKind.Milestone, text, target, "Follow", () => FollowRaidParty(viewer, target), "raid-out");
+                    ShowAlert(item.C == RaidTarget.Assault ? "An assault set out" : "Raiders set out", ToastKind.Milestone, text, target, "Follow", () => FollowRaidParty(viewer, target), "raid-out");
                     break;
                 }
             case ViewEventKind.RaidResolved:
@@ -1110,7 +1150,7 @@ public partial class Game
                     ReportAfterSkirmish(item, assault: false, () =>
                     {
                         AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                        ShowToast(title, item.A == 2 ? ToastKind.Critical : item.A == 1 ? ToastKind.Milestone : ToastKind.Info, text, item.Tile, key: $"raid-resolved-{item.A}-{item.Tile}");
+                        ShowAlert(title, item.A == 2 ? ToastKind.Critical : item.A == 1 ? ToastKind.Milestone : ToastKind.Info, text, item.Tile, key: $"raid-resolved-{item.A}-{item.Tile}");
                         SpawnMapFloater(item.Tile, floater, color);
                         if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
                     });
@@ -1120,13 +1160,13 @@ public partial class Game
                 {
                     string text = item.A == 1 ? $"The {OtherName(item)} declared war on you." : $"You declared war on the {OtherName(item)}.";
                     AddChronicle(item, text, ChronicleClass.Danger, true);
-                    ShowToast(item.A == 1 ? "War!" : "You declared war", item.A == 1 ? ToastKind.Critical : ToastKind.Info, text, key: "war");
+                    ShowAlert(item.A == 1 ? "War!" : "You declared war", item.A == 1 ? ToastKind.Critical : ToastKind.Info, text, key: "war");
                     if (item.A == 1) _chronicleUnseenCritical |= !_chronicleOpen;
                     break;
                 }
             case ViewEventKind.PeaceMade:
                 AddChronicle(item, $"Peace with the {OtherName(item)}.", ChronicleClass.Rivals, true);
-                ShowToast("Peace", ToastKind.Milestone, $"The war with the {OtherName(item)} is over.", key: "peace");
+                ShowAlert("Peace", ToastKind.Milestone, $"The war with the {OtherName(item)} is over.", key: "peace");
                 break;
             case ViewEventKind.AssaultResolved:
                 {
@@ -1134,7 +1174,7 @@ public partial class Game
                     ReportAfterSkirmish(item, assault: true, () =>
                     {
                         AddChronicle(item, text, item.A == 2 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                        ShowToast(item.A == 2 ? "A settlement fell" : "An assault ended", item.A == 2 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "assault");
+                        ShowAlert(item.A == 2 ? "A settlement fell" : "An assault ended", item.A == 2 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "assault");
                         if (item.A == 2) _chronicleUnseenCritical |= !_chronicleOpen;
                     });
                     break;
@@ -1149,7 +1189,7 @@ public partial class Game
                 {
                     string text = item.A < 0 ? "You lost a settlement." : "You captured a settlement.";
                     AddChronicle(item, text, item.A < 0 ? ChronicleClass.Danger : ChronicleClass.Rivals, true);
-                    ShowToast(item.A < 0 ? "A settlement was lost" : "A settlement captured", item.A < 0 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "captured");
+                    ShowAlert(item.A < 0 ? "A settlement was lost" : "A settlement captured", item.A < 0 ? ToastKind.Critical : ToastKind.Milestone, text, item.Tile, key: "captured");
                     if (item.A < 0) _chronicleUnseenCritical |= !_chronicleOpen;
                     break;
                 }
@@ -1158,7 +1198,7 @@ public partial class Game
                 break;
             case ViewEventKind.AllianceFormed:
                 AddChronicle(item, $"Alliance with the {OtherName(item)}.", ChronicleClass.Rivals, true);
-                ShowToast("An alliance", ToastKind.Milestone, $"You and the {OtherName(item)} defend each other.", key: "alliance");
+                ShowAlert("An alliance", ToastKind.Milestone, $"You and the {OtherName(item)} defend each other.", key: "alliance");
                 break;
             case ViewEventKind.BeaconPlaced:
                 AddChronicle(item, "You placed a Beacon.", ChronicleClass.People, true);
@@ -1167,7 +1207,7 @@ public partial class Game
                 {
                     string what = item.B switch { 0 => "gift party", 1 => "trade party", 2 => "raiding party", 3 => "war party", _ => "band of settlers" };
                     AddChronicle(item, $"Your {what} turned back at sea.", ChronicleClass.Danger, true);
-                    ShowToast("A voyage turned back", ToastKind.Warning, $"The sea was too rough; your {what} came home.", key: "voyage-lost");
+                    ShowAlert("A voyage turned back", ToastKind.Warning, $"The sea was too rough; your {what} came home.", key: "voyage-lost");
                     break;
                 }
             case ViewEventKind.OrderRefused:
@@ -1175,7 +1215,7 @@ public partial class Game
                     string text = $"{UiText.OrderNoun(item.A)} didn't happen: {UiText.RefusalReason(item.B)}.";
                     AddChronicle(item, text, ChronicleClass.Danger, true);
                     if (item.A == (int)CommandKind.SetSlot) ClearPendingFor(-1);
-                    ShowToast("That didn't work", ToastKind.Warning, text, key: "refused");
+                    ShowAlert("That didn't work", ToastKind.Warning, text, key: "refused");
                     break;
                 }
         }

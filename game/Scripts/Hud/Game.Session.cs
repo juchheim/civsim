@@ -112,6 +112,7 @@ public partial class Game
                 _pendingProject[command.A] = command.B;
                 _pendingTick[command.A] = _current.Tick;
             }
+        _hiddenAlertTypes.Clear();
         foreach (ToastView toast in _toasts) DismissToast(toast);
         _endScreenShown = false;
         _endScreenDismissed = false;
