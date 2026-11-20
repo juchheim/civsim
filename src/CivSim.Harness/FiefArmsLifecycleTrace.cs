@@ -66,8 +66,8 @@ internal sealed class FiefArmsLifecycleTrace
         new("make_crossbow", ["WAR-11"], [["G-WOOD"], ["G-WROUGHT", "G-IRON"], ["G-CORD"]], [1, 0.1, 0.2], "forge"),
         new("make_longbow", ["WAR-11"], [["G-WOOD"], ["G-CORD"]], [1, 0.1], "none"),
         new("hunt_bow_supply", ["HNT-06"], [], [], "hunt"),
-        new("cast_cannon", ["WAR-12"], [["G-CAST"], ["G-WOOD"]], [2, 6], "blast_furnace"),
-        new("make_powder", ["CHM-07"], [["G-SALTPETER"], ["G-SULFUR"], ["G-CHAR"]], [0.75, 0.1, 0.15], "powder_mill"),
+        new("cast_cannon", ["WAR-12"], [["G-CAST"], ["G-WOOD"]], [2, 6], "arsenal"),
+        new("make_powder", ["CHM-07"], [["G-SALTPETER"], ["G-SULFUR"], ["G-CHAR"]], [0.75, 0.1, 0.15], "arsenal"),
     ];
 
     private sealed record Recipe(string Id, string[] Projects, string[][] Inputs, double[] Quantities, string Producer);
@@ -119,7 +119,7 @@ internal sealed class FiefArmsLifecycleTrace
             }
             if (forge > 0 && _forgeMilestones.Add(lite.Id))
                 output.AppendLine($"fief-arms-milestone seed={seed} kind=forge civ={civ} settlement={lite.Id} season={season} count={forge}");
-            foreach (BuildItem producerItem in buildOutlook.Items.Where(item => item.Id is "blast_furnace" or "powder_mill"))
+            foreach (BuildItem producerItem in buildOutlook.Items.Where(item => item.Id is "blast_furnace" or "arsenal"))
             {
                 if (ProducerCount(economy, settlement, producerItem.Id, forge) > 0) continue;
                 string producerQueueKey = ForgeQueueKey(producerItem);

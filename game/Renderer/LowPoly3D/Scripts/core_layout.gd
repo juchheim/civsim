@@ -1462,6 +1462,8 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 			var mesh_name := String(fw[1])
 			if String(fw[0]) == "blast_furnace" and int(w.fief_settlement(s).get("power_hours_raw", 0)) <= 0:
 				mesh_name = "blast_furnace_cold"
+			elif String(fw[0]) == "arsenal" and not bool(w.fief_settlement(s).get("arsenal_stocked", false)):
+				mesh_name = "arsenal_idle" # lit while it holds cannons or powder, dark otherwise (docs/MVP/32 §4.13)
 			var placed = _fief_outer_site(outer_fief_sites, taken, String(fw[0]), mesh_name, float(fw[2]), tint)
 			if placed != null:
 				taken[int(placed[0])] = true

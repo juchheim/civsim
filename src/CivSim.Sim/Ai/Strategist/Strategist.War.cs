@@ -585,7 +585,7 @@ public sealed partial class Strategist
         if (!passable[target]) return false;
         int[] distance = HexGrid.WalkingDistancesFrom(width, map.Height, passable, target);
         foreach (OwnSettlement own in v.Own.Settlements)
-            if ((uint)own.Tile < (uint)distance.Length && distance[own.Tile] <= Sieges.SupplyReachTiles) return true;
+            if ((uint)own.Tile < (uint)distance.Length && distance[own.Tile] <= Sieges.SupplyReach(v.Own.FiefChapter)) return true;
         return false;
     }
 

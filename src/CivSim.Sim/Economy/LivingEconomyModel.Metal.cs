@@ -582,6 +582,7 @@ public sealed partial class LivingEconomyModel
         MaintainCamps(season);
         ShareMetals(season);
         ShareDefenseWood(season);
+        ShipArsenalSupplies(); // the Arsenal's supply network (docs/MVP/37 §4)
         for (int i = 0; i < _settlements.Count; i++)
             if (_settlements[i].Metal is { } m) m.Access = ComputeAccess(_settlements[i]);
     }
@@ -937,7 +938,7 @@ public sealed partial class LivingEconomyModel
             if (id == "forge" && m is not null && m.Forges > 0) return true;
             if (id == "press" && IronWorksCount(s, IronStructure.Press) > 0) return true;
             if (id == "blast_furnace" && FiefChain && IronWorksCount(s, IronStructure.BlastFurnace) > 0) return true;
-            if (id == "powder_mill" && FiefChain && IronWorksCount(s, IronStructure.PowderMill) > 0) return true;
+            if (id == "arsenal" && HasArsenal(s)) return true; // the powder mill is retired (docs/MVP/37): a legacy one no longer runs recipes
             if (id == "monastery" && MonasteryStaffed(s)) return true;
             if (id == "print_shop" && FiefChain && IronWorksCount(s, IronStructure.PrintShop) > 0 && RoleHeads(s.Id).Scribes > 0) return true;
         }
@@ -1782,7 +1783,7 @@ public sealed partial class LivingEconomyModel
     private bool HasFiefDepositInReach(SettlementState s, FiefGood good)
     {
         if (!FiefChain) return false;
-        foreach (int tile in ReachTiles(s.SiteTile, MiningReach(s.Civilization, s.SiteTile)))
+        foreach (int tile in ReachTiles(s.SiteTile, FiefOreReach(s)))
             if (FiefOreGood(_world.Deposit(tile).Kind) == good && DepositWorkable(s.Civilization, tile) && IsOwnTile(s.Civilization, tile) && !IsRivalTile(s.Civilization, tile)) return true;
         return false;
     }
@@ -3015,7 +3016,7 @@ public sealed partial class LivingEconomyModel
             foreach (FiefGood ore in new[] { FiefGood.Saltpeter, FiefGood.Sulfur })
             {
                 if (plan.Want[FiefSlot(ore)] <= Stock(s, FiefSlot(ore)) || BestRangeFiefDeposit(s, ore, out _) >= 0 || HasFiefOreCamp(s, ore)) continue;
-                int reach = MiningReach(civ, s.SiteTile);
+                int reach = FiefOreReach(s);
                 foreach (int tile in ReachTiles(s.SiteTile, reach))
                 {
                     if (FiefOreGood(_world.Deposit(tile).Kind) != ore || !IsOwnTile(civ, tile) || IsRivalTile(civ, tile)) continue;

@@ -129,7 +129,11 @@ public static class BuildText
             BuildWhy.NeedsGraftedOrchard => "It needs an orchard here to press.",
             BuildWhy.MillAlready => "A water mill already grinds here.",
             BuildWhy.MillCoverageMet => "This town already meets the mill coverage target.",
-            BuildWhy.PowderNotNeeded => "This town has no cannon powder demand yet.",
+            BuildWhy.PowderNotNeeded => "The planner is waiting for gunpowder research or a siege opportunity before preparing an Arsenal; you can still order it here.",
+            BuildWhy.NeedsOreSupply => "The Arsenal cannot make powder until saltpeter and sulfur reach it.",
+            BuildWhy.ArsenalInProgressElsewhere => "Your civilization is already building its one Arsenal in another town.",
+            BuildWhy.ArsenalPreferredElsewhere => "The planner prefers another forge town for the Arsenal; you can still order it here.",
+            BuildWhy.ArsenalStoneSupply => "There is not enough unclaimed stone in this Arsenal's connected settlement network to finish its blocks and cut stone.",
             BuildWhy.NeedsMill => "It needs a mill to drive its bellows first.",
             BuildWhy.NeedsForge => "It needs a forge and a smelter in the town first.",
             BuildWhy.NeedsFields => $"It needs {g.Arg} worked fields here.",
@@ -190,11 +194,15 @@ public static class BuildText
                     "G-WOOD" => "There is no standing timber left within three tiles of this town.",
                     "G-STONE" => "There is no stone left within three tiles of this town, and stone does not grow back.",
                     "G-CLAY" or "G-BRICK" => $"There is no clay deposit within three tiles. Clay can be dug from the ground anywhere once your civilization reaches the Bronze Age ({names.Project(supply.Project ?? "KEY-3")}).",
-                    "G-BLOCK" or "G-ASHLAR" => $"There is no stone left within {supply.Reach} tiles that no rival holds.",
+                    "G-BLOCK" or "G-ASHLAR" => supply.Reach == 0
+                        ? "There is not enough unclaimed stone in any connected settlement's 8-tile quarry catchment."
+                        : $"There is no stone left within {supply.Reach} tiles that no rival holds.",
                     _ => $"There is none to be had within {supply.Reach} tiles of this town.",
                 };
             case SupplyKind.NeedsOutside:
                 return "No iron ore is within this town's reach, so the bloom it needs can come only from a mine elsewhere or from trade.";
+            case SupplyKind.Networked:
+                return "The Arsenal can quarry stone from its connected towns' 8-tile catchments; distant stone uses carts on the route.";
             default:
                 return $"The town is already gathering {good}, but nothing you can do speeds it directly.";
         }

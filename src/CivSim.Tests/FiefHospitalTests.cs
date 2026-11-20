@@ -119,6 +119,7 @@ public sealed class FiefHospitalTests
         BronzeFixture currentRoundTrip = Fief("KEY-5", "CHM-06");
         Restore(currentRoundTrip.Economy, Snapshot(live.Economy));
         Assert.Equal(Fix64.Parse("2.25"), currentRoundTrip.Economy.GoodStock(0, "G-PAPER"));
+        live.Economy.FixtureLegacyIronStructureCount = live.Economy.FixtureIronKindCount - 1; // pre-Arsenal layout
         byte[] legacySnapshot = AsVersion45Snapshot(Snapshot(live.Economy));
 
         BronzeFixture resumed = Fief("KEY-5", "CHM-06");
@@ -168,6 +169,7 @@ public sealed class FiefHospitalTests
         live.Economy.FixtureSetGoodStock(0, "G-PAPER", Fix64.Parse("2.25"));
         live.Economy.FixtureSetGoodStock(0, "G-BOOK", Fix64.Parse("3.75"));
         live.Economy.FixtureSetGoodStock(0, "G-SPIRITS", Fix64.Parse("1.5"));
+        live.Economy.FixtureLegacyIronStructureCount = live.Economy.FixtureIronKindCount - 1; // pre-Arsenal layout
         byte[] legacySnapshot = AsVersion46Snapshot(Snapshot(live.Economy));
 
         BronzeFixture resumed = Fief("KEY-5", "CHM-06");

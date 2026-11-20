@@ -215,6 +215,9 @@ public static class Sieges
     public static readonly Fix64 EmptyStoresCapitulationChance = Fix64.FromRatio(70, 100);
     public static readonly Fix64 DesertionPerUnsuppliedSeason = Fix64.FromRatio(10, 100);
     public static readonly int SupplyReachTiles = 8;
+    /// <summary>Fief siege supply reach in walking tiles (docs/MVP/37 §7): rival towns sit 9 tiles apart in most land pairs, one more than the Iron reach of 8.</summary>
+    public const int FiefSupplyReachTiles = 10;
+    public static int SupplyReach(bool fief) => fief ? FiefSupplyReachTiles : SupplyReachTiles;
 
     /// <summary>Crew an engine needs (docs/MVP/26 §3.2), drawn from the host's members.</summary>
     public const int CrewPerEngine = 4;

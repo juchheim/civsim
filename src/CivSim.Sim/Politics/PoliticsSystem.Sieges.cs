@@ -100,11 +100,42 @@ public sealed partial class PoliticsSystem
 
     private bool UnderInvestment(int settlement) => InvestmentAt(settlement) is not null;
 
+    /// <summary>
+    /// A conquest prospect (docs/MVP/37 §5): the civilization knows WAR-12 and a hostile, contacted, not allied rival holds a walled settlement within siege supply
+    /// reach of one of its towns, and its field force (60% of its fighters, as a campaign gathers) beats that town's defenders plus nearby relief by the AI's 1.5 margin.
+    /// It reads true state and keeps none of its own, so a restored match answers it exactly as an uninterrupted one.
+    /// </summary>
+    public bool ConquestProspect(int civ)
+    {
+        if (!_economy.FiefChain || (uint)civ >= (uint)_civs || !_research.IsDone(civ, _p.War12)) return false;
+        Fix64 force = Fix64.Zero;
+        bool haveForce = false;
+        for (int t = 0; t < _sCount; t++)
+        {
+            int o = _sCiv[t];
+            if (o == civ || o < 0 || _free[t] || !_dip.Contacted(civ, o) || _dip.Allied(civ, o)) continue;
+            if (!_dip.AtWar(civ, o) && _dip.Relations(civ, o) >= Diplomacy.HostileBelow) continue;
+            if (!DefensesOf(t).StoneWalls) continue;
+            int[] distances = WalkFrom(_sTile[t]);
+            bool inSupply = false;
+            for (int s = 0; s < _sCount && !inSupply; s++)
+                if (_sCiv[s] == civ && !_free[s] && distances[_sTile[s]] <= Sieges.SupplyReach(true)) inSupply = true;
+            if (!inSupply) continue;
+            if (!haveForce) { force = FieldStrength(civ) * Fix64.FromRatio(6, 10); haveForce = true; }
+            Fix64 defence = UnwalledDefenseStrength(t) * Fix64.FromRatio(11, 10);
+            for (int r = 0; r < _sCount; r++)
+                if (r != t && _sCiv[r] == o && !_free[r] && HexGrid.Distance(_sTile[r], _sTile[t], _width) <= CivSim.Sim.Ai.StrategistTuning.FiefReliefRange)
+                    defence += UnwalledDefenseStrength(r) * Fix64.FromRatio(6, 10);
+            if (force >= defence * Fix64.FromRatio(15, 10)) return true;
+        }
+        return false;
+    }
+
     private bool HasSupplyLine(int civ, int target)
     {
         int[] distances = WalkFrom(_sTile[target]);
         for (int s = 0; s < _sCount; s++)
-            if (_sCiv[s] == civ && !_free[s] && distances[_sTile[s]] <= Sieges.SupplyReachTiles) return true;
+            if (_sCiv[s] == civ && !_free[s] && distances[_sTile[s]] <= Sieges.SupplyReach(_economy.FiefChain)) return true;
         return false;
     }
 
@@ -156,6 +187,7 @@ public sealed partial class PoliticsSystem
         // A host with crew takes the home settlement's engines (WAR-09): four crew for each, up to three.
         if (_economy.IronChain && _research.IsDone(party.Civ, _p.War09) && party.FromSettlement < _sCount)
             investment.Engines = _economy.TakeEngines(party.FromSettlement, Math.Min(Sieges.MaxEngines, ids.Count / Sieges.CrewPerEngine));
+        if (_economy.FiefChain && _research.IsDone(party.Civ, _p.War12) && party.FromSettlement < _sCount) _economy.StageFiefTrain(party.FromSettlement); // the Arsenal hauls its train to the host
         if (_economy.FiefChain && _research.IsDone(party.Civ, _p.War12) && party.FromSettlement < _sCount)
         {
             int cannonSlots = Math.Max(0, ids.Count / Sieges.CrewPerEngine - investment.Engines);

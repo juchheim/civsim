@@ -147,6 +147,7 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"scholars": int(s.get("fiefScholars", 0)),
 		"hospital_staffed": bool(s.get("fiefHospitalStaffed", false)),
 		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
+		"arsenal_stocked": bool(s.get("fiefArsenalStocked", false)),
 	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.

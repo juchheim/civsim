@@ -94,6 +94,7 @@ public sealed class MatchModel : ISimModel
         }
         var research = new ResearchSystem(catalog, source, seed, setups, rules);
         var politics = new PoliticsSystem(economy, research, generated, profiles, seed, gentleStart);
+        economy.ConquestProspectProbe = politics.ConquestProspect; // the Arsenal's planner appetite (docs/MVP/37)
         AiSystem? ai = null;
         foreach (CivControl control in controls)
             if (control.Kind != ControlKind.Council) { ai = new AiSystem(economy, research, politics, generated, pack, seed, controls,

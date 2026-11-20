@@ -713,6 +713,8 @@ public sealed partial class LivingEconomyModel
         InvalidateIronOreSupplierAssignments();
     }
 
+    internal void FixtureShipArsenalSupplies() => ShipArsenalSupplies();
+
     internal bool FixtureHasStoneWalls(int settlementIndex) => HasStoneWalls(_settlements[settlementIndex]);
     internal int FixtureNextFrontierFacing(int settlementIndex) => NextFrontierFacing(_settlements[settlementIndex]);
 
@@ -1137,8 +1139,7 @@ public sealed partial class LivingEconomyModel
                 NearestForeignDistance(s) <= CastleReach,
             IronStructure.ConcentricCastle => FiefChain && Done(s.Civilization, "DEF-09") && s.Civic is { Tier: >= 1 } &&
                 IronWorksCount(s, IronStructure.ConcentricCastle) == 0 && CastleGarrisoned(s.Id),
-            IronStructure.PowderMill => FiefChain && Done(s.Civilization, "CHM-07") && s.Civic is { Tier: >= 1 } &&
-                IronWorksCount(s, IronStructure.PowderMill) == 0,
+            IronStructure.PowderMill => false, // retired (docs/MVP/37)
             _ => false,
         };
 

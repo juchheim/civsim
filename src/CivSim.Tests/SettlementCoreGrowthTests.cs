@@ -161,13 +161,13 @@ public sealed class SettlementCoreGrowthTests
     {
         string[][] classes =
         {
-            new[] { "castle", "academy", "theatre_arena", "bathhouse", "ziggurat", "great_dome", "great_library", "university", "concentric_castle", "gothic_cathedral" },
+            new[] { "castle", "academy", "theatre_arena", "bathhouse", "ziggurat", "great_dome", "great_library", "university", "concentric_castle", "gothic_cathedral", "arsenal" },
             new[] { "temple", "temple_tier2", "palace" },
             new[] { "granary", "potters_workshop", "forge", "market", "caravanserai", "school", "crane", "press", "longhouse", "hall", "hospital" },
             new[] { "hearth", "lean_to", "hide_tent", "pit_house", "wattle_daub_house", "mudbrick_house", "storage_pit", "drying_rack", "kiln", "quern", "totem", "lookout_post", "signal_post", "shrine", "bakery", "smelter", "windlass_well", "aqueduct", "clock_tower", "print_shop" },
             new[] { "thorn_barrier", "palisade", "stone_walls", "gatehouse" },
             new[] { "weir", "harbor" },
-            new[] { "field", "orchard", "pasture", "terrace", "canal", "mining_camp", "mine_head", "marker", "seasonal_camp", "hillfort", "megalith", "great_lighthouse", "water_mill", "road", "bridge", "frontier_wall_segment", "monastery", "windmill", "sawmill", "blast_furnace", "powder_mill" },
+            new[] { "field", "orchard", "pasture", "terrace", "canal", "mining_camp", "mine_head", "marker", "seasonal_camp", "hillfort", "megalith", "great_lighthouse", "water_mill", "road", "bridge", "frontier_wall_segment", "monastery", "windmill", "sawmill", "blast_furnace" },
         };
         var classified = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (string[] sizeClass in classes)

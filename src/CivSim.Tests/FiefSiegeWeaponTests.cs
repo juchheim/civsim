@@ -13,12 +13,12 @@ public class FiefSiegeWeaponTests
     public FiefSiegeWeaponTests(ITestOutputHelper output) => _output = output;
 
     [Fact]
-    public void Fief_cannon_body_is_cast_from_cast_iron_in_a_blast_furnace()
+    public void Fief_cannon_body_is_cast_from_cast_iron_at_the_arsenal()
     {
         EconomyRecipe recipe = EconomyContent.FromPack(TestPack.Pack).Recipes.ToArray()
             .Single(row => row.Id == "cast_cannon");
 
-        Assert.Contains("blast_furnace", recipe.Structures);
+        Assert.Contains("arsenal", recipe.Structures);
         Assert.Equal(2, recipe.Inputs.Length);
         EconomyRecipeInput castIron = Assert.Single(recipe.Inputs, input => input.Goods.Contains("G-CAST"));
         Assert.Equal(Fix64.FromInt(2), castIron.Quantity);
@@ -44,8 +44,7 @@ public class FiefSiegeWeaponTests
     public void Fief_powder_needs_workable_saltpeter_and_sulfur_deposits_and_mines_them_with_labor()
     {
         BronzeFixture sourced = BronzeFixture.CreateFiefWithPowderDeposits(TestPack.Pack, 20261114, 100, "CHM-07", "WAR-12");
-        sourced.Economy.FixtureSetIronWork(0, "blast_furnace", 1);
-        sourced.Economy.FixtureSetIronWork(0, "powder_mill", 1);
+        sourced.Economy.FixtureSetIronWork(0, "arsenal", 1); // gunpowder is milled at the Arsenal (docs/MVP/37)
         Assert.True(sourced.Economy.FixtureWorkable(0, sourced.SaltpeterTile));
         Assert.True(sourced.Economy.FixtureWorkable(0, sourced.SulfurTile));
         Assert.True(sourced.Economy.FixtureRecipePlannedBatches(0, "make_powder", Fix64.FromInt(100)) > Fix64.Zero);
@@ -54,8 +53,7 @@ public class FiefSiegeWeaponTests
         Assert.True(sourced.Economy.FixtureGoodStock(0, "G-SULFUR") > Fix64.Zero);
 
         BronzeFixture unsourced = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, 20261114, 100, "CHM-07", "WAR-12");
-        unsourced.Economy.FixtureSetIronWork(0, "blast_furnace", 1);
-        unsourced.Economy.FixtureSetIronWork(0, "powder_mill", 1);
+        unsourced.Economy.FixtureSetIronWork(0, "arsenal", 1);
         Assert.Equal(Fix64.Zero, unsourced.Economy.FixtureRecipePlannedBatches(0, "make_powder", Fix64.FromInt(100)));
         unsourced.RunSeasons(8);
         Assert.Equal(Fix64.Zero, unsourced.Economy.FixtureGoodStock(0, "G-POWDER"));
@@ -65,8 +63,7 @@ public class FiefSiegeWeaponTests
     public void Fief_chemistry_camp_uses_the_existing_owned_land_camp_and_haul_path()
     {
         BronzeFixture f = BronzeFixture.CreateFiefWithPowderCamp(TestPack.Pack, 20261114, 100, "CHM-07", "WAR-12");
-        f.Economy.FixtureSetIronWork(0, "blast_furnace", 1);
-        f.Economy.FixtureSetIronWork(0, "powder_mill", 1);
+        f.Economy.FixtureSetIronWork(0, "arsenal", 1);
         f.RunSeasons(12);
         Assert.True(f.Economy.FixtureGoodStock(0, "G-SALTPETER") > Fix64.Zero);
         Assert.True(f.Economy.FixtureGoodStock(0, "G-SULFUR") > Fix64.Zero);
