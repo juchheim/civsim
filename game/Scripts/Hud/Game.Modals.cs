@@ -243,7 +243,7 @@ public partial class Game
             ("Trade", "Active compact routes between peoples; tin routes and caravans are highlighted."),
             ("Supply", "Directional links show settlement-to-settlement goods: internal sharing, trade, gifts, barter and tribute. Inspect a settlement to see what it sends and receives. Orange or red rings mark shortages."),
             ("Cohesion", "How firmly each settlement holds together: strong, steady, strained or fraying. Hover a settlement for why."),
-            ("Wood", "How much wood is left on the forest tiles you can see now: dense (25 L or more), medium (15–24 L), low (5–14 L) or depleted (under 5 L)."),
+            ("Wood", "How much wood is left on the land you can see now: dense (25 L or more), medium (15–24 L), low (5–14 L) or depleted (under 5 L)."),
             ("Resources (marker)", "Named markers are deposits your people have identified. Pale outcrops are clues; research surveys local deposits, and remote sensing maps them all. Markers show on top of any layer."),
         };
         foreach ((string title, string text) in entries)

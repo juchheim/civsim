@@ -135,7 +135,8 @@ void fragment() {
 		if (overlay_mode == 7) {
 			float forest = texture(forest_overlay_state, tile_uv).r * 255.0;
 			if (forest > 0.5) {
-				vec3 forest_tint = forest < 1.5 ? vec3(0.79, 0.54, 0.24) : forest < 2.5 ? vec3(0.39, 0.67, 0.30) : forest < 3.5 ? vec3(0.18, 0.54, 0.28) : vec3(0.08, 0.37, 0.22);
+				// The legend's colours (#c98a3d, #65ab4d, #2e8747, #145f38) converted to linear, which is what the shader blends in.
+				vec3 forest_tint = forest < 1.5 ? vec3(0.584, 0.254, 0.047) : forest < 2.5 ? vec3(0.130, 0.407, 0.074) : forest < 3.5 ? vec3(0.027, 0.242, 0.063) : vec3(0.007, 0.114, 0.040);
 				c = mix(c, forest_tint, 0.85);
 			}
 		} else {
