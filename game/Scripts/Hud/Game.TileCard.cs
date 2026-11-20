@@ -30,6 +30,7 @@ public partial class Game
     private int _tileHintsShown;
     private int _cardTile = -2;
     private bool _cardPinnedShown;
+    private Vector2 _pinAnchor;
 
     private void CreateTileCard()
     {
@@ -202,6 +203,12 @@ public partial class Game
         bool pinned = _pinnedTile >= 0;
         bool shift = Input.IsKeyPressed(Key.Shift) || pinned;
         _cardShift = Input.IsKeyPressed(Key.Shift);
+        // A pinned card stays where it opened (at the click) so its Rename box and buttons hold still while the cursor moves.
+        if (pinned)
+        {
+            if (_cardTile != tile || !_cardPinnedShown) _pinAnchor = screen;
+            screen = _pinAnchor;
+        }
         _cardTile = tile;
         _cardPinnedShown = pinned;
         MatchFrame frame = _current;
