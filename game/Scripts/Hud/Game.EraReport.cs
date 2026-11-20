@@ -52,7 +52,8 @@ public partial class Game
     {
         if (_eraModal is null || _eraContent is null || _session is null || _eraReportOpen) return false;
         if (_session.IsReplay || _session.MatchEnded || _benchmarkSeconds != 0) return false;
-        if (item.A >= (_session.IsIron ? 5 : 4)) return false;   // the end screen tells this one
+        int finalEra = ChapterRules.For(_session.Mode).LastResearchEra + 1;
+        if (item.A >= finalEra) return false; // the end screen tells the chapter's final age
         if (_researchWebVisible) CloseResearchWeb();
         _eraWasRunning = !_session.Paused;
         _session.SetPaused(true);
