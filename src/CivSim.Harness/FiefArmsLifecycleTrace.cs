@@ -18,6 +18,8 @@ internal sealed class FiefArmsLifecycleTrace
     private readonly HashSet<(int Settlement, string Tier)> _wholeStockMilestones = new();
     private readonly HashSet<(int Settlement, string Tier)> _carrierMilestones = new();
     private readonly HashSet<(int Settlement, string Recipe)> _producerMilestones = new();
+    private readonly HashSet<(int Settlement, string Good)> _intermediateStockMilestones = new();
+    private readonly HashSet<(int Settlement, string Good)> _intermediateDeliveryMilestones = new();
     private readonly HashSet<int> _chariotStockMilestones = new();
     private readonly HashSet<int> _chariotCrewMilestones = new();
     private readonly HashSet<int> _engineStockMilestones = new();
@@ -31,6 +33,8 @@ internal sealed class FiefArmsLifecycleTrace
     private readonly Dictionary<int, string> _forgeQueueState = new();
     private readonly Dictionary<(int Settlement, string Producer), string> _producerQueueState = new();
     private bool _coverageWritten;
+    private Fix64[] _arsenicalBronzeDeliveredByCiv = Array.Empty<Fix64>();
+    private Fix64[] _crucibleSteelDeliveredByCiv = Array.Empty<Fix64>();
 
     private static readonly (string Tier, string Good, Func<SettlementArms, int> Carried)[] Tiers =
     [
@@ -45,7 +49,7 @@ internal sealed class FiefArmsLifecycleTrace
         ("warbow", "G-BOW", a => a.WarBow),
     ];
 
-    private static readonly string[] ResearchProjects = ["MIN-03", "HNT-06", "WAR-03", "MET-03", "WAR-05", "WAR-06", "WAR-08", "MET-10", "WAR-09", "WAR-11", "CHM-07", "WAR-12", "MET-11"];
+    private static readonly string[] ResearchProjects = ["MIN-03", "MIN-04", "HNT-06", "WAR-03", "MET-03", "MET-04", "WAR-05", "WAR-06", "WAR-08", "MET-10", "WAR-09", "WAR-11", "CHM-07", "WAR-12", "MET-11"];
     private static readonly string[] MaterialGoods =
     [
         "G-COPPER", "G-ASORE", "G-ABRONZE", "G-BRONZE", "G-IRONORE", "G-WROUGHT", "G-STEEL", "G-CSTEEL", "G-CHAR",
@@ -55,6 +59,8 @@ internal sealed class FiefArmsLifecycleTrace
 
     private static readonly Recipe[] Recipes =
     [
+        new("cosmelt_arsenical", ["MET-04"], [["G-ASORE"], ["G-CHAR"]], [2, 2], "smelter"),
+        new("crucible_steel", ["MET-11"], [["G-STEEL"], ["G-CLAY"], ["G-CHAR"]], [0.4, 0.3, 0.4], "forge"),
         new("cast_arms1", ["MET-03"], [["G-COPPER"], ["G-WOOD"]], [0.2, 0.5], "forge"),
         new("cast_arms2a", ["WAR-05"], [["G-ABRONZE"], ["G-WOOD"], ["G-LEATHER", "G-HIDE"]], [0.3, 1, 1], "forge"),
         new("cast_arms2t", ["WAR-05"], [["G-BRONZE"], ["G-WOOD"], ["G-LEATHER", "G-HIDE"]], [0.3, 1, 1], "forge"),
@@ -83,6 +89,23 @@ internal sealed class FiefArmsLifecycleTrace
             _coverageWritten = true;
         }
 
+        if (_arsenicalBronzeDeliveredByCiv.Length != economy.CivilizationCount)
+        {
+            _arsenicalBronzeDeliveredByCiv = new Fix64[economy.CivilizationCount];
+            _crucibleSteelDeliveredByCiv = new Fix64[economy.CivilizationCount];
+        }
+        foreach (SettlementSupplyTransfer transfer in economy.SupplyTransfers)
+        {
+            string good = transfer.GoodId;
+            if (good is not ("G-ABRONZE" or "G-CSTEEL")) continue;
+            int receiverCiv = economy.SettlementLite(transfer.ToSettlement).Civilization;
+            if ((uint)receiverCiv >= (uint)economy.CivilizationCount) continue;
+            if (good == "G-ABRONZE") _arsenicalBronzeDeliveredByCiv[receiverCiv] += transfer.Quantity;
+            else _crucibleSteelDeliveredByCiv[receiverCiv] += transfer.Quantity;
+            if (_intermediateDeliveryMilestones.Add((transfer.ToSettlement, good)))
+                output.AppendLine($"fief-arms-milestone seed={seed} kind=intermediate-delivery civ={receiverCiv} settlement={transfer.ToSettlement} good={good} from={transfer.FromSettlement} season={season}");
+        }
+
         foreach (int civ in Enumerable.Range(0, economy.CivilizationCount))
         foreach (string project in ResearchProjects)
         {
@@ -107,6 +130,10 @@ internal sealed class FiefArmsLifecycleTrace
 
             MetalReadout metal = economy.Metal(settlement);
             int forge = metal.Forges;
+            foreach (string intermediate in new[] { "G-ABRONZE", "G-CSTEEL" })
+                if (economy.GoodStock(settlement, intermediate) > Fix64.Zero &&
+                    _intermediateStockMilestones.Add((lite.Id, intermediate)))
+                    output.AppendLine($"fief-arms-milestone seed={seed} kind=intermediate-stock civ={civ} settlement={lite.Id} good={intermediate} season={season}");
             BuildOutlook buildOutlook = economy.BuildOutlookFor(settlement);
             BuildItem? forgeItem = buildOutlook.Items.FirstOrDefault(item => item.Id == "forge");
             string queueKey = ForgeQueueKey(forgeItem);
@@ -237,14 +264,11 @@ internal sealed class FiefArmsLifecycleTrace
                 }
             }
             string recipes = string.Join(',', Recipes.Select((recipe, i) => $"{recipe.Id}:{inputReady[i]}/{eligible[i]}-sites-inputs-ready"));
-            Fix64 arsenicalBronzeDelivered = Fix64.Zero, crucibleSteelDelivered = Fix64.Zero;
-            foreach (SettlementSupplyTransfer transfer in economy.SupplyTransfers)
-            {
-                if (economy.SettlementLite(transfer.ToSettlement).Civilization != civ) continue;
-                if (transfer.GoodId == "G-ABRONZE") arsenicalBronzeDelivered += transfer.Quantity;
-                else if (transfer.GoodId == "G-CSTEEL") crucibleSteelDelivered += transfer.Quantity;
-            }
+            Fix64 arsenicalBronzeDelivered = _arsenicalBronzeDeliveredByCiv[civ];
+            Fix64 crucibleSteelDelivered = _crucibleSteelDeliveredByCiv[civ];
             output.AppendLine($"fief-arms-summary seed={seed} season={season} civ={civ} settlements={rows.Count} forgeSites={rows.Count(row => row.Forge)} smelterSites={rows.Count(row => row.Smelter)} queuedForgeSites={rows.Count(row => row.ForgeQueued)} fighters={fighters} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stock={F(stockTotal)} idleStock={F(idle)} idleStockSites={idleSites} withoutWeaponSites={baseOnlySites} localOverlapSites={overlap} chariots={chariots} chariotCrew={chariotCrew} idleChariots={idleChariots} chariotStockSites={chariotStockSites} chariotCrewSites={chariotCrewSites} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} intermediateDelivered=ABRONZE:{F(arsenicalBronzeDelivered)},CSTEEL:{F(crucibleSteelDelivered)} oneBatchInputReadiness={recipes}");
+            _arsenicalBronzeDeliveredByCiv[civ] = Fix64.Zero;
+            _crucibleSteelDeliveredByCiv[civ] = Fix64.Zero;
         }
     }
 
@@ -254,6 +278,7 @@ internal sealed class FiefArmsLifecycleTrace
     private static int ProducerCount(LivingEconomyModel economy, int settlement, string producer, int forge)
     {
         if (producer == "forge") return forge;
+        if (producer == "smelter") return economy.Metal(settlement).Smelters;
         if (producer is "none" or "hunt") return 1;
         for (int kind = 0; kind < LivingEconomyModel.IronWorkKindCount; kind++)
             if (LivingEconomyModel.IronWorkId(kind) == producer) return economy.IronWorkAt(settlement, kind);
