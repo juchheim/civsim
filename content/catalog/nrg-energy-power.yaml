@@ -73,7 +73,13 @@ projects:
     status: draft
     requires: [NRG-05, MIN-09, MET-12]
     effects:
-      - {kind: prose, text: "Build: Atmospheric engine (pumps). Coal → work. *KEY-7 prerequisite.*"}
+      - {kind: build, structure: atmospheric_engine}
+      - {kind: role, id: engineer}
+      - {kind: unlock_action, action: tend_engine}
+      - {kind: rule, text: "An atmospheric engine burns coal for power-hours in the shared power ledger and pumps a flooded coal mine; with no coal or no engineer it is idle and shown so. KEY-7 prerequisite."}
+    practice: [{action: tend_engine, share: 100}]
+    flavor: "Fire lifts water from the deep."
+    moment: "A great beam nods and a shaft begins to drain."
   - id: NRG-07
     name: Watt Engine
     era: 7

@@ -139,7 +139,12 @@ projects:
     status: draft
     requires: [CER-07, MEC-09]
     effects:
-      - {kind: prose, text: "Glazed windows: housing comfort, greenhouses (+winter food)."}
+      - {kind: good, id: G-PLATEGLASS}
+      - {kind: mod, stat: housing_comfort, op: mult, value: 1.05, note: "glazed windows in a settlement holding plate glass (P)"}
+      - {kind: rule, text: "A greenhouse adds winter food only in a settlement with a staffed botanical garden (FOR-09) and plate glass; no glass, no effect."}
+    practice: [{action: craft, share: 100}]
+    flavor: "The window lets the light in and keeps the winter out."
+    moment: "A glazier slides a clear pane into a frame."
   - id: CER-12
     name: "Optical Glass & Microscopy"
     era: 7

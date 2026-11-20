@@ -115,7 +115,12 @@ projects:
     status: draft
     requires: [LRN-08, COM-10]
     effects:
-      - {kind: prose, text: "Journals and correspondence: Know-how is shared across lineages (10% spillover); diffusion with contacted civilizations +."}
+      - {kind: build, structure: learned_society}
+      - {kind: mod, stat: know_how_spillover, op: set, value: 0.1, note: "10% of a lineage's Know-how counts toward other lineages in a settlement with a staffed society (P)"}
+      - {kind: mod, stat: diffusion_discount, op: mult, value: 1.1, note: "contacted civilizations, capped at the existing 0.5 cost floor"}
+    practice: [{action: teach, share: 100}]
+    flavor: "Letters pass between those who study the same thing."
+    moment: "A member reads a correspondent's letter aloud to a hall."
   - id: LRN-10
     name: Public Schooling
     era: 7

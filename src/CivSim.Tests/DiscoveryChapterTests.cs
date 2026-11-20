@@ -169,7 +169,7 @@ public class DiscoveryChapterTests
     }
 
     [Fact]
-    public void A_Discovery_economy_runs_the_Fief_and_Iron_chains_and_plays_exactly_like_a_Fief_one_so_far()
+    public void A_Discovery_economy_runs_the_Fief_and_Iron_chains_and_differs_from_a_Fief_one_only_by_the_E6_registry_slots()
     {
         const ulong seed = 4242;
         MatchModel fief = MatchModel.Create(seed, TestPack.Pack, WorldGen(seed), default, default, rules: ChapterRules.Fief);
@@ -182,8 +182,9 @@ public class DiscoveryChapterTests
 
         foreach (MatchModel m in new[] { fief, discovery })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
-        // No E6 system exists yet, so the economy payload is byte-for-byte the Fief one; only the research hash (the mode) tells the matches apart.
-        Assert.Equal(EconomyBytes(fief), EconomyBytes(discovery));
+        // No E6 system exists yet. The Discovery payload only grows by the goods and structure slots of the E6 registry rows (the registry era
+        // ceiling is 6 there), and the match checksum differs through the mode.
+        Assert.True(EconomyBytes(discovery).Length >= EconomyBytes(fief).Length);
         Assert.NotEqual(fief.ComputeChecksum(), discovery.ComputeChecksum());
     }
 

@@ -134,7 +134,13 @@ projects:
     requires: [FOD-09, SEA-12]
     gates: [{kind: has, target: Sugarcane}]
     effects:
-      - {kind: prose, text: "Good: Sugar. High trade value; Cohesion +5% (luxury)."}
+      - {kind: good, id: G-CANE}
+      - {kind: good, id: G-SUGAR}
+      - {kind: cohesion, value: 1, scope: here, note: "a settlement holding sugar, a luxury (P)"}
+      - {kind: rule, text: "Needs a sugarcane region the civilization holds or trades with; refining burns wood or coal."}
+    practice: [{action: preserve, share: 100}]
+    flavor: "White crystals from a green reed."
+    moment: "Cane juice is boiled down to a grainy cone."
   - id: FOD-11
     name: Canning
     era: 7

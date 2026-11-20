@@ -129,7 +129,12 @@ projects:
     status: draft
     requires: [ART-09, TRD-08]
     effects:
-      - {kind: prose, text: "Patron-funded masters: Legend chance ×2; Insight +10%; Lever: Beacon +1."}
+      - {kind: mod, stat: legend_chance, op: mult, value: 2.0, note: "only while a court or a Wonder patron stands in the realm (P)"}
+      - {kind: mod, stat: art_insight, op: mult, value: 1.1, note: "patron-funded masters only"}
+      - {kind: lever, text: "Beacons: one more slot while a patron court stands."}
+    practice: [{action: craft, share: 50}, {action: socialize, share: 50}]
+    flavor: "A rich house makes a master of a gifted hand."
+    moment: "A painter signs a canvas beneath a patron's coat of arms."
   - id: ART-11
     name: "Museums & Concert Halls"
     era: 7

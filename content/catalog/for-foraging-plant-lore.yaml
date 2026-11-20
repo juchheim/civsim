@@ -130,7 +130,13 @@ projects:
     status: draft
     requires: [FOR-08, COM-10]
     effects:
-      - {kind: prose, text: "Build: Botanical garden. Medicinal plants: MED effects +15%; new-crop trials."}
+      - {kind: build, structure: botanical_garden}
+      - {kind: role, id: botanist}
+      - {kind: mod, stat: med_effects, op: mult, value: 1.15, note: "in a settlement with a staffed garden (P)"}
+      - {kind: rule, text: "A garden works only with a botanist; an empty garden has no effect. Imported crops are trialed here before they spread (FOR-10)."}
+    practice: [{action: forage, share: 100}]
+    flavor: "Every herb has its use and its bed."
+    moment: "A botanist labels a row of foreign seedlings."
   - id: FOR-10
     name: Columbian Exchange
     era: 6
@@ -138,7 +144,11 @@ projects:
     status: draft
     requires: [FOR-09, SEA-12]
     effects:
-      - {kind: prose, text: "Exchange crops with a civilization on another continent (needs contact): food yield +20%, new staples by biome."}
+      - {kind: mod, stat: food_yield, op: mult, value: 1.2, note: "only in a settlement that can grow the imported staple on its biome (P)"}
+      - {kind: rule, text: "The exchange needs contact with a civilization across an ocean (SEA-12); no contact, no new crops. Old-world diseases cross with the ships."}
+    practice: [{action: trade, share: 50}, {action: farm, share: 50}]
+    flavor: "Maize and potatoes cross the water, and so do the fevers."
+    moment: "A sack of unknown tubers is unloaded at a quay."
   - id: FOR-11
     name: Plant Breeding
     era: 7

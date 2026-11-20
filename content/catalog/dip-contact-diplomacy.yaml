@@ -108,7 +108,11 @@ projects:
     status: draft
     requires: [DIP-08, COM-10]
     effects:
-      - {kind: prose, text: "Permanent embassies: see rivals' research slots; diffusion +."}
+      - {kind: diplo, text: "A resident embassy in a contacted civilization shows that civilization its research slots to the host and the host's to it; one embassy per rival."}
+      - {kind: mod, stat: diffusion_discount, op: mult, value: 1.1, note: "projects the rival has finished, capped at the existing 0.5 cost floor"}
+    practice: [{action: meet_strangers, share: 100}]
+    flavor: "A stranger stays, and learns what is said at court."
+    moment: "An envoy unpacks his chest in a foreign capital and sets up house."
   - id: DIP-10
     name: Balance of Power
     era: 7

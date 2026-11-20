@@ -50,3 +50,7 @@ practice:
   # E5 Faith & Fief additions (docs/MVP/27 §5).
   - {id: fire_cannon, knowhow: {WAR: 50, CHM: 30, MET: 20}}
   - {id: pilgrimage, knowhow: {BEL: 70, TRN: 30}}
+  - {id: ocean_voyage, knowhow: {SEA: 60, WAY: 30, TRD: 10}}
+  - {id: colonize, knowhow: {TER: 50, SEA: 30, GOV: 20}}
+  - {id: tend_engine, knowhow: {NRG: 60, MEC: 30, MIN: 10}}
+  - {id: factory_work, knowhow: {MEC: 50, FIB: 30, TRD: 20}}

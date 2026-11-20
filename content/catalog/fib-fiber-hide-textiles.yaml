@@ -156,9 +156,16 @@ projects:
     era: 6
     type: M
     status: draft
+    cost: 64000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x M 1.0."
     requires: [FIB-10, FIB-11, MEC-09, TRD-10]
     effects:
-      - {kind: prose, text: "▸ Weave/Spin ×3. Cottage textile boom (+trade)."}
+      - {kind: mod, stat: weave_output, op: mult, value: 3.0, note: "a cottage loom with a flying shuttle, drawing its share of the shared power ledger (P)"}
+      - {kind: mod, stat: spin_output, op: mult, value: 3.0, note: "a multi-spindle jenny; hand or water powered, never both for the same hours (P)"}
+      - {kind: rule, text: "Cottage cloth becomes a trade good; machines are kits made from precision parts (MEC-09) and need a spinner or weaver."}
+    practice: [{action: fiber, share: 100}]
+    flavor: "Eight spindles turn where one turned before."
+    moment: "A weaver throws the shuttle with a tug of a cord and the loom races."
   - id: FIB-13
     name: "Power Loom & Cotton Mill"
     era: 7

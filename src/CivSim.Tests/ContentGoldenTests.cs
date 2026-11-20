@@ -112,7 +112,7 @@ public class ContentGoldenTests
     [Fact]
     public void Cost_overrides_state_their_reason_and_the_late_project_doublings_are_exactly_twice_the_derived_cost()
     {
-        // Late projects of E0 to E3 (docs/MVP/28 §16), E4 (§7), and E5 (docs/MVP/27 §6 D9) carry cost =
+        // Late projects of E0 to E3 (docs/MVP/28 §16), E4 (§7), E5 (docs/MVP/27 §6 D9) and E6 (docs/MVP/38 §6 D9) carry cost =
         // 2 x EraBase x type multiplier, written as a whole number, with a cost_reason that cites the document.
         // The derived cost is the base the doubling is checked against.
         var doubled = new List<Project>();
@@ -120,11 +120,12 @@ public class ContentGoldenTests
         {
             if (p.CostOverride is not { } cost) continue;
             Assert.False(string.IsNullOrWhiteSpace(p.CostReason), $"{p.Id} overrides its cost without a cost_reason");
+            bool lateE6 = p.CostReason!.Contains("docs/MVP/38 §6 D9", StringComparison.Ordinal);
             bool lateE5 = p.CostReason!.Contains("docs/MVP/27 §6 D9", StringComparison.Ordinal);
-            bool late16 = !lateE5 && p.CostReason.Contains("docs/MVP/28 §16", StringComparison.Ordinal);
+            bool late16 = !lateE5 && !lateE6 && p.CostReason.Contains("docs/MVP/28 §16", StringComparison.Ordinal);
             bool late7 = p.CostReason.Contains("docs/MVP/28 §7", StringComparison.Ordinal);
-            if (!late16 && !late7 && !lateE5) continue;
-            Assert.True(late16 ? p.Era is >= 0 and <= 3 : late7 ? p.Era == 4 : p.Era == 5,
+            if (!late16 && !late7 && !lateE5 && !lateE6) continue;
+            Assert.True(late16 ? p.Era is >= 0 and <= 3 : late7 ? p.Era == 4 : lateE6 ? p.Era == 6 : p.Era == 5,
                 $"{p.Id}: era {p.Era} does not match its reason: {p.CostReason}");
             Fix64 derived = Set.EraBase(p.Era)!.Value * Set.TypeMult(p.Type)!.Value;
             Fix64 twice = derived * 2;
@@ -137,6 +138,7 @@ public class ContentGoldenTests
         Assert.Equal(80, doubled.Count(p => p.Era is >= 0 and <= 3 && p.CostReason!.Contains("§16", StringComparison.Ordinal)));
         Assert.Equal(28, doubled.Count(p => p.CostReason!.Contains("§7", StringComparison.Ordinal)));
         Assert.Equal(7, doubled.Count(p => p.Era == 5 && p.CostReason!.Contains("D9", StringComparison.Ordinal)));
+        Assert.Equal(7, doubled.Count(p => p.Era == 6 && p.CostReason!.Contains("D9", StringComparison.Ordinal)));
     }
 
     [Fact]

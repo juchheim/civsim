@@ -168,7 +168,11 @@ projects:
     status: draft
     requires: [WAR-12, GOV-12]
     effects:
-      - {kind: prose, text: "Disciplined national armies ×1.5."}
+      - {kind: mod, stat: levy_strength, op: mult, value: 1.5, note: "a drilled national levy with muskets; needs GOV-12 (P)"}
+      - {kind: combat, text: "Pike and musket drill is a fixed-ratio row on the existing combat tables, fitted against the F-T5 force tables (P)."}
+    practice: [{action: fight, share: 100}]
+    flavor: "The line holds because every man knows his place."
+    moment: "A column of pikemen and musketeers advances in step."
   - id: WAR-14
     name: "Rifles & Artillery"
     era: 7

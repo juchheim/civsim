@@ -99,7 +99,14 @@ projects:
     status: draft
     requires: [CHM-07, INQ-08]
     effects:
-      - {kind: prose, text: "Industrial sulfuric acid and soda: soap, glass, textile bleaching ×2."}
+      - {kind: good, id: G-ACID}
+      - {kind: good, id: G-ALKALI}
+      - {kind: mod, stat: soap_output, op: mult, value: 2.0, note: "soda replaces ash lye (P)"}
+      - {kind: mod, stat: glass_output, op: mult, value: 2.0, note: "alkali flux in plate and blown glass (P)"}
+      - {kind: rule, text: "Acid and alkali bleach cloth faster; the sulfur that makes acid is the same sulfur that makes gunpowder, so the two share one supply."}
+    practice: [{action: craft, share: 100}]
+    flavor: "The old ashes were never the best salt."
+    moment: "A chemist pours oil of vitriol onto a pale crystal and it smokes."
   - id: CHM-09
     name: Portland Cement
     era: 7

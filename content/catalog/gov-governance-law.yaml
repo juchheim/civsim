@@ -163,7 +163,12 @@ projects:
     status: draft
     requires: [GOV-11, COM-10]
     effects:
-      - {kind: prose, text: "National identity: Cohesion uniform across your territory; Overreach −40%."}
+      - {kind: admin, span: 1, note: "national offices staff provinces"}
+      - {kind: mod, stat: overreach, op: mult, value: 0.6, note: "overreach -40% (P)"}
+      - {kind: rule, text: "Cohesion is uniform across the realm instead of falling with distance from the capital; benefits stop when the capital is lost."}
+    practice: [{action: council, share: 100}]
+    flavor: "One name for the whole realm."
+    moment: "A king's decree is read in a dozen towns the same morning."
   - id: GOV-13
     name: Constitutional Democracy
     era: 7

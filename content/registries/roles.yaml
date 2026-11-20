@@ -31,3 +31,6 @@ roles:
   - {id: master_mason, name: Master mason, insight: 0, unlocked_by: STN-13, staffing: "1 per large stone work; required for the Gothic Cathedral"}
   - {id: knight, name: Knight, insight: 0, unlocked_by: WAR-10, staffing: "a soldier with a horse and steel arms; at most a quarter of soldier slots"}
   - {id: gunner, name: Gunner, insight: 0, unlocked_by: WAR-12, staffing: "4 crew per cannon"}
+  - {id: engineer, name: Engineer, insight: 0, unlocked_by: NRG-06, staffing: "2 per atmospheric engine; adults taken off other work"}
+  - {id: navigator, name: Navigator, insight: 0, unlocked_by: WAY-10, staffing: "1 per ocean-going ship carrying a chronometer"}
+  - {id: botanist, name: Botanist, insight: 2, unlocked_by: FOR-09, staffing: "1 per botanical garden"}

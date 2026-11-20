@@ -164,7 +164,12 @@ projects:
     status: draft
     requires: [SEA-11, WAY-09]
     effects:
-      - {kind: prose, text: "Ocean crossing: reach other continents; overseas contact."}
+      - {kind: unlock_action, action: ocean_voyage}
+      - {kind: mod, stat: open_sea_reach, op: set, value: 24, note: "tiles from land (was 11 with outriggers); one leg crosses the 33-tile channel with margin (P, docs/MVP/38 §5.2)"}
+      - {kind: rule, text: "Ocean voyages use the existing travel and voyage-loss machinery with a higher risk roll that WAY-10 and TRD-11 reduce; overseas contact happens by arriving, never by omniscient discovery."}
+    practice: [{action: ocean_voyage, share: 100}]
+    flavor: "Beyond the last island lies another coast."
+    moment: "A caravel's sails fill and the land sinks behind her."
   - id: SEA-13
     name: "Galleons & Ships of the Line"
     era: 6
@@ -172,7 +177,11 @@ projects:
     status: draft
     requires: [SEA-12, WAR-12]
     effects:
-      - {kind: prose, text: "Armed ocean ships: naval dominance; protected trade fleets."}
+      - {kind: combat, text: "An armed ocean ship carries cannon (powder per shot) and fights on the existing naval rows; a fleet at sea is out of the defense pool (P)."}
+      - {kind: mod, stat: convoy_loss, op: mult, value: 0.6, note: "trade fleets under escort (P)"}
+    practice: [{action: sail, share: 50}, {action: naval_blockade, share: 50}]
+    flavor: "A floating fortress of oak and iron."
+    moment: "A line of galleons fires a broadside together."
   - id: SEA-14
     name: Steamships
     era: 7

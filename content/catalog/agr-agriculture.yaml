@@ -153,7 +153,12 @@ projects:
     status: draft
     requires: [AGR-11, HUS-10, TER-10]
     effects:
-      - {kind: prose, text: "Fodder in rotation, no fallow: land productivity +50%; rural labor released to towns."}
+      - {kind: mod, stat: field_output, op: mult, value: 1.5, note: "fallow is replaced by fodder and legume in a four-course rotation: cropped share 2/3 to 1 (x1.5), derived from the field schedule and measured against the AGR-11 baseline, not stacked on it (P, e6_economy_oracle to be written)"}
+      - {kind: mod, stat: farm_labor_per_output, op: mult, value: 0.85, note: "enclosed, hedged fields need fewer hands; the freed adults move to towns, they are not erased (P)"}
+      - {kind: rule, text: "Fodder fed in the stall feeds more livestock (HUS-11); the rural labor released is shown as people moved to town work."}
+    practice: [{action: farm, share: 100}]
+    flavor: "Clover feeds the soil and the cattle together."
+    moment: "A farmer sows turnips where a fallow field once lay."
   - id: AGR-13
     name: "Seed Drill & Mechanical Reaper"
     era: 7

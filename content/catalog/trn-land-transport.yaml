@@ -134,7 +134,11 @@ projects:
     status: draft
     requires: [TRN-08, GOV-11]
     effects:
-      - {kind: prose, text: "Maintained toll roads: road speed ×1.5; scheduled coaches (messages and people)."}
+      - {kind: mod, stat: road_speed, op: mult, value: 1.5, note: "maintained toll roads (P)"}
+      - {kind: rule, text: "Scheduled coaches carry messages and people between connected towns; tolls pay for upkeep from traffic."}
+    practice: [{action: haul, share: 100}]
+    flavor: "A smooth road pays for itself."
+    moment: "A coach and four rattles past a toll gate."
   - id: TRN-11
     name: "Canals & Locks"
     era: 6
@@ -142,7 +146,11 @@ projects:
     status: draft
     requires: [TRN-10, MEC-09]
     effects:
-      - {kind: prose, text: "Build: Canal. Bulk haul inland ×10 (coal, grain)."}
+      - {kind: build, structure: navigation_canal}
+      - {kind: mod, stat: bulk_haul_inland, op: mult, value: 10.0, note: "coal and grain along a river or surveyed line (P)"}
+    practice: [{action: build, share: 100}]
+    flavor: "Water carries what wagons cannot."
+    moment: "A barge is raised in a lock and glides on."
   - id: TRN-12
     name: Railways
     era: 7

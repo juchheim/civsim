@@ -132,15 +132,26 @@ projects:
     status: draft
     requires: [TRD-09, SEA-12]
     effects:
-      - {kind: prose, text: "Pooled capital: overseas ventures, colonies and big works ×1.5 speed. *KEY-7 prerequisite.*"}
+      - {kind: mod, stat: venture_speed, op: mult, value: 1.5, note: "overseas ventures, colonies and big works funded from pooled goods (P)"}
+      - {kind: rule, text: "Joint-stock pools existing goods into one voyage ledger; it creates no money. In-kind rules wait on the credit decision shared with TRD-08 (docs/MVP/38 D12). KEY-7 prerequisite."}
+    practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
+    flavor: "Many purses, one ship."
+    moment: "Investors sign a charter and a hull is laid down."
   - id: TRD-11
     name: "Stock Exchange & Insurance"
     era: 6
     type: I
     status: draft
+    cost: 96000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x I 1.5."
     requires: [TRD-10, COM-11]
     effects:
-      - {kind: prose, text: "Risk pooling: losses from wrecks and disasters −50%."}
+      - {kind: build, structure: exchange_house}
+      - {kind: mod, stat: voyage_loss, op: mult, value: 0.5, note: "wreck and disaster losses spread across settlements with an exchange house (P)"}
+      - {kind: rule, text: "Insurance spreads a loss in goods; it mints nothing. Needs a harbor settlement and traders; an unstaffed exchange has no effect."}
+    practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
+    flavor: "One lost ship ruins no one."
+    moment: "Brokers shout prices in a crowded hall."
   - id: TRD-12
     name: Industrial Capitalism
     era: 7

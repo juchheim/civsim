@@ -161,13 +161,13 @@ public sealed class SettlementCoreGrowthTests
     {
         string[][] classes =
         {
-            new[] { "castle", "academy", "theatre_arena", "bathhouse", "ziggurat", "great_dome", "great_library", "university", "concentric_castle", "gothic_cathedral", "arsenal" },
+            new[] { "castle", "academy", "theatre_arena", "bathhouse", "ziggurat", "great_dome", "great_library", "university", "concentric_castle", "gothic_cathedral", "arsenal", "bastion_fort", "learned_society", "renaissance_palace" },
             new[] { "temple", "temple_tier2", "palace" },
-            new[] { "granary", "potters_workshop", "forge", "market", "caravanserai", "school", "crane", "press", "longhouse", "hall", "hospital" },
-            new[] { "hearth", "lean_to", "hide_tent", "pit_house", "wattle_daub_house", "mudbrick_house", "storage_pit", "drying_rack", "kiln", "quern", "totem", "lookout_post", "signal_post", "shrine", "bakery", "smelter", "windlass_well", "aqueduct", "clock_tower", "print_shop" },
+            new[] { "granary", "potters_workshop", "forge", "market", "caravanserai", "school", "crane", "press", "longhouse", "hall", "hospital", "atmospheric_engine", "factory", "botanical_garden", "exchange_house" },
+            new[] { "hearth", "lean_to", "hide_tent", "pit_house", "wattle_daub_house", "mudbrick_house", "storage_pit", "drying_rack", "kiln", "quern", "totem", "lookout_post", "signal_post", "shrine", "bakery", "smelter", "windlass_well", "aqueduct", "clock_tower", "print_shop", "coke_oven" },
             new[] { "thorn_barrier", "palisade", "stone_walls", "gatehouse" },
             new[] { "weir", "harbor" },
-            new[] { "field", "orchard", "pasture", "terrace", "canal", "mining_camp", "mine_head", "marker", "seasonal_camp", "hillfort", "megalith", "great_lighthouse", "water_mill", "road", "bridge", "frontier_wall_segment", "monastery", "windmill", "sawmill", "blast_furnace" },
+            new[] { "field", "orchard", "pasture", "terrace", "canal", "mining_camp", "mine_head", "marker", "seasonal_camp", "hillfort", "megalith", "great_lighthouse", "water_mill", "road", "bridge", "frontier_wall_segment", "monastery", "windmill", "sawmill", "blast_furnace", "coal_mine", "navigation_canal" },
         };
         var classified = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (string[] sizeClass in classes)
@@ -176,7 +176,7 @@ public sealed class SettlementCoreGrowthTests
 
         ContentValue structures = TestPack.Pack.Root.Get("registries")!.Get("structures")!;
         string[] registry = structures.Items.Select(item => item.GetString("id")!).ToArray();
-        Assert.Equal(71, registry.Length); // 60 plus the 11 E5 structures typed on codex/e5-fief, classed as in docs 31a §1.3
+        Assert.Equal(81, registry.Length); // 60 plus the 11 E5 structures typed on codex/e5-fief, classed as in docs 31a §1.3, plus the 10 E6 structures (docs/MVP/38)
         Assert.Equal(registry.Length, classified.Count);
         foreach (string id in registry)
         {

@@ -127,7 +127,13 @@ projects:
     status: draft
     requires: [WAY-09, MEC-09]
     effects:
-      - {kind: prose, text: "Longitude solved: ocean routes optimal; shipwrecks −70%."}
+      - {kind: good, id: G-CHRONOMETER}
+      - {kind: role, id: navigator}
+      - {kind: mod, stat: shipwreck_risk, op: mult, value: 0.3, note: "ships carrying a chronometer and a navigator: -70% (P)"}
+      - {kind: rule, text: "Longitude is solved: ocean routes become the shortest; the benefit needs a navigator aboard."}
+    practice: [{action: sail, share: 50}, {action: ocean_voyage, share: 50}]
+    flavor: "At last the ship knows where she is."
+    moment: "A navigator checks a chronometer against the noon sun."
   - id: WAY-11
     name: Triangulation Survey
     era: 7

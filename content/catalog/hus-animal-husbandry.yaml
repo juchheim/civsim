@@ -149,7 +149,11 @@ projects:
     status: draft
     requires: [HUS-10, AGR-11]
     effects:
-      - {kind: prose, text: "Winter herds kept alive: livestock survive winter +80%; manure → field fertility."}
+      - {kind: mod, stat: winter_herd_loss, op: mult, value: 0.2, note: "livestock survive winter +80%: the loss falls to a fifth of the base, paid from stored fodder (P)"}
+      - {kind: mod, stat: field_fertility, op: mult, value: 1.05, note: "manure from stall-fed herds, only where herds and fields share a settlement (P)"}
+    practice: [{action: herd, share: 100}]
+    flavor: "The herd spends the winter fed, not hungry."
+    moment: "Turnips are carried into a warm byre."
   - id: HUS-12
     name: Veterinary Science
     era: 7

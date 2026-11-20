@@ -110,7 +110,11 @@ projects:
     status: draft
     requires: [MED-08, LRN-08]
     effects:
-      - {kind: prose, text: "Surgery +30%; medical training ×2."}
+      - {kind: mod, stat: surgery_success, op: mult, value: 1.3, note: "a hospital with a physician (P)"}
+      - {kind: mod, stat: medical_training_speed, op: mult, value: 2.0}
+    practice: [{action: heal, share: 100}]
+    flavor: "To cure the body, first learn how it is made."
+    moment: "A surgeon explains a drawn heart to students around a table."
   - id: MED-10
     name: "Inoculation & Vaccination"
     era: 7

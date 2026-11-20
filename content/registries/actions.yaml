@@ -45,3 +45,7 @@ actions:
   # E5 Faith & Fief additions (docs/MVP/27 §5).
   - {id: fire_cannon, name: Fire cannon, class: activity, introduced_era: 5}
   - {id: pilgrimage, name: Pilgrimage, class: activity, introduced_era: 5}
+  - {id: ocean_voyage, name: Ocean voyage, class: activity, introduced_era: 6}
+  - {id: colonize, name: Found a colony, class: activity, introduced_era: 6}
+  - {id: tend_engine, name: Tend an engine, class: activity, introduced_era: 6}
+  - {id: factory_work, name: Factory work, class: activity, introduced_era: 6}

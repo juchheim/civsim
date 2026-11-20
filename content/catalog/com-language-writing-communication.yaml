@@ -139,7 +139,12 @@ projects:
     status: draft
     requires: [COM-10]
     effects:
-      - {kind: prose, text: "News spreads: Cohesion responds to events faster; public opinion (GOV effects +10%)."}
+      - {kind: good, id: G-PAMPHLET}
+      - {kind: mod, stat: cohesion_event_response, op: mult, value: 1.5, note: "events reach Cohesion faster when news travels in print (P)"}
+      - {kind: mod, stat: gov_effects, op: mult, value: 1.1, note: "public opinion: GOV effects +10% in settlements with a print shop (P)"}
+    practice: [{action: scribe, share: 100}]
+    flavor: "By nightfall the whole town knows."
+    moment: "A boy runs from the print shop with wet sheets under his arm."
   - id: COM-12
     name: Telegraph
     era: 7

@@ -115,7 +115,12 @@ projects:
     requires: [MIN-08]
     gates: [{kind: seen, target: Coal}]
     effects:
-      - {kind: prose, text: "Dark seams guide prospectors to coal fields. Good: Coal."}
+      - {kind: good, id: G-COAL}
+      - {kind: build, structure: coal_mine}
+      - {kind: rule, text: "Coal is dug by staffed miners from seams 2 to 3 deep; deep seams flood without a pumping engine (NRG-06). Needs a coal deposit the civilization has seen."}
+    practice: [{action: mine, share: 100}]
+    flavor: "The dark seams burn."
+    moment: "A prospector turns a black lump in his hand and strikes a light."
   - id: MIN-10
     name: Black-Powder Blasting
     era: 6
@@ -123,7 +128,11 @@ projects:
     status: draft
     requires: [MIN-09, CHM-07]
     effects:
-      - {kind: prose, text: "▸ Mine & Quarry ×2."}
+      - {kind: mod, stat: mine_quarry_output, op: mult, value: 2.0, note: "mine and quarry (P)"}
+      - {kind: rule, text: "Blasting consumes gunpowder (P 0.02 per litre mined), so mines compete with war for saltpeter and sulfur."}
+    practice: [{action: mine, share: 100}]
+    flavor: "A fuse, a flash, and a face of rock comes down."
+    moment: "Miners shelter as a charge fires in a shaft."
   - id: MIN-11
     name: Steam Pumping
     era: 7

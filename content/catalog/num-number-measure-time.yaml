@@ -118,7 +118,10 @@ projects:
     status: draft
     requires: [NUM-09, COM-10]
     effects:
-      - {kind: prose, text: "Navigation and engineering calculation ×2 speed."}
+      - {kind: mod, stat: navigation_calc_speed, op: mult, value: 2.0, note: "navigation and engineering calculation (P)"}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "Multiplication becomes addition."
+    moment: "A navigator reads a column of logarithms."
   - id: NUM-11
     name: Calculus
     era: 6
@@ -126,7 +129,10 @@ projects:
     status: draft
     requires: [NUM-10]
     effects:
-      - {kind: prose, text: "Physics and engineering: INQ projects −10% cost (stacking with Know-how)."}
+      - {kind: mod, stat: inq_project_cost, op: mult, value: 0.9, note: "INQ projects, stacking with Know-how only down to the existing cost floor (P)"}
+    practice: [{action: count_stores, share: 100}]
+    flavor: "Change itself can be counted."
+    moment: "Two scholars argue over a curve and a tangent line."
   - id: NUM-12
     name: "Statistics & Probability"
     era: 7

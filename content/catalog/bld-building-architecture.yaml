@@ -180,7 +180,12 @@ projects:
     status: draft
     requires: [BLD-11, NUM-10]
     effects:
-      - {kind: prose, text: "Perspective-planned cities: city layout efficiency (+15% city movement and build speed). Wonder: Palace."}
+      - {kind: mod, stat: city_move_and_build_speed, op: mult, value: 1.15, note: "perspective-planned streets in a City (P)"}
+      - {kind: wonder, structure: renaissance_palace}
+      - {kind: rule, text: "The Renaissance Palace is a normal Wonder: needs master masons (STN-13), cut stone, wood and plate glass; one in the world; cost provisional like the other Wonders."}
+    practice: [{action: build, share: 100}]
+    flavor: "The street is drawn before the first stone is laid."
+    moment: "An architect lays a ruler along a plan and a boulevard appears."
   - id: BLD-14
     name: Reinforced Concrete
     era: 7

@@ -136,7 +136,12 @@ projects:
     status: draft
     requires: [TER-09, SEA-12]
     effects:
-      - {kind: prose, text: "Colonies on other continents; colonial trade +. Overreach risk high (independence events)."}
+      - {kind: unlock_action, action: colonize}
+      - {kind: rule, text: "A colony is a settlement founded across an ocean; it pays a distance-based Overreach strain and carries a bounded, seeded independence risk, never a score-based one. A blockade cuts it off."}
+      - {kind: risk, text: "Independence event: a colony far from the capital with low Cohesion may secede (seeded, replay-stable; P)."}
+    practice: [{action: colonize, share: 100}]
+    flavor: "A new town on an old world's far shore."
+    moment: "Settlers plant a flag on a beach and carry the first beams ashore."
   - id: TER-12
     name: "Land Registry & Cadastre"
     era: 7

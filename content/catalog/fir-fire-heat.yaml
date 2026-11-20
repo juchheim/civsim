@@ -147,17 +147,30 @@ projects:
     era: 6
     type: M
     status: draft
+    cost: 64000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x M 1.0."
     requires: [FIR-10, MIN-09, TRN-11]
     effects:
-      - {kind: prose, text: "Fuel: Coal. Wood demand for heat −50%; deforestation pressure falls."}
+      - {kind: mod, stat: heat_wood_demand, op: mult, value: 0.5, note: "wood burned for heat and kilns, only in a settlement that holds coal (P)"}
+      - {kind: rule, text: "Coal comes from a staffed coal mine (MIN-09) by road or canal; a settlement with no coal in reach gains nothing."}
+    practice: [{action: tend_fire, share: 100}]
+    flavor: "The black stone burns hotter than wood."
+    moment: "A cart of coal is tipped into a hearth and it roars."
   - id: FIR-12
     name: Coking
     era: 6
     type: M
     status: draft
+    cost: 64000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x M 1.0."
     requires: [FIR-11, CHM-06]
     effects:
-      - {kind: prose, text: "Good: Coke. Enables coke smelting (MET-13)."}
+      - {kind: build, structure: coke_oven}
+      - {kind: good, id: G-COKE}
+      - {kind: rule, text: "A coke oven turns 1.5 coal into 1 coke (P); coke feeds the coke-smelted blast furnace (MET-13)."}
+    practice: [{action: tend_fire, share: 100}]
+    flavor: "Baked without air, the coal turns clean and hard."
+    moment: "A collier draws glowing grey coke from a sealed oven."
   - id: FIR-13
     name: Gas Lighting
     era: 7

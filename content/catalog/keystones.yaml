@@ -111,7 +111,12 @@ keystones:
     requires: [NRG-06, MEC-10, TRD-10, INQ-08]
     breadth: {era: 6, min: 14}
     effects:
-      - {kind: prose, text: "Industry era; scale 1:100; pollution system activates."}
+      - {kind: era_advance, era: 7}
+      - {kind: legacy, text: Keystone}
+      - {kind: rule, text: "Normal keystone event and score only; no free ships, population or E7 systems; the pollution system and the Industry rules arrive with the Industry chapter, not here."}
+    practice: [{action: scribe, share: 50}, {action: build, share: 50}]
+    flavor: "Steam, thread, capital and method turn a trade into an age."
+    moment: "A boiler, a loom, a ledger and a laboratory bench are shown together."
   - id: KEY-8
     name: Electrification
     era: 7

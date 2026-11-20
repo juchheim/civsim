@@ -171,7 +171,12 @@ projects:
     status: draft
     requires: [HNT-10, SEA-12]
     effects:
-      - {kind: prose, text: "▸ Fish: Offshore fleets ×3; cod and herring trade."}
+      - {kind: mod, stat: offshore_fish_yield, op: mult, value: 3.0, note: "an offshore fleet from a harbor (P)"}
+      - {kind: good, id: G-COD}
+      - {kind: rule, text: "Cod and herring are salted for trade (recipe salt_cod); fleets are away from the coast in season."}
+    practice: [{action: fish, share: 100}]
+    flavor: "The banks are full for those who sail far enough."
+    moment: "A schooner returns low in the water with salted cod."
   - id: HNT-13
     name: Steam Trawlers
     era: 7

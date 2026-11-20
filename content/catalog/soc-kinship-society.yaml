@@ -155,7 +155,11 @@ projects:
     status: draft
     requires: [SOC-11, TRD-08]
     effects:
-      - {kind: prose, text: "Commerce and education spread: Commons Insight +20%; demand for goods (+trade)."}
+      - {kind: mod, stat: commons_insight, op: mult, value: 1.2, note: "Commons Insight (P)"}
+      - {kind: mod, stat: goods_demand, op: mult, value: 1.1, note: "demand for goods raises trade profit (P)"}
+    practice: [{action: trade, share: 50}, {action: socialize, share: 50}]
+    flavor: "Merchants and clerks fill the town."
+    moment: "A draper's family sits down to a printed bill of fare."
   - id: SOC-13
     name: Labor Movement
     era: 7

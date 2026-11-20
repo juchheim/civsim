@@ -130,3 +130,16 @@ goods:
   - {id: G-PAPER, name: Paper, category: material, first_from: [COM-09], durability: durable, load: 0.1, barter: 2, introduced_era: 5}
   - {id: G-BOOK, name: Printed book, category: luxury, first_from: [COM-10], durability: durable, load: 0.3, barter: 6, introduced_era: 5}
   - {id: G-MANUSCRIPT, name: Illuminated manuscript, category: luxury, first_from: [ART-09], durability: durable, load: 0.3, barter: 60, introduced_era: 5}
+  # E6 Discovery additions (docs/MVP/38 §5); every quantity is provisional and no E6 row is numeric yet.
+  - {id: G-COAL, name: Coal, category: fuel, first_from: [MIN-09], durability: durable, load: 1, barter: 1.5, introduced_era: 6}
+  - {id: G-COKE, name: Coke, category: fuel, first_from: [FIR-12], durability: durable, load: 1, barter: 3, introduced_era: 6}
+  - {id: G-CANE, name: Sugarcane, category: food, first_from: [FOD-10], spoilage: 0.3, load: 0.5, barter: 1, introduced_era: 6}
+  - {id: G-SUGAR, name: Refined sugar, category: luxury, first_from: [FOD-10], durability: durable, load: 0.5, barter: 12, introduced_era: 6}
+  - {id: G-COD, name: Salted cod and herring, category: food, first_from: [HNT-12], spoilage: 0.05, load: 0.5, barter: 3, introduced_era: 6}
+  - {id: G-PLATEGLASS, name: Plate glass, category: material, first_from: [CER-11], durability: durable, load: 0.5, barter: 14, introduced_era: 6}
+  - {id: G-PARTS, name: Precision parts, category: material, first_from: [MEC-09], durability: durable, load: 0.2, barter: 30, introduced_era: 6}
+  - {id: G-ACID, name: Sulfuric acid, category: material, first_from: [CHM-08], durability: durable, load: 0.5, barter: 10, introduced_era: 6}
+  - {id: G-ALKALI, name: Soda alkali, category: material, first_from: [CHM-08], durability: durable, load: 0.5, barter: 6, introduced_era: 6}
+  - {id: G-PAMPHLET, name: Pamphlets and broadsheets, category: material, first_from: [COM-11], durability: durable, load: 0.05, barter: 1, introduced_era: 6}
+  - {id: G-CHRONOMETER, name: Marine chronometer, category: tool, first_from: [WAY-10], durability: 120 seasons, load: 0.1, barter: 120, introduced_era: 6}
+  - {id: G-TELESCOPE, name: Telescope, category: tool, first_from: [INQ-07], durability: 80 seasons, load: 0.2, barter: 50, introduced_era: 6}
