@@ -97,6 +97,22 @@ var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
 var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where each castle (DEF-08) stands or is going up
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
 var tree_points := PackedVector2Array()   # where full-size trees stand (the megalith ring keeps clear of them)
+
+# Trees follow the tile's standing wood (docs: Wood layer). Every tree a tile can have is built once; those above the tile's
+# current share are shrunk to nothing in the MultiMesh buffer and brought back as the wood regrows.
+var vegetation_batcher: M7Batcher
+var tree_group := PackedInt32Array()      # per tree: index into tree_group_keys
+var tree_slot := PackedInt32Array()       # per tree: instance index within its group
+var tree_hidden := PackedByteArray()      # per tree: 1 while shrunk away
+var tree_group_keys: Array = []           # group keys (strings)
+var tree_group_ids := {}                  # group key -> index into tree_group_keys
+var tree_group_members: Array = []        # per group: Array of tree ids
+var tree_first := PackedInt32Array()      # per tile: id of its first tree, -1 for none (a tile's trees are contiguous)
+var tree_count := PackedInt32Array()      # per tile: how many trees it has
+var tree_tiles := PackedInt32Array()      # tiles that have trees
+var tree_applied := PackedByteArray()     # per tile: the sixteenths of wood its trees were last drawn for
+var tree_seen_fill := PackedByteArray()
+var tree_seen_visibility := PackedByteArray()
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
@@ -188,7 +204,9 @@ func build() -> Node3D:
 		if int(w.reserved[rt]) == 0:
 			w.reserved[rt] = 1
 	_vegetation()
+	vegetation_batcher = props
 	vegetation_props = _build_props_node("Vegetation", props)
+	_update_tree_density()
 	props = M7Batcher.new()
 	props.chunk_size = STATIC_CHUNK_SIZE
 	props.detail_chunk_size = STATIC_DETAIL_CHUNK_SIZE
@@ -245,6 +263,7 @@ func update_frame() -> bool:
 	var started := Time.get_ticks_usec()
 	last_settlement_layout_rebuilds = 0
 	_refresh_camp_fire_cache()
+	_update_tree_density()
 	var new_river_signature := _visibility_digest()
 	if new_river_signature != river_visibility_signature:
 		river_visibility_signature = new_river_signature
@@ -693,8 +712,61 @@ func _rand_in_hex(t: int, k: int, r: float) -> Vector2:
 			return c + p
 	return c
 
+## Shows as many of each visible tile's trees as its standing wood allows (a full stand shows them all).
+func _update_tree_density() -> void:
+	if vegetation_batcher == null or tree_tiles.is_empty():
+		return
+	var tiles := w.width * w.height
+	if w.forest_fill.size() != tiles or w.visibility.size() != tiles:
+		return
+	if w.forest_fill == tree_seen_fill and w.visibility == tree_seen_visibility:
+		return
+	tree_seen_fill = w.forest_fill
+	tree_seen_visibility = w.visibility
+	var dirty := {}
+	for t in tree_tiles:
+		if w.visibility[t] != 2:
+			continue   # out of sight: keep what was last seen
+		var sixteenths := int(w.forest_fill[t])
+		if sixteenths == int(tree_applied[t]):
+			continue
+		tree_applied[t] = sixteenths
+		var n := int(tree_count[t])
+		var shown := n if sixteenths >= 15 else int(round(n * sixteenths / 15.0))
+		var first := int(tree_first[t])
+		for i in n:
+			var hide := 1 if i >= shown else 0
+			if int(tree_hidden[first + i]) != hide:
+				tree_hidden[first + i] = hide
+				dirty[int(tree_group[first + i])] = true
+	for gid in dirty:
+		var key: String = tree_group_keys[gid]
+		var group = vegetation_batcher.groups.get(key)
+		var node = vegetation_batcher.nodes.get(key)
+		if group == null or not is_instance_valid(node):
+			continue
+		var buffer: PackedFloat32Array = group.buffer.duplicate()
+		for tid in tree_group_members[gid]:
+			if int(tree_hidden[tid]) == 0:
+				continue
+			var o := int(tree_slot[tid]) * 16
+			# zero the basis (not the origin or the custom data): the instance collapses to a point
+			buffer[o] = 0.0; buffer[o + 1] = 0.0; buffer[o + 2] = 0.0
+			buffer[o + 4] = 0.0; buffer[o + 5] = 0.0; buffer[o + 6] = 0.0
+			buffer[o + 8] = 0.0; buffer[o + 9] = 0.0; buffer[o + 10] = 0.0
+		(node as MultiMeshInstance3D).multimesh.buffer = buffer
+
 func _vegetation() -> void:
 	tree_points.clear()
+	var tile_total := w.width * w.height
+	tree_group.clear(); tree_slot.clear(); tree_hidden.clear()
+	tree_group_keys.clear(); tree_group_ids.clear(); tree_group_members.clear()
+	tree_tiles.clear()
+	tree_first.resize(tile_total); tree_first.fill(-1)
+	tree_count.resize(tile_total); tree_count.fill(0)
+	tree_applied.resize(tile_total); tree_applied.fill(15)
+	tree_seen_fill = PackedByteArray()
+	tree_seen_visibility = PackedByteArray()
 	var B := M7WorldData.Biome
 	var count := 0
 	for t in w.width * w.height:
@@ -821,7 +893,22 @@ func _vegetation() -> void:
 				"mixed": name = ("conifer%d" % int(hv * 3.0)) if M7WorldData.hash01(xy.x, xy.y * 3 + i, 62) < 0.45 else "broadleaf%d" % int(hv * 3.0)
 			var s := 0.8 + 0.45 * M7WorldData.hash01(xy.x, xy.y + i, 63)
 			var y := w.height_at(p)
-			props.add(name, _xf(p, y, hv * TAU, s), _tint(M7WorldData.hash01(xy.x + i, xy.y, 64)))
+			var placed: Array = props.add_tracked(name, _xf(p, y, hv * TAU, s), _tint(M7WorldData.hash01(xy.x + i, xy.y, 64)))
+			var gkey: String = placed[0]
+			if not tree_group_ids.has(gkey):
+				tree_group_ids[gkey] = tree_group_keys.size()
+				tree_group_keys.append(gkey)
+				tree_group_members.append([])
+			var gid: int = tree_group_ids[gkey]
+			var tid := tree_group.size()
+			tree_group.append(gid)
+			tree_slot.append(int(placed[1]))
+			tree_hidden.append(0)
+			tree_group_members[gid].append(tid)
+			if tree_first[t] < 0:
+				tree_first[t] = tid
+				tree_tiles.append(t)
+			tree_count[t] += 1
 			tree_points.append(p)
 			count += 1
 		for i in bushes:

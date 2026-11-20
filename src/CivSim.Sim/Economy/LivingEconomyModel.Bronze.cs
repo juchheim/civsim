@@ -403,6 +403,20 @@ public sealed partial class LivingEconomyModel
         return stock < Fix64.FromInt(5) ? 0 : stock < Fix64.FromInt(15) ? 1 : stock < Fix64.FromInt(25) ? 2 : 3;
     }
 
+    /// <summary>
+    /// A tile's standing wood as a share of its full stand, 0 to 255 (255 is untouched or regrown; 0 where the tile can hold no wood).
+    /// The renderer thins and restores the trees drawn on the tile to follow it.
+    /// </summary>
+    public int ForestFill(int tile)
+    {
+        Fix64 full = _world.Tile(tile).InitialWood;
+        if (full <= Fix64.Zero) return 0;
+        Fix64 share = _woodStock[tile] * 255 / full;
+        if (share <= Fix64.Zero) return 0;
+        int value = share.FloorToInt();
+        return value > 255 ? 255 : value;
+    }
+
     /// <summary>A forest tile's state: 0 standing forest, 1 cleared woodland, 2 grassland (docs/MVP/23 §7.4).</summary>
     public int ForestState(int tile) => _forestState.Length == 0 ? 0 : _forestState[tile];
 

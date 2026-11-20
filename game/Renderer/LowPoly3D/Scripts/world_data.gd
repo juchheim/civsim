@@ -97,6 +97,7 @@ var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibi
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
 var e3_overlay_bytes := PackedByteArray() # RGBA8 per tile: deposit or clue marker, mine marker, cohesion band, compact/caravan
 var forest_overlay := PackedByteArray() # visible ForestBand 0–3, zero elsewhere
+var forest_fill := PackedByteArray()    # visible tiles' standing wood in sixteenths of a full stand (0–15); the trees drawn follow it
 var supply_flows: Array = []          # settlement links: {from tile, to tile, kind, good, amount}
 var camp_details := [] # [tile, civ, kind, parent, deposit, crew, built, minehead]
 var ghosts := PackedInt32Array()        # stride 8: people who just left; fade out where they stood
@@ -298,6 +299,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	overlay_bytes = d.overlayBytes if d.has("overlayBytes") else PackedByteArray()
 	e3_overlay_bytes = d.e3OverlayBytes if d.has("e3OverlayBytes") else PackedByteArray()
 	forest_overlay = _byte_array(d.forestOverlay) if d.has("forestOverlay") else PackedByteArray()
+	forest_fill = _byte_array(d.forestFill) if d.has("forestFill") else PackedByteArray()
 	supply_flows = d.supplyFlows if d.has("supplyFlows") else []
 	camp_details.clear()
 	if d.has("campKind"):

@@ -649,7 +649,7 @@ public sealed partial class FrameBuilder
                     _depositClues[t] = (byte)_tiles[t].SurfaceEvidence;
         Territory territory = pol.Territory;
         byte[] vis = target.Visibility, claim = target.Claim, claim2 = target.Claim2, claim3 = target.Claim3,
-            flags = target.TileFlags, knownDeposits = target.KnownDeposits, depositClues = target.DepositClues, forest = target.ForestBand,
+            flags = target.TileFlags, knownDeposits = target.KnownDeposits, depositClues = target.DepositClues, forest = target.ForestBand, forestFill = target.ForestFill,
             worked = target.DepositWorked, miningReach = target.MiningReach;
         sbyte[] owner = target.Owner, claimant = target.Claimant, claimant2 = target.Claimant2, claimant3 = target.Claimant3;
         bool reachEnabled = _omniscient ? eco.BronzeActive : eco.IsBronzeCivilization(_viewer);
@@ -684,6 +684,7 @@ public sealed partial class FrameBuilder
             knownDeposits[t] = _knownDeposits[t];
             depositClues[t] = _depositClues[t];
             forest[t] = Visible(t) ? (byte)eco.ForestBand(t) : (byte)0;
+            forestFill[t] = Visible(t) ? (byte)eco.ForestFill(t) : (byte)0;
             worked[t] = Visible(t) && eco.DepositWorked(t) ? (eco.OreRemaining(t) <= Fix64.Zero ? (byte)2 : (byte)1) : (byte)0;
             miningReach[t] = 0;
             if ((_omniscient || _explored[t] != 0) && reachEnabled)

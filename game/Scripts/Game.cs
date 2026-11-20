@@ -951,6 +951,11 @@ public partial class Game : Node3D
         for (int tile = 0; tile < tiles; tile++)
             if (frame.Visibility[tile] == (byte)TileVisibility.Visible && CarriesWood((Biome)world.Biome[tile])) forestOverlay[tile] = (byte)(frame.ForestBand[tile] + 1);
 
+        // How full each visible tile's stand of wood is, in sixteenths (0-15): the renderer thins and restores its trees to match.
+        var forestFill = new byte[tiles];
+        for (int tile = 0; tile < tiles; tile++)
+            if (frame.Visibility[tile] == (byte)TileVisibility.Visible) forestFill[tile] = (byte)(frame.ForestFill[tile] >> 4);
+
         // Texture bytes are built here (fast) instead of pixel by pixel in the renderer's script.
         var stateBytes = new byte[tiles * 4];
         var overlayBytes = new byte[tiles * 4];
@@ -994,6 +999,7 @@ public partial class Game : Node3D
             ["overlayBytes"] = overlayBytes,
             ["e3OverlayBytes"] = e3OverlayBytes,
             ["forestOverlay"] = forestOverlay,
+            ["forestFill"] = forestFill,
             ["supplyFlows"] = supplyFlows,
             ["figures"] = figures,
             ["renderedFigureCount"] = renderedFigureCount,

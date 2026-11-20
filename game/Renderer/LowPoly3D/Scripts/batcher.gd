@@ -4,14 +4,27 @@ extends RefCounted
 
 var groups := {}
 var instance_count := 0
+var nodes := {}   # key -> MultiMeshInstance3D, from the last build
 var chunk_size := 20.0
 var detail_chunk_size := 6.0
 
-func add(mesh_name: String, xf: Transform3D, custom: Color, chunked: bool = true) -> void:
+## Adds an instance and returns [group key, index within the group], so a caller can find the instance again later.
+func add_tracked(mesh_name: String, xf: Transform3D, custom: Color) -> Array:
+	var key := _key_for(mesh_name, xf, true)
+	var g = groups.get(key)
+	var index: int = 0 if g == null else int(g.count)
+	add(mesh_name, xf, custom)
+	return [key, index]
+
+func _key_for(mesh_name: String, xf: Transform3D, chunked: bool) -> String:
 	var key := mesh_name
 	if chunked:
 		var cs := detail_chunk_size if mesh_name.begins_with("detail_") else chunk_size
 		key += "@%d_%d" % [int(xf.origin.x / cs), int(xf.origin.z / (cs * M7WorldData.S))]
+	return key
+
+func add(mesh_name: String, xf: Transform3D, custom: Color, chunked: bool = true) -> void:
+	var key := _key_for(mesh_name, xf, chunked)
 	var g = groups.get(key)
 	if g == null:
 		g = {"mesh": mesh_name, "count": 0, "buffer": PackedFloat32Array()}
@@ -26,7 +39,7 @@ func add(mesh_name: String, xf: Transform3D, custom: Color, chunked: bool = true
 	g.count += 1
 
 func build(parent: Node3D, kit: M7MeshKit, material_for: Callable) -> int:
-	var updated := update_existing(parent, kit, material_for, {})
+	nodes = update_existing(parent, kit, material_for, {})
 	return instance_count
 
 ## Reuses existing MultiMesh nodes across MatchFrame publications. Per-chunk instances
