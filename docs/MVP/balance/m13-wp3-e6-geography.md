@@ -83,3 +83,12 @@ To confirm the cause and size option B, a throwaway copy of the source outside t
 4. **SEA-12 reach.** Recommend a one-leg ocean reach of 20 (22 would be the "double outrigger"), since 16 only crosses in about a quarter of worlds and the existing reach already crosses in two legs.
 
 None of these is built; they are inputs for WP-E6-5 onward.
+
+## After the fix (2026-11-20, user decision D13)
+
+Two changes followed this audit; the numbers above are the **before** picture.
+
+1. **Generator:** `EnsureBarrenEvidence` skips tiles that already carry a dark seam or oil seep, so the two guaranteed signs can no longer share a tile. The worldgen fingerprint for seed 42 moved from `ea2cbb3fd75bd7c2` to `089dd0ae5d889ae2` (about 28% of worlds change) and `tests/golden/worldgen-v1.txt` was refreshed on purpose.
+2. **MIN-08:** `LivingEconomySource.SeenMask` now adds the Coal bit when the civilization has MIN-08 and a coal *deposit* lies within its era reach (25 at E5, 35 at E6). Without MIN-08 the mask is exactly as before; MIN-08 is an E5 draft row, so no Bronze, Iron or Fief match is affected until E5 is promoted.
+
+Re-run over seeds 1 to 2,000 (digest `ead87860408aba5ffa21f99c2cd37e85c4ded63de47ff9a8b5e2945f1e637ed2`): worlds with no seam at all **0.0%**; starts with no seam within reach 35 **0.4%** (28 of 8,000); within 52 with WAY-01 **0.0%**. The remaining 0.4% are covered by MIN-08 (coal deposits within 35 for 99.7% of starts and within 25 for 99.9% of the union above). The audit's section 5 text still says MIN-08 "reveals nothing today"; that sentence describes the pre-fix code. `CoalVisibilityTests` pins both fixes.

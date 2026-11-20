@@ -446,6 +446,8 @@ public static class WorldGenerator
             if (i % w.Width >= w.Width / 2 || i / w.Width >= w.Height / 2) continue;
             WorldTile tile = w.Tiles[i];
             if (!tile.IsLand || tile.Continent != 0 || tile.Deposit != DepositKind.None) continue;
+            // The two guaranteed signs must never share a tile: the oil-seep pass used to overwrite the dark seam (docs/MVP/38 D13, audit WP-E6-3).
+            if (tile.SurfaceEvidence is SurfaceEvidence.DarkSeam or SurfaceEvidence.OilSeep) continue;
             int distance = Math.Min(HexGrid.Distance(starts[0], i, w.Width), HexGrid.Distance(starts[1], i, w.Width));
             int score = distance * 1_000 + (int)(Hash64.Mix(Hash64.Combine(w.Seed, Hash64.Combine((byte)evidence, (ulong)i))) % 1_000);
             if (score < bestScore) { best = i; bestScore = score; }

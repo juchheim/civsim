@@ -38,7 +38,8 @@ public sealed class LivingEconomySource : IResearchSource
     private readonly ResearchCatalog _catalog;
     private readonly EconomyArchetype[] _archetypes;
     private readonly int[] _eraReach;
-    private readonly int _wayLandmarks, _oreLore;
+    private readonly int _wayLandmarks, _oreLore, _mineSurveying, _coalTarget;
+    private readonly int[] _coalDepositTiles;
     private readonly int[] _climateTarget;
     private readonly int[][] _targetTiles;
     private readonly bool[] _oreTarget;
@@ -80,6 +81,13 @@ public sealed class LivingEconomySource : IResearchSource
             _eraReach[(int)era.GetInt("id")!] = (int)era.GetInt("reach")!;
         _wayLandmarks = catalog.IndexOf("WAY-01");
         _oreLore = catalog.IndexOf("INQ-03");
+        _mineSurveying = catalog.IndexOf("MIN-08");
+        _coalTarget = catalog.GateTargetIndex("Coal");
+        // MIN-08 Mine Surveying (docs/MVP/38 D13): coal deposits themselves, not only the dark-seam surface sign, count as [Seen: Coal] within reach.
+        var coalTiles = new List<int>();
+        for (int i = 0; i < generated.TileCount; i++)
+            if (generated.TileAt(i).Deposit == DepositKind.Coal) coalTiles.Add(i);
+        _coalDepositTiles = coalTiles.ToArray();
 
         // Resources that [Seen] gates name, as tile lists in the generated world.
         int targets = catalog.GateTargets.Count;
@@ -513,6 +521,9 @@ public sealed class LivingEconomySource : IResearchSource
             int range = ores && _oreTarget[t] ? Math.Max(routine, OreRevealRadius) : routine;
             if (NearAny(civ, _targetTiles[t], range)) mask |= 1UL << t;
         }
+        // Surveying reads the rock itself: with MIN-08, a coal deposit within era reach is Seen even where no seam shows on the surface.
+        if (_mineSurveying >= 0 && _coalTarget is >= 0 and < 64 && view.IsDone(civ, _mineSurveying) && NearAny(civ, _coalDepositTiles, routine))
+            mask |= 1UL << _coalTarget;
         return mask;
     }
 
