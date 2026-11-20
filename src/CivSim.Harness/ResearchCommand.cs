@@ -81,7 +81,7 @@ internal static class ResearchCommand
             // Every golden and report below is a Bronze protocol (docs/MVP/25 §3); an Iron run is the plain match only.
             if (checkGolden is not null || writeGolden is not null || checkBronzeGolden is not null || writeBronzeGolden is not null || checkM10 ||
                 reportDecrees || checkB21 || c1e3 || reportE3 || metalFixture || reportMetal || checkC5)
-                throw new ArgumentException("--mode iron and --mode fief run the plain match only; goldens and the M10 reports are Bronze protocols.");
+                throw new ArgumentException("--mode iron, --mode fief and --mode discovery run the plain match only; goldens and the M10 reports are Bronze protocols.");
         }
         if (checkBronzeGolden is not null || writeBronzeGolden is not null)
         {
@@ -193,7 +193,8 @@ internal static class ResearchCommand
         "bronze" => ChapterRules.Bronze,
         "iron" => ChapterRules.Iron,
         "fief" => ChapterRules.Fief,
-        _ => throw new ArgumentException($"Unknown chapter mode '{text}'; use bronze, iron or fief."),
+        "discovery" => ChapterRules.Discovery,
+        _ => throw new ArgumentException($"Unknown chapter mode '{text}'; use bronze, iron, fief or discovery."),
     };
 
     /// <summary>The chapter line of an Iron or Fief run: the mode and how the match would end as things stand (headless, so no human clause).</summary>

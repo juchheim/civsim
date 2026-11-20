@@ -25,6 +25,8 @@ public struct ForecastResult
     public int Key5;
     /// <summary>Forecast step at which KEY-6 completes; -1 if not within the horizon, already done, or outside the match's research ceiling (so always -1 in a Bronze or Iron match).</summary>
     public int Key6;
+    /// <summary>Forecast step at which KEY-7 completes; -1 if not within the horizon, already done, or outside the match's research ceiling (so always -1 outside a Discovery match).</summary>
+    public int Key7;
     public int Steps;
     /// <summary>The last season's coarse own-only E3 state, including deterministic Mandate and Admin progression.</summary>
     public ForecastBronzeSeason Bronze;
@@ -549,7 +551,7 @@ public sealed class ResearchForecast
         RebuildAvailable();
         Fill();
 
-        var result = new ForecastResult { Key1 = -1, Key2 = -1, Key3 = -1, Key4 = -1, Key5 = -1, Key6 = -1 };
+        var result = new ForecastResult { Key1 = -1, Key2 = -1, Key3 = -1, Key4 = -1, Key5 = -1, Key6 = -1, Key7 = -1 };
         Fix64 perStep = Fix64.Zero;
         _insightDirty = true;
         for (int season = 0; season < _horizon; season++)
@@ -597,6 +599,8 @@ public sealed class ResearchForecast
         if (k5 >= 0 && _c.IsNumeric[k5]) result.Key5 = DoneAt[k5]; // eligible only inside an Iron ceiling
         int k6 = _c.Catalog.KeystoneLeaving(5);
         if (k6 >= 0 && _c.IsNumeric[k6]) result.Key6 = DoneAt[k6]; // eligible only inside a Faith & Fief ceiling
+        int k7 = _c.Catalog.KeystoneLeaving(6);
+        if (k7 >= 0 && _c.IsNumeric[k7]) result.Key7 = DoneAt[k7]; // eligible only inside a Discovery ceiling
         return result;
     }
 

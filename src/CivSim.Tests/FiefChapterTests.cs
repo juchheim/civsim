@@ -247,7 +247,7 @@ public class FiefChapterTests
         Assert.False(asIron.Verify(TestPack.Pack).Ok);
 
         // An unknown mode byte is refused, not guessed.
-        raw[8] = 3;
+        raw[8] = 4; // 3 is the Discovery mode; the next unassigned value is refused
         Assert.Throws<InvalidDataException>(() => MatchReplay.Read(new MemoryStream(raw)));
     }
 

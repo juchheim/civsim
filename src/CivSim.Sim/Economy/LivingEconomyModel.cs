@@ -610,8 +610,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         // run only after this constructor returns and would otherwise leave Fief deposits empty.
         // Keep the signed-off Iron initialization order unchanged; Fief needs its containing chain
         // active from initialization because its additional ores/state are seeded at construction.
-        _ironChain = contentFingerprintMode == ChapterMode.Fief;
-        _fiefChain = contentFingerprintMode == ChapterMode.Fief;
+        _ironChain = contentFingerprintMode is ChapterMode.Fief or ChapterMode.Discovery;
+        _fiefChain = contentFingerprintMode is ChapterMode.Fief or ChapterMode.Discovery;
+        _discoveryChain = contentFingerprintMode == ChapterMode.Discovery;
         _methodEffectsByAction = BuildMethodEffectsByAction(content);
         _world = world;
         _archetypes = new EconomyArchetype[world.CivilizationCount];
@@ -7212,7 +7213,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public void ReadSnapshot(BinaryReader reader)
     {
         // Parse and validate off to the side so malformed snapshots cannot leave this model half-mutated.
-        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart, _contentFingerprintMode) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain };
+        var candidate = new LivingEconomyModel(_seed, _content, _world, _archetypes, _gentleStart, _contentFingerprintMode) { MaxEra = MaxEra, IronChain = IronChain, FiefChain = FiefChain, DiscoveryChain = DiscoveryChain };
         candidate.ReadSnapshotCore(reader);
         CopySnapshotStateFrom(candidate);
     }
@@ -7713,10 +7714,13 @@ public sealed partial class LivingEconomyModel : ISimModel
         // Bronze and Iron retain the legacy placeholder slots for future E4/E5 rows. Numeric E5 rows remain
         // unavailable outside Fief, so their draft values must not alter legacy-mode checksums. Fief fingerprints
         // typed E4/E5 effects because both eras are playable there.
-        bool fingerprintEraFour = mode == ChapterMode.Fief;
-        bool fingerprintEraFive = mode == ChapterMode.Fief;
+        // Discovery (docs/MVP/38) does the same for E6: its rows stay one prose placeholder in every other mode, so typing them (WP-E6-2)
+        // cannot move a Bronze, Iron or Fief checksum. Today every E6 row has exactly one prose effect, so this is byte-neutral.
+        bool fingerprintEraFour = mode is ChapterMode.Fief or ChapterMode.Discovery;
+        bool fingerprintEraFive = mode is ChapterMode.Fief or ChapterMode.Discovery;
+        bool fingerprintEraSix = mode == ChapterMode.Discovery;
         bool legacyProject(EconomyProject project) =>
-            project.Era == 4 ? !fingerprintEraFour : project.Era == 5 && !fingerprintEraFive;
+            project.Era == 4 ? !fingerprintEraFour : project.Era == 5 ? !fingerprintEraFive : project.Era == 6 && !fingerprintEraSix;
         int effectCount = 0;
         foreach (EconomyProject project in content.Projects) effectCount += legacyProject(project) ? 1 : project.EffectCount;
         hash.Add(effectCount);
@@ -7735,7 +7739,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                     effect.Rung, effect.Value, effect.Mult, effect.Take, effect.Rate, effect.Unit);
             }
         }
-        int registryEraCeiling = mode == ChapterMode.Fief ? ChapterRules.Fief.LastResearchEra : 3;
+        int registryEraCeiling = mode == ChapterMode.Discovery ? ChapterRules.Discovery.LastResearchEra : mode == ChapterMode.Fief ? ChapterRules.Fief.LastResearchEra : 3;
         int actionCount = 0;
         foreach (EconomyAction action in content.Actions) if (action.IntroducedEra <= registryEraCeiling) actionCount++;
         hash.Add(actionCount);

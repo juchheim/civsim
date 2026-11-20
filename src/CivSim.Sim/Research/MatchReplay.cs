@@ -122,7 +122,7 @@ public sealed class MatchReplay
         if (version is ModeFormatVersion or FiefControlFormatVersion)
         {
             byte mode = reader.ReadByte();
-            if (mode != (byte)ChapterMode.Iron && mode != (byte)ChapterMode.Fief) throw new InvalidDataException("Unknown match replay chapter mode.");
+            if (mode != (byte)ChapterMode.Iron && mode != (byte)ChapterMode.Fief && mode != (byte)ChapterMode.Discovery) throw new InvalidDataException("Unknown match replay chapter mode.");
             rules = ChapterRules.For((ChapterMode)mode);
         }
         CivControl[]? controls = null;

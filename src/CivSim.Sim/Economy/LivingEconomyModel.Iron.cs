@@ -103,8 +103,8 @@ public sealed partial class LivingEconomyModel
         }
     }
 
-    /// <summary>The last era whose project completions the economy records: one past <see cref="MaxEra"/> in the Iron chapter, two past it in Faith &amp; Fief.</summary>
-    private int ProjectCeiling => FiefChain ? MaxEra + 2 : IronChain ? MaxEra + 1 : MaxEra;
+    /// <summary>The last era whose project completions the economy records: one past <see cref="MaxEra"/> in the Iron chapter, two past it in Faith &amp; Fief, three in Discovery.</summary>
+    private int ProjectCeiling => DiscoveryChain ? MaxEra + 3 : FiefChain ? MaxEra + 2 : IronChain ? MaxEra + 1 : MaxEra;
 
     /// <summary>Stock of an Iron good in a settlement (zero before the chapter's first batch).</summary>
     private Fix64 IronStock(SettlementState s, IronGood good) => Stock(s, IronSlot(good));
