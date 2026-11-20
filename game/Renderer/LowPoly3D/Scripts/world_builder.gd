@@ -119,6 +119,10 @@ var unseen_extra := {}                    # unseen tile -> tracked ids of its no
 var veg_dirty := {}                       # group ids whose MultiMesh buffer must be rewritten
 const TREES_FULL := 4
 const TREES_UNSEEN := 255
+const TREES_BLOCKED := 253                # settlement ground: no trees
+var tree_blocked := PackedByteArray()     # per tile: 1 where a settlement's ground (its tile, its ring, its core's outer works, its plots) keeps trees away
+var tree_seen_reserved := PackedByteArray()
+var tree_seen_outer := PackedInt32Array()
 var river_segs := []       # [Vector2 a, Vector2 b] for layout avoidance
 var river_grid := {}       # 4-unit cells to nearby river segment indices
 var stats := {}
@@ -727,7 +731,20 @@ func _trees_shown(n: int, band: int) -> int:
 		2: return int(round(n * 2.0 / 3.0))
 	return n
 
+## The outer-work tiles of every live settlement's core (the same ones the core layout reserves), for the settlement-ground test below.
+func _core_outer_tiles() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for s in w.settlements:
+		if bool(s.get("remembered")) or int(s.get("population", 0)) <= 0:
+			continue
+		for row in s.get("coreOuter", []):
+			if int(row[0]) >= 0:
+				out.append(int(row[0]))
+	return out
+
 ## Keeps the drawn trees in step with each visible tile's wood band, and reveals the props of land explored since the map was built.
+## Settlement ground (a settlement's tile, the ring around it, its core's outer works and its plots) shows no trees: those tiles are found again
+## on every frame, because a settlement founded or grown after the map was built can stand on land that already has trees.
 func _update_tree_density() -> void:
 	if vegetation_batcher == null:
 		return
@@ -735,10 +752,20 @@ func _update_tree_density() -> void:
 	if w.visibility.size() != tiles:
 		return
 	var have_band := w.forest_overlay.size() == tiles
-	if veg_dirty.is_empty() and w.visibility == tree_seen_visibility and (not have_band or w.forest_overlay == tree_seen_band):
+	var outer := _core_outer_tiles()
+	var ground_changed := w.reserved != tree_seen_reserved or outer != tree_seen_outer
+	if not ground_changed and veg_dirty.is_empty() and w.visibility == tree_seen_visibility and (not have_band or w.forest_overlay == tree_seen_band):
 		return
 	tree_seen_visibility = w.visibility
 	tree_seen_band = w.forest_overlay
+	if ground_changed:
+		tree_seen_reserved = w.reserved
+		tree_seen_outer = outer
+		var ring := {}
+		for t in outer:
+			ring[int(t)] = true
+		for t in tree_tiles:
+			tree_blocked[t] = 1 if (int(w.reserved[t]) > 0 or ring.has(int(t))) else 0
 	var dirty := veg_dirty
 	veg_dirty = {}
 	if not unseen_tiles.is_empty():
@@ -756,16 +783,18 @@ func _update_tree_density() -> void:
 		var vis := int(w.visibility[t])
 		if vis == 0:
 			continue   # still unknown: hidden
-		if vis == 1 and int(tree_applied[t]) != TREES_UNSEEN:
-			continue   # out of sight: keep what was last seen
 		var band := TREES_FULL
-		if vis == 2 and have_band and w.forest_overlay[t] > 0:
+		if int(tree_blocked[t]) == 1:
+			band = TREES_BLOCKED
+		elif vis == 1 and int(tree_applied[t]) != TREES_UNSEEN and int(tree_applied[t]) != TREES_BLOCKED:
+			continue   # out of sight: keep what was last seen
+		elif vis == 2 and have_band and w.forest_overlay[t] > 0:
 			band = int(w.forest_overlay[t]) - 1
 		if band == int(tree_applied[t]):
 			continue
 		tree_applied[t] = band
 		var n := int(tree_count[t])
-		var shown := _trees_shown(n, band)
+		var shown := 0 if band == TREES_BLOCKED else _trees_shown(n, band)
 		var first := int(tree_first[t])
 		for i in n:
 			var hide := 1 if i >= shown else 0
@@ -826,6 +855,9 @@ func _vegetation() -> void:
 	tree_applied.resize(tile_total); tree_applied.fill(TREES_FULL)
 	tree_seen_band = PackedByteArray()
 	tree_seen_visibility = PackedByteArray()
+	tree_blocked.resize(tile_total); tree_blocked.fill(0)
+	tree_seen_reserved = PackedByteArray()
+	tree_seen_outer = PackedInt32Array()
 	unseen_tiles.clear(); unseen_extra.clear(); veg_dirty.clear()
 	var B := M7WorldData.Biome
 	var count := 0
