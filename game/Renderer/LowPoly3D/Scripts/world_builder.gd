@@ -741,12 +741,14 @@ func _vegetation() -> void:
 				bushes = 2
 				tufts = 6
 			B.GRASSLAND:
-				trees = 1 if hk > 0.75 else 0
+				# 2 L of standing wood a tile: "depleted" on the Wood layer, so no trees (they would contradict it)
+				trees = 0
 				tree_kind = "broadleaf"
 				bushes = 1
 				tufts = 8
 			B.SAVANNA:
-				trees = 2 + (1 if hk > 0.5 else 0)
+				# 4 L a tile, also "depleted": only the odd lone acacia (the grove noise below thins these further)
+				trees = 1 if hk > 0.7 else 0
 				tree_kind = "acacia"
 				bushes = 1 + int(hk * 2.0)
 				tufts = 10
