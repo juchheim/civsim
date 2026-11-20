@@ -36,7 +36,7 @@ public partial class Game
         _tradeButton = RailToggle("Trade", UiGlyph.LayerTrade, "Active compact routes; tin routes are highlighted.", () => SetMapOverlay(5));
         _supplyButton = RailToggle("Supply", UiGlyph.Link, "Goods moving between settlements: internal sharing, trade, gifts, and tribute. Arrows show direction; rings mark shortages.", () => SetMapOverlay(8));
         _cohesionButton = RailToggle("Cohesion", UiGlyph.LayerCohesion, "Settlement Cohesion bands.", () => SetMapOverlay(6));
-        _forestButton = RailToggle("Forest", UiGlyph.LayerForest, "Visible forest stock bands.", () => SetMapOverlay(7));
+        _forestButton = RailToggle("Wood", UiGlyph.LayerForest, "Standing wood on forest tiles you can see now: depleted (under 5 L), low (5–14 L), medium (15–24 L) and dense (25 L or more).", () => SetMapOverlay(7));
         _resourcesButton = RailToggle("Resources", UiGlyph.LayerResources, "Identified resources and geological clues (R). Shows on top of any layer.", () => SetResourcesVisible(!_resourcesVisible));
         column.AddChild(_claimsButton);
         column.AddChild(_foodButton);
@@ -152,12 +152,12 @@ public partial class Game
         AddSwatch(cohesion, new Color("#A6141A"), "Fraying");
         cohesion.AddChild(UiKit.Text("Hover a settlement for band, overreach, and span strain.", "CaptionTertiary", wrap: true, minWidth: 207));
 
-        forest.AddChild(UiKit.Text("FOREST", "EyebrowTertiary"));
-        AddSwatch(forest, new Color("#c9b86b"), "Depleted (<5 L)");
+        forest.AddChild(UiKit.Text("WOOD", "EyebrowTertiary"));
+        AddSwatch(forest, new Color("#c98a3d"), "Depleted (<5 L)");
         AddSwatch(forest, new Color("#65ab4d"), "Low (5–14 L)");
         AddSwatch(forest, new Color("#2e8747"), "Medium (15–24 L)");
-        AddSwatch(forest, new Color("#145f38"), "Dense");
-        forest.AddChild(UiKit.Text("Bands appear only on tiles in current sight.", "CaptionTertiary", wrap: true, minWidth: 207));
+        AddSwatch(forest, new Color("#145f38"), "Dense (25+ L)");
+        forest.AddChild(UiKit.Text("Shown on forest tiles in current sight. Wood per tile, in litres.", "CaptionTertiary", wrap: true, minWidth: 207));
 
         beacon.AddChild(UiKit.Text("BEACON FIELD · SITE FIT", "EyebrowTertiary"));
         beacon.AddChild(GradientBar(new Color("#e65242"), new Color("#4dcc7a")));
@@ -243,7 +243,7 @@ public partial class Game
             {
                 button.GlyphTop = true;
                 button.Text = button == _claimsButton ? "Claims" : button == _foodButton ? "Food" : button == _methodsButton ? "Methods" : button == _resourcesButton ? "Resources"
-                    : button == _depositsButton ? "Deposits" : button == _tradeButton ? "Trade" : button == _supplyButton ? "Supply" : button == _cohesionButton ? "Cohesion" : button == _forestButton ? "Forest" : "Beacon";
+                    : button == _depositsButton ? "Deposits" : button == _tradeButton ? "Trade" : button == _supplyButton ? "Supply" : button == _cohesionButton ? "Cohesion" : button == _forestButton ? "Wood" : "Beacon";
                 button.ThemeTypeVariation = "RailButtonTall";
                 button.CustomMinimumSize = new Vector2(73, 54);
             }

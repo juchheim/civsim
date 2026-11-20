@@ -135,8 +135,8 @@ void fragment() {
 		if (overlay_mode == 7) {
 			float forest = texture(forest_overlay_state, tile_uv).r * 255.0;
 			if (forest > 0.5) {
-				vec3 forest_tint = forest < 1.5 ? vec3(0.73, 0.68, 0.38) : forest < 2.5 ? vec3(0.39, 0.67, 0.30) : forest < 3.5 ? vec3(0.18, 0.54, 0.28) : vec3(0.08, 0.37, 0.22);
-				c = mix(c, forest_tint, 0.62);
+				vec3 forest_tint = forest < 1.5 ? vec3(0.79, 0.54, 0.24) : forest < 2.5 ? vec3(0.39, 0.67, 0.30) : forest < 3.5 ? vec3(0.18, 0.54, 0.28) : vec3(0.08, 0.37, 0.22);
+				c = mix(c, forest_tint, 0.85);
 			}
 		} else {
 		vec4 e3 = texture(e3_overlay_state, tile_uv);
