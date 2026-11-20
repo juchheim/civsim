@@ -800,7 +800,7 @@ public sealed partial class LivingEconomyModel
             (IronChain && (access & SourceIron) == 0))
         {
             int sourceReach = MiningReach(civ, s.SiteTile);
-            if (IronChain) sourceReach = Math.Max(sourceReach, FiefArsenicalReach);
+            if (FiefChain) sourceReach = Math.Max(sourceReach, FiefArsenicalReach);
             foreach (int tile in ReachTiles(s.SiteTile, sourceReach))
             {
                 byte bit = SourceBit(civ, tile);
@@ -1703,13 +1703,13 @@ public sealed partial class LivingEconomyModel
     private bool CanUseMetalDepositFromCampReach(int civ, int tile, MetalGood ore)
     {
         if (IsRivalTile(civ, tile)) return false;
-        return IsOwnTile(civ, tile) || IronChain && ore == MetalGood.ArsenicalOre;
+        return IsOwnTile(civ, tile) || FiefChain && ore == MetalGood.ArsenicalOre;
     }
 
     private int MiningReachForOre(int civ, int site, MetalGood ore)
     {
         int reach = MiningReach(civ, site);
-        return IronChain && ore == MetalGood.ArsenicalOre ? Math.Max(reach, FiefArsenicalReach) : reach;
+        return FiefChain && ore == MetalGood.ArsenicalOre ? Math.Max(reach, FiefArsenicalReach) : reach;
     }
 
     /// <summary>Whether the settlement can dig an ore this season: a workable deposit in range or one of its camps on it.</summary>
