@@ -137,6 +137,43 @@ public sealed class IronViewTests
     }
 
     [Fact]
+    public void Fief_frame_shows_an_Arsenal_as_a_work_and_lights_it_only_while_it_holds_cannons_or_powder()
+    {
+        var pack = TestPack.WithNumeric("KEY-5", "WAR-12", "CHM-07");
+        MatchModel match = MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Fief);
+        var runner = new SimRunner(match);
+        var catalog = new ResearchCatalog(pack);
+        foreach (string project in new[] { "KEY-5", "WAR-12", "CHM-07" })
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, catalog.IndexOf(project), 0, 0));
+        runner.Advance(2);
+        int home = Settlement(match, 0);
+        match.Economy.FixtureSetTier(home, 1);
+        match.Economy.FixtureBuildIronStructure(home, "arsenal");
+
+        int arsenalKind = -1;
+        for (int k = 0; k < LivingEconomyModel.IronWorkKindCount; k++)
+            if (LivingEconomyModel.IronWorkId(k) == "arsenal") arsenalKind = k;
+        Assert.True(arsenalKind >= 0, "the simulation reports the Arsenal as an Iron work kind the renderer can name");
+
+        MatchFrame Own()
+        {
+            var frame = new MatchFrame();
+            new FrameBuilder(match, 0) { WantBuildOutlooks = true }.Build(match, frame);
+            return frame;
+        }
+        MatchFrame dark = Own();
+        int row = dark.IndexOfSettlement(home);
+        Assert.True(row >= 0);
+        Assert.Equal(1, dark.Iron.Works[row * dark.Iron.WorkKinds + arsenalKind]);
+        Assert.Equal(0, dark.Fief.ArsenalStocked[row]);
+
+        match.Economy.FixtureSetGoodStock(home, "G-CANNON", Fix64.One);
+        MatchFrame lit = Own();
+        Assert.Equal(1, lit.Fief.ArsenalStocked[lit.IndexOfSettlement(home)]);
+        Assert.NotNull(lit.SettlementBuild[row]!.ArsenalSupply);
+    }
+
+    [Fact]
     public void Fief_frame_exposes_power_and_fief_state_only_for_owned_settlements()
     {
         var pack = TestPack.WithNumeric("KEY-5", "NRG-03", "NRG-05", "DEF-09", "LRN-07", "LRN-08", "MED-07", "KEY-6");
