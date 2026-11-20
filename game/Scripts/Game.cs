@@ -694,6 +694,7 @@ public partial class Game : Node3D
                 settlement["fiefScholars"] = i < frame.Fief.Scholars.Length ? (int)frame.Fief.Scholars[i] : 0;
                 settlement["fiefHospitalStaffed"] = i < frame.Fief.HospitalStaffed.Length && frame.Fief.HospitalStaffed[i] != 0;
                 settlement["fiefConcentricCastle"] = i < frame.Fief.ConcentricCastle.Length && frame.Fief.ConcentricCastle[i] != 0;
+                settlement["fiefArsenalStocked"] = i < frame.Fief.ArsenalStocked.Length && frame.Fief.ArsenalStocked[i] != 0;
             }
 #if DEBUG
             if (i == forcedWorkAt)

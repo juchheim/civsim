@@ -273,6 +273,9 @@ public partial class Game
             return;
         }
 
+        if (o.ArsenalSupply is { } arsenalSupply)
+            _buildExistingBox!.AddChild(ArsenalReadinessCard(arsenalSupply));
+
         _buildCausesShown.Clear();
         UiKit.SetText(_buildHeadline!, BuildText.Headline(o, names));
         Color tone = o.Headline switch { BuildHeadline.Building => UiTokens.Success, BuildHeadline.WaitingOnMaterials => UiTokens.Warning, _ => UiTokens.TextSecondary };
@@ -414,6 +417,48 @@ public partial class Game
         if (!any) _buildExistingBox!.AddChild(UiKit.Text("Nothing has been built here yet.", "CaptionTertiary", wrap: true));
     }
 
+    private Control ArsenalReadinessCard(ArsenalSupplyReadiness readiness)
+    {
+        var card = UiKit.Panel("InnerCard", null, UiKit.MouseFilter.Pass);
+        var col = UiKit.Column(UiTokens.Sp1);
+        card.AddChild(col);
+        col.AddChild(PeopleSubhead("ARSENAL SUPPLY"));
+
+        string Towns(int[] settlements) => settlements.Length == 0
+            ? "none found"
+            : string.Join(", ", settlements.Select(SettlementLabel));
+        col.AddChild(UiKit.Text($"Supply outlook for {SettlementLabel(readiness.SiteSettlement)}.", "BodySecondary", wrap: true));
+        if (readiness.RecommendedSiteSettlement >= 0)
+            col.AddChild(UiKit.Text($"Planner recommendation: {SettlementLabel(readiness.RecommendedSiteSettlement)}. You can choose another eligible forge town.",
+                "Caption", wrap: true));
+        else
+            col.AddChild(UiKit.Text("No eligible forge town currently has enough reachable construction stone. The Arsenal can quarry in the 8-tile catchments of connected own settlements; long hauls use carts.",
+                "CaptionWarning", wrap: true));
+
+        string cannonResearch = readiness.CannonResearchReady ? "WAR-12 and MET-12 ready" : "cannon casting also needs MET-12";
+        col.AddChild(UiKit.Text($"Cannon line: {cannonResearch}. This site has cast iron {FormatUnits(readiness.CastIron.ToDoubleForDisplay())}, " +
+            $"iron {FormatUnits(readiness.Iron.ToDoubleForDisplay())}, clay {FormatUnits(readiness.Clay.ToDoubleForDisplay())}, " +
+            $"wood {FormatUnits(readiness.Wood.ToDoubleForDisplay())}. Each cannon needs 2 cast iron and 6 wood; casting iron needs iron and clay.",
+            "Caption", wrap: true));
+
+        string powderResearch = readiness.PowderResearchReady ? "CHM-07 ready" : "needs CHM-07";
+        col.AddChild(UiKit.Text($"Powder line: {powderResearch}. Saltpeter sources: {Towns(readiness.SaltpeterSources)} " +
+            $"(site stock {FormatUnits(readiness.Saltpeter.ToDoubleForDisplay())}); sulfur sources: {Towns(readiness.SulfurSources)} " +
+            $"(site stock {FormatUnits(readiness.Sulfur.ToDoubleForDisplay())}); charcoal at site {FormatUnits(readiness.Charcoal.ToDoubleForDisplay())}.",
+            "Caption", wrap: true));
+
+        if (readiness.DisconnectedOreSources.Length > 0)
+            col.AddChild(UiKit.Text($"Ore towns outside this land network: {Towns(readiness.DisconnectedOreSources)}. A chain of populated settlements is needed to relay supplies.",
+                "CaptionWarning", wrap: true));
+        else if (readiness.SaltpeterSources.Length == 0 || readiness.SulfurSources.Length == 0)
+            col.AddChild(UiKit.Text("At least one powder ore has no owned source in this network yet. Acquire a deposit or bring its stock into a connected settlement.",
+                "CaptionWarning", wrap: true));
+
+        col.AddChild(UiKit.Text($"Connected settlements: {readiness.ConnectedSettlements} · cart stock on the network: {FormatUnits(readiness.CartStock.ToDoubleForDisplay())}. " +
+            "Long hauls wear carts; roads shorten their cost.", "CaptionTertiary", wrap: true));
+        return card;
+    }
+
     private static int ExistingItemsKey(MatchFrame frame, int settlementRow)
     {
         if ((uint)settlementRow >= (uint)frame.SettlementCount) return -1;
@@ -540,6 +585,7 @@ public partial class Game
         string cost = $"Takes {BuildText.Cost(item, names)}";
         string state = item.Status == BuildStatus.Current ? "under way now"
             : item.AnyShort ? $"short: {ShortList(item, names)}"
+            : item.Status == BuildStatus.NotNeeded && item.Id == "arsenal" ? BuildText.Why(item.Gate, names)
             : item.Status == BuildStatus.NotNeeded ? "can pay now, though the town does not need it yet"
             : "can pay now";
         text.AddChild(UiKit.Text($"{cost} · {state}", item.AnyShort ? "CaptionWarning" : item.Status == BuildStatus.NotNeeded ? "CaptionTertiary" : "CaptionSuccess", wrap: true));
@@ -589,7 +635,10 @@ public partial class Game
                     button = UiKit.Secondary("Build it first", () => SendBuildFocus(lever.Arg, false), null, UiGlyph.None, UiTokens.ControlS);
                     break;
                 case LeverKind.SkipThis:
-                    button = UiKit.Secondary("Set aside", () => SendBuildFocus(item.Code, true), "Lets the slot go to the next work the town wants. Labor already put in is kept for later.", UiGlyph.None, UiTokens.ControlS);
+                    string skipHint = item.Track == BuildTrack.Iron && item.Id == "arsenal"
+                        ? "Releases this town's Arsenal reservation so another stone-supplied forge town can take it. Work already done stays shelved here."
+                        : "Lets the slot go to the next work the town wants. Labor already put in is kept for later.";
+                    button = UiKit.Secondary("Set aside", () => SendBuildFocus(item.Code, true), skipHint, UiGlyph.None, UiTokens.ControlS);
                     break;
                 case LeverKind.Corvee:
                 {
