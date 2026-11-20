@@ -69,7 +69,7 @@ projects:
     name: Distillation
     era: 5
     type: D
-    status: draft
+    status: numeric
     requires: [CHM-05, CER-07]
     effects:
       - {kind: good, id: "G-SPIRITS"}
@@ -81,7 +81,7 @@ projects:
     name: Gunpowder
     era: 5
     type: D
-    status: draft
+    status: numeric
     requires: [CHM-06]
     gates: [{kind: has, target: Saltpeter}]
     effects:

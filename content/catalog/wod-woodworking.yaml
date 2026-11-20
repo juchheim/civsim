@@ -109,7 +109,7 @@ projects:
     name: Water-Powered Sawmill
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [WOD-08, NRG-03]
     effects:
       - {kind: build, structure: sawmill}
@@ -121,7 +121,7 @@ projects:
     name: "Timber Framing & Trusses"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [WOD-08, NUM-07]
     effects:
       - {kind: mod, stat: building_size_cap, op: mult, value: 1.5, note: "halls, barns, shipyards and workshops"}

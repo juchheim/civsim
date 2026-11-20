@@ -92,7 +92,7 @@ keystones:
     era: 5
     enters: 6
     type: K
-    status: draft
+    status: numeric
     requires: [COM-10, TRD-09, WAY-08, LRN-08]
     breadth: {era: 5, min: 16}
     effects:

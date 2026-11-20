@@ -112,7 +112,7 @@ projects:
     name: Porcelain
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [CER-08, FIR-10, TRD-07]
     effects:
       - {kind: good, id: "G-PORCELAIN"}
@@ -124,7 +124,7 @@ projects:
     name: Lens Grinding
     era: 5
     type: D
-    status: draft
+    status: numeric
     requires: [CER-07, INQ-06]
     effects:
       - {kind: good, id: "G-SPECTACLES"}

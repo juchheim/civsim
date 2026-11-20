@@ -123,7 +123,7 @@ projects:
     name: Heavy Cavalry
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-08, TRN-09]
     effects:
       - {kind: role, id: knight}
@@ -135,7 +135,7 @@ projects:
     name: "Crossbows & Longbows"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [WAR-08, MEC-07]
     effects:
       - {kind: good, id: "G-CROSSBOW"}
@@ -148,7 +148,7 @@ projects:
     name: Gunpowder Weapons
     era: 5
     type: M
-    status: draft
+    status: numeric
     cost: 12800
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [WAR-11, CHM-07]

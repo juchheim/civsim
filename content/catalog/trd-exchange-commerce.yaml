@@ -101,7 +101,7 @@ projects:
     name: Banking
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [TRD-07, NUM-08]
     effects:
       - {kind: mod, stat: trade_volume, op: mult, value: 1.5, note: "credit moves existing goods sooner; it creates none"}
@@ -114,7 +114,7 @@ projects:
     name: Double-Entry Bookkeeping
     era: 5
     type: M
-    status: draft
+    status: numeric
     cost: 12800
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [TRD-08, NUM-09]

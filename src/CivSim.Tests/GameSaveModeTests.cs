@@ -55,15 +55,15 @@ public sealed class GameSaveModeTests
     [Fact]
     public void Fief_mode_has_a_distinct_player_facing_label()
     {
-        Assert.Equal("Fief mode", GameSaveMode.ChapterLabel(ChapterMode.Fief));
+        Assert.Equal("Faith & Fief", GameSaveMode.ChapterLabel(ChapterMode.Fief));
         Assert.Equal("Iron mode", GameSaveMode.ChapterLabel(ChapterMode.Iron));
         Assert.Equal("Bronze mode", GameSaveMode.ChapterLabel(ChapterMode.Bronze));
-        Assert.Equal("FIEF MODE · IRON AGE", GameSaveMode.AgeLabel(ChapterMode.Fief, "Iron"));
+        Assert.Equal("FAITH & FIEF · IRON AGE", GameSaveMode.AgeLabel(ChapterMode.Fief, "Iron"));
         Assert.Equal("IRON AGE", GameSaveMode.AgeLabel(ChapterMode.Iron, "Iron"));
         Assert.Equal("BRONZE AGE", GameSaveMode.AgeLabel(ChapterMode.Bronze, "Bronze"));
-        Assert.Equal("Fief mode · Year 8.", GameSaveMode.LoadDetail(ChapterMode.Fief, 8));
+        Assert.Equal("Faith & Fief · Year 8.", GameSaveMode.LoadDetail(ChapterMode.Fief, 8));
         Assert.Equal("Year 8.", GameSaveMode.LoadDetail(ChapterMode.Iron, 8));
-        Assert.Equal("Fief mode · 120 simulated minutes.", GameSaveMode.ReplayDetail(ChapterMode.Fief, "120 simulated minutes."));
+        Assert.Equal("Faith & Fief · 120 simulated minutes.", GameSaveMode.ReplayDetail(ChapterMode.Fief, "120 simulated minutes."));
         Assert.Equal("120 simulated minutes.", GameSaveMode.ReplayDetail(ChapterMode.Iron, "120 simulated minutes."));
     }
 

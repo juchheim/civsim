@@ -99,7 +99,7 @@ projects:
     name: Mine Surveying
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [MIN-07, NUM-07]
     effects:
       - {kind: reveal, text: "Ore veins within the civilization's own territory become known."}

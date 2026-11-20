@@ -169,7 +169,7 @@ projects:
     name: Master Masons
     era: 5
     type: R
-    status: draft
+    status: numeric
     requires: [STN-12, SOC-11]
     effects:
       - {kind: role, id: master_mason}

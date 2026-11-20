@@ -145,7 +145,7 @@ public partial class Game : Node3D
             int viewerCiv = ReadViewerCiv();
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty, ReadChapter());
             if (_session.Mode == CivSim.Sim.Research.ChapterMode.Fief)
-                DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED");
+                DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · Faith & Fief");
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
@@ -330,25 +330,20 @@ public partial class Game : Node3D
         return 0;
     }
 
-    /// <summary>Every ordinary new match plays through Iron. Debug-only launch option <c>--fief-playtest</c> opts the entire process into draft Fief matches.</summary>
+    /// <summary>New matches play the full Faith &amp; Fief chapter unless a chapter is selected explicitly.</summary>
     private static CivSim.Sim.Research.ChapterMode ReadChapter()
     {
-#if DEBUG
-        if (HasArgument("--fief-playtest")) return CivSim.Sim.Research.ChapterMode.Fief;
-#endif
         foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (string.Equals(arg, "--fief-playtest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(arg, "--chapter=fief", StringComparison.OrdinalIgnoreCase))
+                return CivSim.Sim.Research.ChapterMode.Fief;
+            if (string.Equals(arg, "--chapter=iron", StringComparison.OrdinalIgnoreCase))
+                return CivSim.Sim.Research.ChapterMode.Iron;
             if (string.Equals(arg, "--chapter=bronze", StringComparison.OrdinalIgnoreCase))
                 return CivSim.Sim.Research.ChapterMode.Bronze;
-        return CivSim.Sim.Research.ChapterMode.Iron;
-    }
-
-    private static bool IsFiefPlaytestLaunch()
-    {
-#if DEBUG
-        return HasArgument("--fief-playtest");
-#else
-        return false;
-#endif
+        }
+        return CivSim.Sim.Research.ChapterMode.Fief;
     }
 
     private static int ReadViewerCiv()

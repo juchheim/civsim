@@ -109,7 +109,7 @@ projects:
     name: Concentric Castles
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-08, MEC-06]
     effects:
       - {kind: build, structure: concentric_castle}

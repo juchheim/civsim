@@ -165,7 +165,7 @@ projects:
     name: Crucible Steel
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [MET-10, CER-08, TRD-07]
     effects:
       - {kind: good, id: "G-CSTEEL"}
@@ -178,7 +178,7 @@ projects:
     name: "Blast Furnace & Cast Iron"
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [MET-10, NRG-03]
     effects:
       - {kind: build, structure: blast_furnace}

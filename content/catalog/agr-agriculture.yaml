@@ -138,7 +138,7 @@ projects:
     name: Three-Field Rotation
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-10, AGR-03]
     effects:
       - {kind: mod, stat: field_output, op: mult, value: 1.5, note: "rotated fields: cropped share 1/2 to 2/3 (x1.333) with a legume yield x1.125 (P, e5_economy_oracle)"}

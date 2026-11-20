@@ -85,7 +85,7 @@ projects:
     name: "Crank & Camshaft"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [MEC-05, NRG-03]
     effects:
       - {kind: mod, stat: mill_craft_output, op: mult, value: 2.0, note: "trip hammers, fulling stocks and bellows; only a worker holding a power unit"}
@@ -97,7 +97,7 @@ projects:
     name: Mechanical Clock
     era: 5
     type: D
-    status: draft
+    status: numeric
     requires: [MEC-07, NUM-06]
     effects:
       - {kind: build, structure: clock_tower}

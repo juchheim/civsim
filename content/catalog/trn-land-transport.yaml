@@ -118,7 +118,7 @@ projects:
     name: "Stirrup & Horseshoe"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [TRN-06, MET-10]
     effects:
       - {kind: good, id: "G-HORSESHOE"}

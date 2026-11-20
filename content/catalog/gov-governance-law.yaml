@@ -134,7 +134,7 @@ projects:
     name: "Canon & Common Law"
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-09, BEL-09]
     effects:
       - {kind: mod, stat: dispute_crime_events, op: mult, value: 0.5}
@@ -146,7 +146,7 @@ projects:
     name: "Charters & Parliaments"
     era: 5
     type: I
-    status: draft
+    status: numeric
     cost: 19200
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x I 1.5."
     requires: [GOV-10, TRD-08]

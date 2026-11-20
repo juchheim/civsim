@@ -69,7 +69,7 @@ projects:
     name: "Optics & Magnetism"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [INQ-05, CER-07]
     effects:
       - {kind: unlock, text: "Lens Grinding: lodestone and lens experiments are the first controlled optics.", project: "CER-10"}

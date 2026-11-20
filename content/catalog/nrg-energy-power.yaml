@@ -46,7 +46,7 @@ projects:
     name: Horse Collar
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [NRG-02, HUS-07]
     effects:
       - {kind: mod, stat: draft_power, op: mult, value: 2.0, note: "ploughing and hauling where the settlement holds horses"}
@@ -58,7 +58,7 @@ projects:
     name: Windmill
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [NRG-03, MEC-07]
     effects:
       - {kind: build, structure: windmill}

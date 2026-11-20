@@ -84,7 +84,7 @@ public partial class Game
         _session?.Dispose();
         _session = replacement;
         DisplayServer.WindowSetTitle(_session.Mode == ChapterMode.Fief
-            ? $"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED"
+            ? $"CivSim — {_look.Name} · Faith & Fief"
             : $"CivSim — {_look.Name}");
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)
             throw new InvalidOperationException("The replacement simulation did not publish its initial frame.");
@@ -132,28 +132,28 @@ public partial class Game
         if (_chronicleOpen) RefreshChronicleRows();
     }
 
-    private void StartNewMatch(ulong seed) => StartNewMatch(seed, _uiSettings.Difficulty);
+    private void StartNewMatch(ulong seed) => StartNewMatch(seed, _uiSettings.Difficulty, ReadChapter());
 
-    private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode mode = ChapterMode.Iron)
+    private void StartNewMatch(ulong seed, Difficulty difficulty, ChapterMode? mode = null)
     {
         if (_contentPack is null) return;
-        if (IsFiefPlaytestLaunch()) mode = ChapterMode.Fief;
+        ChapterMode selectedMode = mode ?? ReadChapter();
         _onboardingSeen = 0;
         _matchSeed = seed;
         HideEndScreen();
-        ReplaceSession(new SimulationSession(seed, _contentPack, 0, 0, difficulty, mode));
+        ReplaceSession(new SimulationSession(seed, _contentPack, 0, 0, difficulty, selectedMode));
         if (_current is { FocusSlotProject: var slots } && slots[0] < 0 && slots[1] < 0 && slots[2] < 0)
         {
             BeginOpeningHold();
             OpenResearchWeb(-1);
         }
-        string detail = mode switch
+        string detail = selectedMode switch
         {
-            ChapterMode.Fief => $"FIEF PLAYTEST · UNPROMOTED DRAFT VALUES. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            ChapterMode.Fief => $"Faith & Fief chapter. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
             ChapterMode.Bronze => $"Bronze Age. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
             _ => $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
         };
-        ShowToast(mode == ChapterMode.Fief ? "Unpromoted Fief playtest" : "New match", ToastKind.Info, detail, key: "new-match");
+        ShowToast("New match", ToastKind.Info, detail, key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>

@@ -287,11 +287,9 @@ public partial class Game
         UiKit.SetText(_civSettlementsLabel!, $"people · {settlements} {(settlements == 1 ? "settlement" : "settlements")}");
         int era = frame.CivEra[civ];
         UiSkin.SetViewerEra(era);
-        UiKit.SetText(_ageLabel!, _session.Mode == ChapterMode.Fief
-            ? "FIEF · DRAFT"
-            : UiText.AgeName(era).ToUpperInvariant() + " AGE");
+        UiKit.SetText(_ageLabel!, UiText.AgeName(era).ToUpperInvariant() + " AGE");
         _ageLabel!.TooltipText = _session.Mode == ChapterMode.Fief
-            ? $"Fief playtest · unpromoted draft values. Current era: {UiText.AgeName(era)}. This build is for testing game systems before WP-E5-11 acceptance."
+            ? $"Faith & Fief chapter · {UiText.AgeName(era)} Age. KEY-6 Printing Revolution ends the match."
             : UiText.AgeName(era);
         int done = frame.CivBreadthDone[civ], needed = Math.Max(1, (int)frame.CivBreadthNeeded[civ]);
         UiKit.SetText(_ageCountLabel!, $"{Math.Min(done, needed)}/{needed}");

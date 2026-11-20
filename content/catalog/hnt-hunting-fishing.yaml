@@ -156,7 +156,7 @@ projects:
     name: "Game Reserves & Falconry"
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [HNT-06, GOV-09]
     effects:
       - {kind: rule, text: "Reserved grounds inside own territory: game stock in a reserve tile never falls below half its carrying capacity (P), and the reserve is closed to ordinary hunting by non-owners; hunting inside it needs a hunter and falconer."}

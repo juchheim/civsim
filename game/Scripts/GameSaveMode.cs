@@ -14,7 +14,7 @@ internal static class GameSaveMode
         {
             ChapterMode.Bronze => "Bronze mode",
             ChapterMode.Iron => "Iron mode",
-            ChapterMode.Fief => "Fief mode",
+            ChapterMode.Fief => "Faith & Fief",
             _ => throw new InvalidDataException("Invalid saved chapter mode."),
         };
 

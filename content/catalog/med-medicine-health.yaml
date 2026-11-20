@@ -80,7 +80,7 @@ projects:
     name: Hospitals
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [MED-06, BEL-09]
     effects:
       - {kind: role, id: attendant}
@@ -95,7 +95,7 @@ projects:
     name: Quarantine
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [MED-07, GOV-10]
     effects:
       - {kind: mod, stat: outbreak_roll, op: mult, value: 0.75, note: "imported outbreaks only, about half of all outbreaks"}

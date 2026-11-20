@@ -121,7 +121,7 @@ projects:
     name: Manorial Estates
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [TER-08, GOV-09]
     effects:
       - {kind: mod, stat: claim_upkeep_farm, op: mult, value: 0.7, note: "30% off the Fief-mode farm-tile upkeep (base 10% of yield, P, user decision D4 of docs 27)"}

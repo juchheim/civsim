@@ -10,7 +10,7 @@ public enum ChapterMode : byte
     /// <summary>The opt-in Iron chapter: E4 opens after a civilization's own KEY-4 and KEY-5 ends the match.</summary>
     Iron = 1,
     /// <summary>
-    /// The opt-in Faith &amp; Fief chapter (docs/MVP/27): E4 and E5 both play, E5 opens after a civilization's own KEY-5, and KEY-6 ends the match.
+    /// The Faith &amp; Fief chapter (docs/MVP/27): E4 and E5 both play, E5 opens after a civilization's own KEY-5, and KEY-6 ends the match.
     /// It contains the Iron chapter, so every Iron system runs in it. Appended after Iron; never renumber.
     /// </summary>
     Fief = 2,
