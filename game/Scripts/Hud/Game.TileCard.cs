@@ -113,6 +113,14 @@ public partial class Game
 
     private bool _hoverActive;
 
+    // The tile card opens on a right-click (a "peek") and closes when the cursor moves away, a button goes down or Esc is pressed.
+    // Beacon and decree-target modes still preview the tile under the cursor as it moves, because their cards say what a click would do.
+    private bool _peekCard;
+    private Vector2 _peekAnchor;
+    private const float PeekCloseDistance = 24f;
+
+    private bool HoverPreviewMode => _beaconMode || _decreeMapMode;
+
     private void NoteHover(Vector2 screen)
     {
         if (screen.DistanceTo(_hoverScreen) < 2f && _hoverActive) return;
@@ -120,16 +128,29 @@ public partial class Game
         _hoverScreen = screen;
         _hoverRest = 0;
         _hoverMoved = true;
-        if (_pinnedTile < 0 && _tileCard is { Visible: true }) HideTileCard();
+        if (_pinnedTile >= 0 || _tileCard is not { Visible: true }) return;
+        if (HoverPreviewMode || !_peekCard) HideTileCard();
+        else if (screen.DistanceTo(_peekAnchor) > PeekCloseDistance) HideTileCard();
+    }
+
+    /// <summary>Shows the description card for the tile under a right-click.</summary>
+    private void PeekTileCard(Vector2 screen)
+    {
+        if (!TryPickTileOrPlate(screen, out int tile)) { HideTileCard(); return; }
+        _hoverTile = tile;
+        _peekCard = true;
+        _peekAnchor = screen;
+        RefreshTileCardNow(screen);
     }
 
     private void HideTileCardWhileDragging()
     {
-        if (_leftDown || _rightDown || _middleDown) { _hoverRest = 0; if (_pinnedTile < 0) HideTileCard(); }
+        if (_leftDown || _rightDown || _middleDown) { _hoverRest = 0; _peekCard = false; if (_pinnedTile < 0) HideTileCard(); }
     }
 
     private void HideTileCard()
     {
+        _peekCard = false;
         if (_tileCard is null) return;
         _tileCard.Visible = false;
         _cardTile = -2;
@@ -146,7 +167,13 @@ public partial class Game
             return;
         }
         _cardPinnedShown = false;
+        if (!HoverPreviewMode && !_peekCard)
+        {
+            if (_tileCard.Visible) HideTileCard();
+            return;
+        }
         if (!_hoverActive || _leftDown || _rightDown || _middleDown) return;
+        Vector2 at = _peekCard && !HoverPreviewMode ? _peekAnchor : _hoverScreen;
         Control? hovered = GetViewport().GuiGetHoveredControl();
         if (hovered is not null && hovered != _hudRoot) { HideTileCard(); return; }
         _hoverRest += delta;
@@ -154,13 +181,13 @@ public partial class Game
         if (_hoverMoved || _cardTile == -2)
         {
             _hoverMoved = false;
-            if (!TryPickTileOrPlate(_hoverScreen, out int tile)) { HideTileCard(); return; }
+            if (!TryPickTileOrPlate(at, out int tile)) { HideTileCard(); return; }
             _hoverTile = tile;
         }
         if (_hoverTile < 0) return;
         _tileRefreshClock += delta;
         bool shift = Input.IsKeyPressed(Key.Shift);
-        if (_cardTile != _hoverTile || _tileRefreshClock > 1.0f || shift != _cardShift) RefreshTileCardNow(_hoverScreen);
+        if (_cardTile != _hoverTile || _tileRefreshClock > 1.0f || shift != _cardShift) RefreshTileCardNow(at);
     }
 
     private bool _cardShift;

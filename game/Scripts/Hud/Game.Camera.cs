@@ -506,7 +506,8 @@ public partial class Game
             if (_decreeHint is not null) UiKit.SetText(_decreeHint, "Map target cancelled.");
         }
         else if (_beaconMode) SetBeaconMode(false);
-        else if (_pinnedTile >= 0) { _pinnedTile = -1; UpdatePinLayer(); RefreshTileCardNow(GetViewport().GetMousePosition()); }
+        else if (_pinnedTile >= 0) { _pinnedTile = -1; UpdatePinLayer(); HideTileCard(); }
+        else PeekTileCard(GetViewport().GetMousePosition());
     }
 
     // ---- Beacon mode -------------------------------------------------------------------------

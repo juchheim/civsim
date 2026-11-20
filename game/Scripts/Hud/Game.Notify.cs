@@ -704,8 +704,8 @@ public partial class Game
             bool trackpad = _uiSettings.TrackpadSeen;
             string alt = OS.GetName() == "macOS" ? "Option" : "Alt";
             text = trackpad
-                ? $"Drag to move · Pinch or two-finger scroll to zoom · {alt}-drag to turn · Space to pause"
-                : "Drag to move · Scroll to zoom · Right-drag to turn · Space to pause";
+                ? $"Drag to move · Pinch or two-finger scroll to zoom · {alt}-drag to turn · Right-click a tile for details · Space to pause"
+                : "Drag to move · Scroll to zoom · Right-drag to turn · Right-click a tile for details · Space to pause";
         }
         bool show = text.Length > 0 && !_researchWebVisible && !_ui.AnyModal;
         if (show && (_momentCard?.Visible ?? false) && _logicalSize.X < 1300) show = false;

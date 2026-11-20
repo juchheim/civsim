@@ -271,7 +271,7 @@ public partial class Game
                 Shot("diplomacy-other");
                 break;
             case "tile":
-                Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; });
+                Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; _peekCard = true; _peekAnchor = _hoverScreen; });
                 Shot("tile-hover");
                 Step(() => { _pinnedTile = _hoverTile; RefreshTileCardNow(_hoverScreen); });
                 Shot("tile-pinned");
@@ -1468,7 +1468,7 @@ public partial class Game
                 Step(() => GD.Print($"SCN topbar viewport={GetViewport().GetVisibleRect().Size} cluster={_timeCluster?.GetGlobalRect()} logo={_pauseLogo?.GetGlobalRect()} " +
                     $"left={_timeLeftWing?.GetGlobalRect()} right={_timeRightWing?.GetGlobalRect()} civ={_civCard?.GetGlobalRect()} topRight={_topRight?.GetGlobalRect()} iconsOnly={_topRightIconsOnly}"), 0.1f);
                 Shot("ty-01-hud");
-                Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; });
+                Step(() => { _hoverScreen = new Vector2(800, 450); _hoverActive = true; _hoverMoved = true; _hoverRest = 1; _peekCard = true; _peekAnchor = _hoverScreen; });
                 Shot("ty-02-tile");
                 Step(() => { _hoverActive = false; _hoverMoved = true; HideTileCard(); });
                 Step(() => ShowToast("Food warning", ToastKind.Critical, "A settlement may go hungry this winter.", 10, key: "t1"));
