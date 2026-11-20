@@ -1,0 +1,106 @@
+e6-audit seeds 1..10000 (10,000 worlds, 40,000 starts)
+digest 74471f3a7feb6c9cdb327e4a934b613bcbfd3c9c4f55339a7daee2becbeef1b9
+mirror check: local columns of civ c and c+2 differ in 0 of 20,000 pairs
+
+== 1. Denominators and definitions ==
+worlds 10,000; starts 40,000; geometrically distinct starts 20,000 (civ 2 and 3 mirror civ 0 and 1).
+Static starts only: each start is a lone settlement at its start tile; no expansion, no rivals' growth, no later daughter villages.
+seam = a land tile whose SurfaceEvidence is DarkSeam: this, and not a coal deposit, is what the sim's [Seen: Coal] reads (LivingEconomySource). Distances are hex distances ignoring terrain and water, as the sim measures them.
+coal deposit = a tile whose Deposit is Coal (what a mine, and the explorers' CommitReveal path, use). sugarcane = a tile whose Deposit is Sugarcane.
+reach: E6 routine reach 35 (eras.yaml); with WAY-01 trails x1.5 = 52; claim radius 5; one fission hop adds 14. uncontested = same continent and strictly nearer this start than any other start.
+walking cost = least land cost in tiles (tenths/10 rounded up, biome costs of 12 §4; a one-tile strait is crossable). sail = the same with the existing outrigger rule (open water enterable within 11 tiles of land at 0.4 tile per tile).
+
+== 2. World truth per world ==
+dark-seam tiles on the map: min 0 p5 0 p25 0 p50 4 p75 8 p95 16 p99 28 max 76 (n=10,000)
+  of which barren (no deposit on the tile): min 0 p5 0 p25 0 p50 4 p75 4 p95 12 p99 20 max 46 (n=10,000)
+coal deposit tiles on the map: min 24 p5 24 p25 24 p50 24 p75 24 p95 24 p99 24 max 24 (n=10,000)
+  coal deposits that carry a dark-seam sign: min 0 p5 0 p25 0 p50 0 p75 0 p95 4 p99 4 max 8 (n=10,000); that lie on an organic-basin tile: min 24 p5 24 p25 24 p50 24 p75 24 p95 24 p99 24 max 24 (n=10,000)
+sugarcane tiles on the map: min 0 p5 0 p25 0 p50 0 p75 0 p95 12 p99 12 max 12 (n=10,000)
+worlds with no seam at all: 28.3%; with no coal deposit: 0.0%; with no sugarcane: 79.0%
+
+== 3. COAL, the gate: can [Seen: Coal] (MIN-09, on the KEY-7 critical path) be satisfied? ==
+The gate is met when a seam lies within the era reach of any settlement. At game start the only settlement is the start tile; the first line is the strict reading, the second adds WAY-01.
+nearest seam, any continent (hex): min 0 p5 1 p25 8 p50 13 p75 21 p95 31 p99 47 max 64 (n=28,664; none 11,336)
+nearest seam, own continent (hex): min 0 p5 1 p25 8 p50 13 p75 20 p95 30 p99 36 max 43 (n=28,132; none 11,868)
+cumulative share of starts with a seam within: <= 5: 10.7% | <= 8: 19.6% | <= 16: 44.7% | <= 25: 62.0% | <= 30: 67.5% | <= 35: 69.9% | <= 49: 71.1% | <= 52: 71.3% | <= 66: 71.7% | <= 80: 71.7%
+seam within 35 (E6 reach): 69.9% (27,954/40,000);   within 52 (with WAY-01): 71.3% (28,506/40,000)
+  of those within 35, the seam is on another continent only (seen across the sea): 0.4% (154/40,000)
+seam within 35 on the start's own continent: 69.5% (27,800/40,000); within 52: 70.3% (28,132/40,000)
+** NO seam within 35 of the start tile (KEY-7 not reachable from the start alone, strict): 30.1% (12,046/40,000)
+** NO seam within 52 of the start tile (with WAY-01): 28.7% (11,494/40,000)
+   among the starts with none within 35: the mate (same continent, the other start of the pair) sees one within 35: 1.9% (226/12,046); any start in the world sees one within 35: 1.9% (226/12,046)
+   among the starts with none within 52: the mate sees one: 0.3% (38/11,494); any start in the world sees one: 0.3% (38/11,494)
+worlds in which NO start sees a seam within 35: 29.6%; within 52: 28.6%
+distinct starts with none within 35: 30.1% (6,023/20,000); with none within 52: 28.7% (5,747/20,000)
+seam sign within 5 (inside own claim): 10.7% (4,270/40,000); within 25 (E5 reach): 62.0% (24,788/40,000)
+starts in worlds that have at least one seam (n=28,664): seam within 35: 97.5% (27,954/28,664); within 52: 99.4% (28,506/28,664); none within 52: 0.6% (158/28,664)
+starts in worlds with NO seam at all (n=11,336): the [Seen: Coal] gate can never open from settlements there, whatever the reach.
+the explorers' path (Expedition decree, needs WAY-04, range 2 x reach = 70; it marks Coal when it crosses a coal DEPOSIT tile): a coal deposit lies within 70 of 100.0% (40,000/40,000) of starts, and within 35 of 100.0% (40,000/40,000).
+
+== 4. COAL, the deposit: can a mine be opened and fed? (WP-E6-5; today's MineCheck does not yet list coal) ==
+  all starts (n=40,000): steps: 1 uncontested within claim radius 5 | 2 uncontested within 16 | 3 uncontested within the E6 reach 35 | 4 same continent within 35 but only nearer a rival | 5 same continent beyond 35 | 6 another continent only | 7 none on the map
+     1: 31.5% | 2: 60.6% | 3: 7.7% | 4: 0.3% | 5: 0.0% | 6: 0.0% | 7: 0.0%
+  distinct starts (n=20,000): steps: 1 uncontested within claim radius 5 | 2 uncontested within 16 | 3 uncontested within the E6 reach 35 | 4 same continent within 35 but only nearer a rival | 5 same continent beyond 35 | 6 another continent only | 7 none on the map
+     1: 31.5% | 2: 60.6% | 3: 7.7% | 4: 0.3% | 5: 0.0% | 6: 0.0% | 7: 0.0%
+nearest coal deposit, any continent (hex): min 2 p5 2 p25 5 p50 8 p75 11 p95 18 p99 23 max 35 (n=40,000)
+nearest coal deposit on the start's own continent (hex): min 2 p5 2 p25 5 p50 8 p75 11 p95 18 p99 23 max 35 (n=40,000)
+nearest coal deposit by least walking cost, in tiles (land and straits only): min 2 p5 2 p25 5 p50 8 p75 13 p95 23 p99 33 max 52 (n=40,000)
+nearest coal deposit by least cost with the outrigger rule, in tiles: min 2 p5 2 p25 5 p50 8 p75 13 p95 23 p99 31 max 47 (n=40,000)
+cumulative share of starts with a coal deposit (any owner, any continent) within: <= 5: 31.5% | <= 8: 57.0% | <= 16: 93.1% | <= 25: 99.6% | <= 35: 100.0% | <= 52: 100.0%
+cumulative share of starts with an UNCONTESTED own-continent coal deposit within: 5: 31.5% (12,584/40,000) | 16: 92.0% (36,804/40,000) | 35: 99.7% (39,894/40,000)
+coal deposits within 35, uncontested and on own continent: min 0 p5 3 p25 5 p50 6 p75 6 p95 8 p99 9 max 12 (n=40,000)
+summed deposit quantity (1-3 per tile) of those: min 0 p5 5 p25 9 p50 11 p75 13 p95 17 p99 20 max 30 (n=40,000)
+starts whose own continent has NO coal deposit at all: 0.0% (0/40,000)
+starts whose nearest coal is on another continent only (needs a sea crossing): 0.0% (0/40,000)
+starts with no coal deposit anywhere on the map: 0.0% (0/40,000)
+starts with no WALKING route to any coal deposit (land and straits): 0.0% (0/40,000); of those, one is reachable by the outrigger rule: n/a (0/0)
+starts with a seam within 35 but no uncontested own-continent coal within 35 (the gate opens, the mine is out of reach): 0.2% (94/40,000)
+starts that see a seam within 35 while their nearest coal deposit is farther than 35: 0.0% (0/40,000)
+
+== 5. What MIN-08 (E5 mine surveying, kind: reveal) would have to reveal ==
+MIN-08's reveal effect is the prose line "Ore veins within the civilization's own territory become known" (kind: reveal, no radius, no typed value). The sim only classifies the kind; it reads no MIN-08 reveal, so today MIN-08 reveals nothing and is not wired to [Seen: Coal].
+If 'own territory' means the claim radius 5: a coal deposit becomes known for 31.5% (12,584/40,000) of starts; a seam for 10.7% (4,270/40,000).
+Gate satisfied if a seam is within the era reach OR a MIN-08 reveal of radius R names a coal deposit (share of all starts):
+  reveal radius 5: seam within 35 or coal within 5: 79.5% (31,800/40,000) | seam within 52 or coal within 5: 80.5% (32,194/40,000) | coal within 5 alone: 31.5% (12,584/40,000)
+  reveal radius 8: seam within 35 or coal within 8: 87.2% (34,878/40,000) | seam within 52 or coal within 8: 87.8% (35,122/40,000) | coal within 8 alone: 57.0% (22,790/40,000)
+  reveal radius 16: seam within 35 or coal within 16: 97.9% (39,168/40,000) | seam within 52 or coal within 16: 98.1% (39,232/40,000) | coal within 16 alone: 93.1% (37,250/40,000)
+  reveal radius 25: seam within 35 or coal within 25: 99.9% (39,950/40,000) | seam within 52 or coal within 25: 99.9% (39,958/40,000) | coal within 25 alone: 99.6% (39,848/40,000)
+  reveal radius 35: seam within 35 or coal within 35: 100.0% (40,000/40,000) | seam within 52 or coal within 35: 100.0% (40,000/40,000) | coal within 35 alone: 100.0% (40,000/40,000)
+Radius a reveal would need so that this share of starts learns of a coal deposit (any continent, from the start tile): 
+  50% 8 | 75% 11 | 90% 15 | 95% 18 | 99% 23 | 100% 35 (hex, nearest deposit on the map)
+  own continent only: 50% 8 | 90% 15 | 99% 23 | 100% 35 (0 starts have none)
+
+== 6. SUGARCANE (FOD-10 [Has: Sugarcane]; the sim currently decides only Tin and Arsenic ore as [Has] gates, so this one is open for every civilization) ==
+  all starts (n=40,000): steps: 1 uncontested within claim radius 5 | 2 uncontested within 16 | 3 uncontested within the E6 reach 35 | 4 same continent within 35 but only nearer a rival | 5 same continent beyond 35 | 6 another continent only | 7 none on the map
+     1: 1.1% | 2: 4.8% | 3: 8.4% | 4: 5.6% | 5: 1.1% | 6: 0.0% | 7: 79.0%
+nearest sugarcane tile (hex): min 0 p5 5 p25 14 p50 24 p75 29 p95 36 p99 41 max 45 (n=8,384; none 31,616)
+cumulative share of starts with a sugarcane tile (any owner) within: <= 5: 1.1% | <= 8: 2.4% | <= 16: 6.4% | <= 25: 12.3% | <= 35: 19.8% | <= 52: 21.0%
+sugarcane in the claim radius 5: 1.1% (434/40,000); in E6 reach 35: 19.8% (7,930/40,000) (own continent 19.8% (7,930/40,000); another continent only 0.0% (0/40,000))
+sugarcane on the start's own continent anywhere: 21.0% (8,384/40,000); only overseas: 0.0% (0/40,000); none on the map: 79.0% (31,616/40,000)
+uncontested own-continent sugarcane within 35: 14.3% (5,704/40,000)
+nearest sugarcane by least walking cost, in tiles: min 0 p5 8 p25 18 p50 35 p75 43 p95 52 p99 61 max 110 (n=8,384; none 31,616)
+worlds in which no start has uncontested own-continent sugarcane within 35: 79.8%
+
+== 7. Overseas: foreign starts, foreign land and the existing outrigger rule (OpenSeaReach 11, islands as stepping stones) ==
+continent gap per world (least hex distance between continent 0 and 1 land): min 31 p5 33 p25 33 p50 35 p75 35 p95 37 p99 37 max 39 (n=10,000)
+least open-sea reach for ONE leg between the continents, islands unusable: min 15 p5 16 p25 16 p50 17 p75 17 p95 18 p99 18 max 19 (n=10,000)
+least reach for a continuous sail with islands as stepping stones (the existing rule; needs <= 11): min 5 p5 6 p25 6 p50 6 p75 7 p95 7 p99 7 max 7 (n=10,000)
+worlds crossable with the existing reach 11: 100.0%; with a one-leg reach of 16: 28.5%; 20: 100.0%; 22: 100.0%
+mate start (same continent) hex distance: min 21 p5 21 p25 22 p50 23 p75 25 p95 26 p99 26 max 27 (n=40,000); walking steps: min 21 p5 21 p25 22 p50 23 p75 25 p95 26 p99 26 max 27 (n=40,000)
+nearest foreign start (other continent), hex: min 43 p5 51 p25 68 p50 97 p75 103 p95 110 p99 115 max 125 (n=40,000)
+nearest foreign start by walking steps: 0.0% (0/40,000) of starts can walk to one (land and one-tile straits)
+nearest foreign start by outrigger cost, in tiles: min 24 p5 30 p25 45 p50 84 p75 89 p95 93 p99 96 max 103 (n=40,000)
+  seasons at 10 tiles a season: min 3 p5 3 p25 5 p50 9 p75 9 p95 10 p99 10 max 11 (n=40,000)
+starts for which a foreign start is reachable by the existing rule: 100.0% (40,000/40,000)
+legs from one continent to the other (a leg = a hop between two landmasses, every water tile within the reach of one of the two), fewest legs at reach 11 (the existing rule): 2 legs 100.0%
+  at reach 16: 1 legs 28.5% | 2 legs 71.5%; at reach 22: 1 legs 100.0%  (-1 legs = not connected at that reach)
+nearest tile of the other continent, hex: min 36 p5 43 p25 50 p50 65 p75 69 p95 72 p99 74 max 76 (n=40,000); by outrigger cost in tiles: min 18 p5 22 p25 30 p50 51 p75 55 p95 58 p99 60 max 67 (n=40,000)
+nearest island tile, hex: min 18 p5 23 p25 29 p50 44 p75 49 p95 52 p99 53 max 55 (n=40,000); by outrigger cost in tiles: min 11 p5 14 p25 21 p50 41 p75 44 p95 47 p99 50 max 57 (n=40,000)
+foreign land within the E6 reach 35 by hex distance: 0.0% (0/40,000); within 52: 28.5% (11,380/40,000)
+
+== 8. Limits ==
+Static starts: expansion adds settlements, and the sim measures [Seen] from every settlement, so real exposure is at least what is reported here and grows with the realm (one fission hop adds up to 14 tiles).
+A seam is evidence, not a deposit: the generator places guaranteed seams on barren host-rock tiles near the start pair and never on coal, so a seen seam does not promise a coal tile nearby. Section 4 reports the deposit geography separately.
+Era reach counts the era at which MIN-09 is researched (E6, 35). The Seen mask is cumulative, but E6 has the largest reach before it, so it dominates. WAY-01 (E0) is assumed done by E6, so the 52 row is the realistic one.
+Contact and barter can also set the gate (Coal is a traded good; a contact that finished MIN-09 makes it known), and explorers set it when they cross a coal deposit tile; neither is modeled here beyond the mate and world rows of section 3.
+All four starts per world are two geometric configurations (civ 2 and 3 mirror civ 0 and 1), so 'per world' figures rest on 20,000 distinct starts, not 40,000 independent ones.
