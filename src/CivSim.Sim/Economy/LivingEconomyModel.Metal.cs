@@ -34,6 +34,8 @@ public sealed partial class LivingEconomyModel
     private const int NoSlot = int.MinValue;
     /// <summary>Recipes from this order on are crafts: they run on craft labor, not on the metal chain's reserved labor.</summary>
     private const int CraftOrder = 45;
+    /// <summary>Fief's guaranteed arsenical-copper catchment in generated worlds.</summary>
+    private const int FiefArsenicalReach = 25;
     private static int MetalSlot(MetalGood good) => (int)Good.Count + (int)good;
     private static int SlotCount => (int)Good.Count + (int)MetalGood.Count;
 
@@ -792,14 +794,22 @@ public sealed partial class LivingEconomyModel
             access |= SourceBit(civ, tile);
         foreach (MiningCampState camp in _camps)
             if (camp.Parent == s.Id) access |= SourceBit(civ, camp.Tile);
-        // A workable deposit on own land within mining reach is a source too: the planner opens a camp there when it wants the ore.
+        // A workable deposit on own land is a source. In Fief, unclaimed arsenical-copper deposits are also
+        // available to an in-reach camp; the camp claims the tile, while rival-held deposits remain protected.
         if ((access & (SourceCopper | SourceArsenic | SourceTin)) != (SourceCopper | SourceArsenic | SourceTin) ||
             (IronChain && (access & SourceIron) == 0))
-            foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
+        {
+            int sourceReach = MiningReach(civ, s.SiteTile);
+            if (IronChain) sourceReach = Math.Max(sourceReach, FiefArsenicalReach);
+            foreach (int tile in ReachTiles(s.SiteTile, sourceReach))
             {
                 byte bit = SourceBit(civ, tile);
-                if (bit != 0 && (access & bit) == 0 && IsOwnTile(civ, tile)) access |= bit;
+                if (bit == 0 || (access & bit) != 0) continue;
+                MetalGood? ore = OreGood(_world.Deposit(tile).Kind);
+                if (ore is not { } good || HexGrid.Distance(s.SiteTile, tile, _world.Width) > MiningReachForOre(civ, s.SiteTile, good)) continue;
+                if (CanUseMetalDepositFromCampReach(civ, tile, good)) access |= bit;
             }
+        }
         if (IronFuelHubsEnabled(civ) && IronOreSupplierForHub(s) is not null) access |= AccessIron;
         return access;
     }
@@ -1684,9 +1694,22 @@ public sealed partial class LivingEconomyModel
             if (OreGood(_world.Deposit(tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, tile, HasMineHead(s, tile))) return true;
         foreach (MiningCampState camp in _camps)
             if (camp.Parent == s.Id && OreGood(_world.Deposit(camp.Tile).Kind) == ore && IsLocalMetalDepositWorkable(civ, camp.Tile, camp.MineHead)) return true;
-        foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
-            if (OreGood(_world.Deposit(tile).Kind) == ore && IsOwnTile(civ, tile) && IsLocalMetalDepositWorkable(civ, tile, false)) return true;
+        foreach (int tile in ReachTiles(s.SiteTile, MiningReachForOre(civ, s.SiteTile, ore)))
+            if (OreGood(_world.Deposit(tile).Kind) == ore && CanUseMetalDepositFromCampReach(civ, tile, ore) &&
+                IsLocalMetalDepositWorkable(civ, tile, false)) return true;
         return false;
+    }
+
+    private bool CanUseMetalDepositFromCampReach(int civ, int tile, MetalGood ore)
+    {
+        if (IsRivalTile(civ, tile)) return false;
+        return IsOwnTile(civ, tile) || IronChain && ore == MetalGood.ArsenicalOre;
+    }
+
+    private int MiningReachForOre(int civ, int site, MetalGood ore)
+    {
+        int reach = MiningReach(civ, site);
+        return IronChain && ore == MetalGood.ArsenicalOre ? Math.Max(reach, FiefArsenicalReach) : reach;
     }
 
     /// <summary>Whether the settlement can dig an ore this season: a workable deposit in range or one of its camps on it.</summary>
@@ -2945,7 +2968,8 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>
     /// The planner opens a camp (docs/MVP/23 §7.2) when it wants an ore no deposit in range supplies: on a workable deposit
-    /// of that ore on its own land within mining reach, nearest first.
+    /// of that ore on its own land within mining reach, nearest first. In Fief, existing unclaimed arsenical deposits may
+    /// also be opened; rival-held deposits are never eligible.
     /// </summary>
     private void OpenCampsIfNeeded(SettlementState s, MetalPlan plan, int season)
     {
@@ -2984,11 +3008,11 @@ public sealed partial class LivingEconomyModel
                 }
             if (have && !OpenOwnCampDespiteSister)
             { if (TraceTargetCampDecision(s, season) && good == MetalGood.CopperOre) targetDecision = "sister-camp-supplies"; if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/skip:sister-camp"); continue; }
-            int reach = MiningReach(civ, s.SiteTile);
+            int reach = MiningReachForOre(civ, s.SiteTile, good);
             int candidateTiles = 0;
             foreach (int tile in ReachTiles(s.SiteTile, reach))
             {
-                if (OreGood(_world.Deposit(tile).Kind) != good || !IsOwnTile(civ, tile)) continue;
+                if (OreGood(_world.Deposit(tile).Kind) != good || !CanUseMetalDepositFromCampReach(civ, tile, good)) continue;
                 candidateTiles++;
                 MiningCampResult result = TryOpenCamp(s, tile, HexGrid.Distance(s.SiteTile, tile, _world.Width), decreed: false, season);
                 if (B12MiningWantTraceEnabled && HasSourceBit(m, good)) CountCampAttempt($"{good}/{result}");
@@ -3154,7 +3178,9 @@ public sealed partial class LivingEconomyModel
         if (parent is null) return MiningCampResult.NoParent;
         distance = walkingTiles >= 0 ? walkingTiles : best;
         if (distance <= Radius) return MiningCampResult.InRange;
-        if (distance > MiningReach(civ, parent.SiteTile)) return MiningCampResult.OutOfReach;
+        MetalGood? ore = OreGood(_world.Deposit(tile).Kind);
+        int reach = ore is { } good ? MiningReachForOre(civ, parent.SiteTile, good) : MiningReach(civ, parent.SiteTile);
+        if (distance > reach) return MiningCampResult.OutOfReach;
         return CheckOpenCamp(parent, tile);
     }
 
@@ -3195,7 +3221,10 @@ public sealed partial class LivingEconomyModel
                 foreach (int tile in RangeTiles(s.SiteTile))
                     if (_world.Deposit(tile).Kind == kind && DepositWorkable(civ, tile)) { inRange = true; break; }
                 if (inRange) { best = -1; bestDistance = -1; break; }
-                foreach (int tile in ReachTiles(s.SiteTile, MiningReach(civ, s.SiteTile)))
+                int reach = kind == DepositKind.ArsenicalCopper
+                    ? MiningReachForOre(civ, s.SiteTile, MetalGood.ArsenicalOre)
+                    : MiningReach(civ, s.SiteTile);
+                foreach (int tile in ReachTiles(s.SiteTile, reach))
                 {
                     if (_world.Deposit(tile).Kind != kind || !DepositWorkable(civ, tile) || IsRivalTile(civ, tile)) continue;
                     int d = HexGrid.Distance(s.SiteTile, tile, _world.Width);
