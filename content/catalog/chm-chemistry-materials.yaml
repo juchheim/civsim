@@ -97,6 +97,8 @@ projects:
     era: 6
     type: M
     status: draft
+    cost: 64000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x M 1.0."
     requires: [CHM-07, INQ-08]
     effects:
       - {kind: good, id: G-ACID}

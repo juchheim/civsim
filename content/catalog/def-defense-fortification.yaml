@@ -126,8 +126,8 @@ projects:
     requires: [DEF-09, NUM-07, WAR-12]
     effects:
       - {kind: build, structure: bastion_fort}
-      - {kind: defense, structure: bastion_fort, mult: 2.0, text: "Garrisoned bastion fort; fitted against the e5_combat_oracle force tables so it beats cannon without erasing gunpowder (P)"}
-      - {kind: rule, text: "Against a bastion fort the gunpowder wall penalty is halved (P) and engine and cannon crews suffer 25% more attrition; it needs a garrison like a castle."}
+      - {kind: defense, structure: bastion_fort, mult: 1.5, text: "Garrisoned bastion fort, an alternative to the concentric step (castle 1.25 x 1.5 = 1.875, below the 1.9 storm crossover; e6_combat_oracle Part 2); its real job is the integrity track below (P)"}
+      - {kind: rule, text: "The bastion fort counts as a wall of about 6.75 to 9.0 on the integrity track (1.5 to 2 times a gatehouse wall; a three-cannon train needs 1 to 2 more seasons, e6_combat_oracle Part 1), the gunpowder wall penalty is halved (P), and engine and cannon crews suffer 25% more attrition; it needs a garrison like a castle."}
     practice: [{action: build, share: 100}]
     flavor: "Angles, not height, turn the shot."
     moment: "A star-shaped rampart rises where a round tower stood."

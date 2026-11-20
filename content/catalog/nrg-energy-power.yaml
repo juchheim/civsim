@@ -76,7 +76,7 @@ projects:
       - {kind: build, structure: atmospheric_engine}
       - {kind: role, id: engineer}
       - {kind: unlock_action, action: tend_engine}
-      - {kind: rule, text: "An atmospheric engine burns coal for power-hours in the shared power ledger and pumps a flooded coal mine; with no coal or no engineer it is idle and shown so. KEY-7 prerequisite."}
+      - {kind: rule, text: "An atmospheric engine burns coal for power-hours in the shared power ledger and pumps a flooded coal mine; with no coal or no engineer it is idle and shown so. Draft engine: 10 power units on 1 L coal per unit-season with 2 engineers (e6_power_oracle Part C: 6 units on 3 L coal loses labor at every town size). KEY-7 prerequisite."}
     practice: [{action: tend_engine, share: 100}]
     flavor: "Fire lifts water from the deep."
     moment: "A great beam nods and a shaft begins to drain."

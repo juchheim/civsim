@@ -138,7 +138,7 @@ public class ContentGoldenTests
         Assert.Equal(80, doubled.Count(p => p.Era is >= 0 and <= 3 && p.CostReason!.Contains("§16", StringComparison.Ordinal)));
         Assert.Equal(28, doubled.Count(p => p.CostReason!.Contains("§7", StringComparison.Ordinal)));
         Assert.Equal(7, doubled.Count(p => p.Era == 5 && p.CostReason!.Contains("D9", StringComparison.Ordinal)));
-        Assert.Equal(7, doubled.Count(p => p.Era == 6 && p.CostReason!.Contains("D9", StringComparison.Ordinal)));
+        Assert.Equal(8, doubled.Count(p => p.Era == 6 && p.CostReason!.Contains("D9", StringComparison.Ordinal)));
     }
 
     [Fact]
