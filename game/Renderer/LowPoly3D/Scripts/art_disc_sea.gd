@@ -9,6 +9,8 @@
 ##             a short bowsprit, masthead pennants, a few barrels on deck. 0.46 long, against the cog's 0.5 (a caravel is narrower and lower).
 ##   barge_coal  TRN-11: a long narrow canal barge lying along Z, bow to +Z, with a heap of coal in its open hold, a tiller and a small cabin at the stern
 ##               with a stovepipe, a towing post forward and a coiled tow rope; it rides a navigation canal (art_disc_land.gd canal_nav_straight)
+##   wreck           the sign of a lost voyage (docs/MVP/39 §7.1): a broken mast floating at a slant with its yard and a torn sail trailing, a few planks and ribs
+##                   of hull, a cask and a coil of rope; lies at the waterline for a few seasons then is gone (the frame lists the recent ones)
 ##   lugger          HNT-12: a small two-masted fishing boat, bow to +Z, with two tanned lug sails, baskets of cod on deck and the net stowed in a heap at the stern;
 ##                   a harbor town's fleet of them fishes the offshore banks
 ##   lugger_netting  the same with the net out: a trawl streaming astern from a beam, floats on the headrope and a full cod-end of silver fish
@@ -38,6 +40,7 @@ static func build(kit) -> void:
 	kit.meshes["caravel"] = _caravel(kit)
 	kit.meshes["galleon"] = _galleon(kit)
 	kit.meshes["barge_coal"] = _barge(kit)
+	kit.meshes["wreck"] = _wreck(kit)
 	kit.meshes["lugger"] = _lugger(kit, false)
 	kit.meshes["lugger_netting"] = _lugger(kit, true)
 
@@ -425,4 +428,26 @@ static func _lugger(kit, netting: bool) -> ArrayMesh:
 	b.blob(tail + Vector3(0, 0.003, 0.012), Vector3(0.016, 0.009, 0.026), 6, 3, NET, 0.1, NET_DARK)
 	for k in 5:
 		b.blob(tail + Vector3(-0.008 + 0.004 * k, 0.012, 0.018 - 0.008 * (k % 2)), Vector3(0.006, 0.0025, 0.0035), 4, 2, FISH, 0.0)
+	return b.commit()
+
+# ------------------------------------------------------------------ a wreck
+
+static func _wreck(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1940)
+	b.tag = PLAIN
+	# the stump of the mast, snapped and floating at a slant, with the yard still on it and a ragged sail trailing in the water
+	b.pole(Vector3(-0.02, -0.004, 0.0), Vector3(0.03, 0.07, 0.012), 0.0042, WOOD, 5)
+	b.pole(Vector3(0.012, 0.03, -0.03), Vector3(0.012, 0.05, 0.06), 0.0028, WOOD_LIGHT, 4)
+	b.quad(Vector3(0.014, 0.05, -0.006), Vector3(0.014, 0.048, 0.056), Vector3(0.006, 0.006, 0.05), Vector3(0.006, 0.004, 0.0), CANVAS.darkened(0.16), Vector3(1.0, 0.03, 0.03))
+	b.quad(Vector3(0.014, 0.05, -0.006), Vector3(0.014, 0.048, 0.056), Vector3(0.006, 0.006, 0.05), Vector3(0.006, 0.004, 0.0), CANVAS.darkened(0.3), Vector3(-1.0, 0.03, 0.03))
+	b.tri(Vector3(0.006, 0.005, 0.05), Vector3(0.006, 0.003, 0.0), Vector3(0.004, 0.0, 0.03), CANVAS.darkened(0.25), Vector3(0, 1.0, 0))
+	# planks and a pair of hull ribs adrift, a cask and a coil of rope riding with them
+	b.box(Vector3(-0.045, 0.0, 0.02), Vector3(0.06, 0.005, 0.012), PLANK_MID, PLANK_UP)
+	b.box(Vector3(0.04, 0.0, -0.03), Vector3(0.05, 0.005, 0.011), PLANK_LOW, PLANK_MID)
+	b.box(Vector3(-0.01, 0.0, -0.05), Vector3(0.012, 0.005, 0.05), PLANK_MID, PLANK_UP)
+	b.pole(Vector3(-0.03, 0.0, 0.05), Vector3(-0.045, 0.026, 0.056), 0.0034, PLANK_LOW, 4)
+	b.pole(Vector3(-0.015, 0.0, 0.052), Vector3(-0.02, 0.022, 0.06), 0.0034, PLANK_LOW, 4)
+	b.prism(Vector3(0.05, -0.004, 0.04), 0.0085, 0.0085, 0.016, 8, WOOD_LIGHT, WOOD_LIGHT.lightened(0.1))
+	b.prism(Vector3(0.05, 0.0, 0.04), 0.0092, 0.0092, 0.0018, 8, IRON, IRON)
+	b.prism(Vector3(-0.05, -0.002, -0.03), 0.01, 0.01, 0.005, 8, ROPE, ROPE)
 	return b.commit()

@@ -10,6 +10,7 @@ const M7WarRig = preload("res://Renderer/LowPoly3D/Scripts/war_rig.gd")
 const M7DiscoveryRig = preload("res://Renderer/LowPoly3D/Scripts/discovery_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 const M7FiefOverlay = preload("res://Renderer/LowPoly3D/Scripts/fief_overlay.gd")
+const M7LaneOverlay = preload("res://Renderer/LowPoly3D/Scripts/lane_overlay.gd")
 
 var world: M7WorldData
 var kit: M7MeshKit
@@ -40,6 +41,7 @@ var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
 var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
+var lane_overlay: M7LaneOverlay         # Discovery ocean lanes, their ship tokens and wrecks (docs/MVP/39 §7.2); draws nothing until the frame has the data
 var fief_overlay: M7FiefOverlay        # Faith & Fief pilgrim routes, quarantine and spread (docs/MVP/32); draws nothing until the frame has the data
 var skirmish_rig: M7SkirmishRig
 var zig_rig: M7ZigguratRig
@@ -84,6 +86,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 	farm_rig.sync()
 	fief_overlay = M7FiefOverlay.new(builder, world_root)
 	fief_overlay.sync()
+	lane_overlay = M7LaneOverlay.new(builder, world_root)
 	skirmish_rig = M7SkirmishRig.new(builder, world_root)
 	zig_rig = M7ZigguratRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	zig_rig.sync()
@@ -173,6 +176,8 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 		war_rig.update(tick)
 	if discovery_rig != null and not discovery_rig.demo:
 		discovery_rig.update(tick * 0.1)
+	if lane_overlay != null and not lane_overlay.demo:
+		lane_overlay.update(tick * 0.1)
 	if profile:
 		var total_usec := Time.get_ticks_usec() - profile_started
 		if total_usec > _render_tick_profile_max_usec:
@@ -725,6 +730,8 @@ func show_discovery_gallery() -> Vector3:
 	if discovery_rig != null:
 		discovery_rig.demo = true
 		discovery_rig.sync(rig_works)
+	if lane_overlay != null:
+		lane_overlay.load_demo(centre)
 	return centre
 
 ## Dev aid for scenarios (fief-overlays, docs/MVP/32): fills the Faith & Fief overlay tables from the live map round the human capital (pilgrimage routes,
@@ -770,6 +777,8 @@ func _process(_delta: float) -> void:
 		signal_rig.update(Time.get_ticks_msec() / 1000.0)
 	if discovery_rig != null and discovery_rig.demo:
 		discovery_rig.update(Time.get_ticks_msec() / 1000.0)
+	if lane_overlay != null and lane_overlay.demo:
+		lane_overlay.update(Time.get_ticks_msec() / 1000.0)
 
 func set_season(season: int) -> void:
 	_apply_season(season)
@@ -820,6 +829,8 @@ func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> v
 			(builder.road_node.material_override as ShaderMaterial).set_shader_parameter("width_boost", clampf(distance / 22.0, 1.0, 2.6))
 	if fief_overlay != null:
 		fief_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
+	if lane_overlay != null:
+		lane_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
 	var regional := distance > 38.0
 	if builder != null:
 		builder.set_regional_lod(regional)

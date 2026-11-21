@@ -899,6 +899,9 @@ public partial class Game
                     ("fish-netting", -1.2f, -27.4f, 1.8f, 34.0f, 140.0f), ("fish-bank", -0.5f, -27.4f, 1.6f, 40.0f, 0.0f),
                     ("cane", 0.95f, -27.4f, 3.2f, 48.0f, 0.0f), ("cane-close", 0.4f, -27.4f, 1.9f, 36.0f, 20.0f), ("cane-cut", 1.5f, -27.4f, 1.9f, 36.0f, 20.0f),
                     ("cargo", 0.0f, -29.8f, 1.3f, 34.0f, 0.0f), ("cargo-close", -0.1f, -29.8f, 1.0f, 28.0f, 25.0f),
+                    // the ocean lanes, z -31.6 .. -37: three lanes (bold, medium with a galleon escort and a wreck, faded), ships along them
+                    ("lanes", 0.0f, -34.4f, 4.4f, 50.0f, 0.0f), ("lanes-region", 0.0f, -34.4f, 9.0f, 55.0f, 0.0f), ("lanes-close", -1.6f, -34.0f, 2.6f, 36.0f, 20.0f),
+                    ("lanes-wreck", 0.6f, -34.3f, 1.6f, 32.0f, 10.0f), ("lanes-low", 1.5f, -34.0f, 2.2f, 22.0f, 0.0f),
                 })
                 {
                     string itemName = item;
