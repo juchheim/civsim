@@ -635,9 +635,9 @@ func show_discovery_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(11.0, 22.0)
+	plane.size = Vector2(12.0, 32.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -4.2)
+	floor_mesh.position = Vector3(0.0, -0.01, -9.2)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -653,6 +653,12 @@ func show_discovery_gallery() -> Vector3:
 		[["galley", 0.8, 1.3], ["cog", 0.8, 1.3], ["caravel", 0.75, 1.3], ["galleon", 0.9, 1.3]],
 		[["field_three_0", 1.1, 1.0], ["field_four_0", 1.1, 1.0], ["field_four_1", 1.1, 1.0], ["field_four_2", 1.1, 1.0], ["field_four_3", 1.1, 1.0], ["hedge_line", 0.4, 1.4]],
 		[["colony_pennant", 0.4, 1.6], ["mark_dormant", 0.3, 2.4], ["mark_blocked", 0.3, 2.4], ["mark_flooded", 0.3, 2.4], ["mark_strained", 0.3, 2.4], ["mark_blockaded", 0.3, 2.4]],
+		# P1: the coke oven, the navigation canal tile, the lock and a barge on it (the barge is set by hand below), the toll gate
+		[["coke_oven", 0.5, 1.5], ["coke_oven_idle", 0.5, 1.5], ["canal_nav_straight", 0.9, 1.0], ["canal_nav_lock", 0.9, 1.0], ["toll_gate", 0.5, 1.8]],
+		# P1: the garden, the society and the exchange house, working and idle
+		[["botanical_garden", 0.6, 1.4], ["botanical_garden_idle", 0.6, 1.4], ["learned_society", 0.35, 1.8], ["learned_society_idle", 0.35, 1.8], ["exchange_house", 0.45, 1.6], ["exchange_house_idle", 0.45, 1.6]],
+		# P1: the Renaissance Palace, its plot and its four stages
+		[["renaissance_palace_site", 1.1, 0.9], ["renaissance_palace_1", 1.1, 0.9], ["renaissance_palace_2", 1.1, 0.9], ["renaissance_palace_3", 1.1, 0.9], ["renaissance_palace_4", 1.1, 0.9]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -660,7 +666,7 @@ func show_discovery_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5
@@ -672,6 +678,11 @@ func show_discovery_gallery() -> Vector3:
 			if name.begins_with("mark_"):
 				y = 0.2
 			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
+			if name == "canal_nav_lock":
+				# a coal barge in the lock chamber, lying along the canal (the barge's bow is +Z, the canal runs along X)
+				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x, 0.0, z)), custom, false)
+			elif name == "canal_nav_straight":
+				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x + 0.05, 0.0, z)), custom, false)
 			x += float(item[1]) * 0.5
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre

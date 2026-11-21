@@ -878,6 +878,15 @@ public partial class Game
                     ("galleon", 1.05f, -5.2f, 1.7f, 28.0f, 0.0f), ("galleon-side", 1.05f, -5.2f, 1.7f, 22.0f, 90.0f), ("galleon-stern", 1.05f, -5.2f, 1.7f, 30.0f, 200.0f),
                     ("fields", 0.0f, -8.0f, 5.0f, 50.0f, 0.0f), ("fields-close", 0.55f, -8.0f, 2.0f, 46.0f, 0.0f), ("fields-low", 0.55f, -8.0f, 1.8f, 24.0f, 0.0f),
                     ("marks", 0.0f, -10.4f, 2.6f, 34.0f, 0.0f), ("marks-close", -0.2f, -10.4f, 1.4f, 14.0f, 0.0f),
+                    // P1 rows: z -12.8 coke ovens (x -1.4, -0.9), canal (-0.2), lock (0.7), toll gate (1.4); -15.2 garden (-1.1, -0.5), society (-0.03, 0.33),
+                    // exchange house (0.73, 1.18); -18.4 the Palace site and stages (x -2.2 .. 2.2)
+                    ("coke", -1.15f, -12.8f, 2.2f, 32.0f, 0.0f), ("coke-side", -1.4f, -12.8f, 1.8f, 30.0f, 70.0f), ("canal", 0.25f, -12.8f, 2.8f, 36.0f, 0.0f),
+                    ("canal-lock", 0.7f, -12.8f, 2.0f, 30.0f, 25.0f), ("toll", 1.4f, -12.8f, 1.8f, 28.0f, 30.0f),
+                    ("garden", -0.8f, -15.2f, 2.0f, 40.0f, 0.0f), ("garden-side", -1.1f, -15.2f, 1.9f, 30.0f, 40.0f), ("society", 0.15f, -15.2f, 1.7f, 26.0f, 0.0f),
+                    ("society-side", 0.15f, -15.2f, 1.7f, 26.0f, 50.0f), ("exchange", 0.95f, -15.2f, 1.8f, 26.0f, 0.0f), ("exchange-side", 0.95f, -15.2f, 1.8f, 28.0f, 55.0f),
+                    ("civic", 0.0f, -15.2f, 3.6f, 38.0f, 0.0f),
+                    ("palace", 0.0f, -18.4f, 4.6f, 42.0f, 0.0f), ("palace-done", 2.2f, -18.4f, 2.6f, 28.0f, 0.0f), ("palace-done-side", 2.2f, -18.4f, 2.6f, 30.0f, 60.0f),
+                    ("palace-stages", -0.6f, -18.4f, 3.4f, 34.0f, 20.0f), ("palace-top", 2.2f, -18.4f, 3.0f, 70.0f, 0.0f),
                 })
                 {
                     string itemName = item;

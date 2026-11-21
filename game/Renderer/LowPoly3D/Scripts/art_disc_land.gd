@@ -10,6 +10,12 @@
 ##                     turnips     rows of dark leafy tufts with pale round roots half out of the ground (the fodder that feeds the winter herds)
 ##                     barley      closer, finer rows (TAG_CROP), told from the wheat by the tight spacing and a paler soil between them
 ##                     clover      a low pink-flowered meadow with three sheep folded on it (the nitrogen the next wheat needs)
+##   canal_nav_straight  TRN-11: one tile of navigation canal along X, flat-to-flat (0.84): a straight channel of dark water between stone-faced banks with
+##                       a gravel towpath on the +Z side and a few mooring posts (the E3 irrigation canal is a ditch; this is wider, straight and faced)
+##   canal_nav_lock      the same tile with a lock: higher stone chamber walls, a pair of mitre gates at each end with balance beams, a paddle post and
+##                       a lock-keeper's bollards
+##   toll_gate           TRN-10: a small prop across a road along X: a swing gate of white-barred timber across the road, an octagonal toll house with a
+##                       bay window and a lamp beside it, a price board on a post; a road upgrade, drawn on an existing paved road
 ##   hedge_line        a straight run of hedge 0.3 long along X for edges the field mesh does not cover, with a few small trees in it
 extends RefCounted
 
@@ -45,6 +51,9 @@ static func build(kit) -> void:
 			kinds.append((band + phase) % 4)
 		kit.meshes["field_four_%d" % phase] = _field(kit, kinds, 2001 + phase)
 	kit.meshes["hedge_line"] = _hedge_line(kit)
+	kit.meshes["canal_nav_straight"] = _canal(kit, false)
+	kit.meshes["canal_nav_lock"] = _canal(kit, true)
+	kit.meshes["toll_gate"] = _toll_gate(kit)
 
 ## A hedge from p to q: a low bank in short square-section runs of two greens (a broad foot and a narrower, lighter crown), thickness `t`, height `h`; `gap`
 ## leaves a gate opening of that fraction in the middle. Cheap on purpose: a field is drawn on every farmed tile.
@@ -201,4 +210,110 @@ static func _hedge_line(kit) -> ArrayMesh:
 	b.tag = FOLIAGE
 	b.blob(Vector3(0.05, 0.07, 0.0), Vector3(0.026, 0.03, 0.026), 6, 3, HEDGE_LIGHT, 0.15, HEDGE)
 	b.tag = PLAIN
+	return b.commit()
+
+# ------------------------------------------------------------------ navigation canal and turnpike
+
+const BANK := Color("#8f8a80")
+const BANK_LIGHT := Color("#b3ad9f")
+const BANK_DARK := Color("#6c675f")
+const CANAL_WATER := Color("#2f5873")
+const CANAL_WATER_LIGHT := Color("#4a82a6")
+const TOWPATH := Color("#bfae88")
+const POST := Color("#5e4631")
+const TIMBER_LIGHT := Color("#8a6a48")
+const WHITE := Color("#efe9da")
+const TILE := Color("#a8492c")
+const TILE_DARK := Color("#7f3622")
+const PLASTER := Color("#e7dcc2")
+const DOOR := Color("#2a2119")
+const LAMP := Color("#ffd27a")
+const GLASS := Color("#39485a")
+const BOARD := Color("#d8cdb0")
+const IRON := Color("#4a4f57")
+const EMISSIVE := M7MeshBuilder.TAG_EMISSIVE
+
+const TILE_W := 0.84
+
+static func _canal(kit, lock: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2040 if not lock else 2041)
+	b.tag = PLAIN
+	var half := TILE_W * 0.5
+	var cw := 0.2            # the water's width (Z)
+	# the towpath on the +Z side, the water, the stone-faced banks either side of it
+	b.box(Vector3(0, 0.003, cw * 0.5 + 0.05), Vector3(TILE_W, 0.006, 0.08), TOWPATH)
+	b.box(Vector3(0, 0.004, 0.0), Vector3(TILE_W, 0.008, cw + 0.03), BANK_DARK)
+	b.box(Vector3(0, 0.0085, 0.0), Vector3(TILE_W, 0.002, cw), CANAL_WATER)
+	for sz in [-1.0, 1.0]:
+		var z: float = sz
+		b.box(Vector3(0, 0.012, z * (cw * 0.5 + 0.007)), Vector3(TILE_W, 0.018, 0.014), BANK, BANK_LIGHT)
+		# coping stones along each bank
+		for k in 10:
+			b.box(Vector3(-half + 0.04 + 0.084 * k, 0.0225, z * (cw * 0.5 + 0.007)), Vector3(0.08, 0.004, 0.018), BANK_LIGHT if k % 2 == 0 else BANK)
+	# a few ripples of lighter water so it reads as moving
+	for k in 5:
+		b.box(Vector3(-0.28 + 0.13 * k, 0.0098, -0.03 + 0.04 * (k % 3)), Vector3(0.05, 0.001, 0.006), CANAL_WATER_LIGHT)
+	# mooring posts on the towpath edge
+	for k in 3:
+		b.pole(Vector3(-0.3 + 0.3 * k, 0.014, cw * 0.5 + 0.022), Vector3(-0.3 + 0.3 * k, 0.04, cw * 0.5 + 0.022), 0.0042, POST, 5)
+	if not lock:
+		return b.commit()
+	# the lock: the chamber's walls stand higher, with a gate pair at each end of the chamber (two leaves meeting in a point), each with a long balance beam
+	for sz in [-1.0, 1.0]:
+		var z2: float = sz
+		b.box(Vector3(0, 0.026, z2 * (cw * 0.5 + 0.007)), Vector3(0.42, 0.03, 0.02), BANK, BANK_LIGHT)
+		b.box(Vector3(0, 0.0425, z2 * (cw * 0.5 + 0.007)), Vector3(0.43, 0.004, 0.024), BANK_LIGHT)
+	for ex in [-0.21, 0.21]:
+		var x: float = ex
+		var dir := -1.0 if x > 0.0 else 1.0     # the leaves close to a point that faces away from the chamber
+		for sz in [-1.0, 1.0]:
+			var z3: float = sz
+			var a := Vector3(x, 0.0, z3 * cw * 0.5)
+			var tip2 := Vector3(x - dir * 0.045, 0.0, 0.0)
+			# a gate leaf: two timber rails and a body between them, from the hinge post on the chamber wall to the point of the V
+			b.pole(a + Vector3(0, 0.014, 0), tip2 + Vector3(0, 0.014, 0), 0.0072, POST, 4)
+			b.pole(a + Vector3(0, 0.032, 0), tip2 + Vector3(0, 0.032, 0), 0.0072, TIMBER_LIGHT, 4)
+			b.pole(a + Vector3(0, 0.0, 0), a + Vector3(0, 0.045, 0), 0.006, BANK_DARK, 5)
+			# the balance beam: a stout arm reaching back over the bank from the hinge
+			b.pole(a + Vector3(0, 0.045, 0), a + Vector3(dir * 0.0, 0.045, z3 * 0.075) + Vector3(-dir * 0.03, 0.0, 0.0), 0.0045, POST, 4)
+	# a paddle post and a lock-keeper's bollards on the towpath
+	b.pole(Vector3(0.12, 0.03, cw * 0.5 + 0.03), Vector3(0.12, 0.07, cw * 0.5 + 0.03), 0.0036, IRON, 4)
+	b.box(Vector3(0.12, 0.072, cw * 0.5 + 0.03), Vector3(0.012, 0.006, 0.006), IRON)
+	for k in 2:
+		b.prism(Vector3(-0.15 + 0.3 * k, 0.012, cw * 0.5 + 0.06), 0.008, 0.007, 0.014, 6, IRON, BANK_DARK)
+	return b.commit()
+
+static func _toll_gate(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2050)
+	b.tag = PLAIN
+	# the paved road through the gate along X
+	b.box(Vector3(0, 0.002, 0.0), Vector3(0.34, 0.004, 0.07), Color("#a69f8a"))
+	# the swing gate: a post at each side of the road, a barred timber gate shut across it, white with a diagonal brace
+	for sx in [-1.0, 1.0]:
+		var x: float = sx
+		b.pole(Vector3(x * 0.04, 0.0, 0.04 * 0.0), Vector3(x * 0.04, 0.056, 0.0), 0.0046, POST, 4)
+		b.blob(Vector3(x * 0.04, 0.059, 0.0), Vector3(0.0055, 0.0055, 0.0055), 4, 2, WHITE, 0.0)
+	for k in 3:
+		b.pole(Vector3(-0.036, 0.016 + 0.014 * k, 0.0), Vector3(0.036, 0.016 + 0.014 * k, 0.0), 0.0032, WHITE, 4)
+	b.pole(Vector3(-0.036, 0.016, 0.0), Vector3(0.036, 0.044, 0.0), 0.0026, WHITE, 4)
+	# the toll house beside the road: an octagonal plastered cabin with a bay window facing the road, a pitched tiled roof and a chimney
+	var hp := Vector3(0.12, 0.0, 0.07)
+	b.prism(hp, 0.034, 0.034, 0.046, 8, PLASTER, PLASTER.lightened(0.05), PI / 8.0)
+	b.prism(hp + Vector3(0, 0.046, 0), 0.04, 0.0, 0.038, 8, TILE, TILE_DARK, PI / 8.0)
+	b.prism(hp + Vector3(0.012, 0.07, 0.0), 0.006, 0.006, 0.026, 4, TILE_DARK, TILE_DARK, PI / 4.0)
+	b.box(hp + Vector3(0, 0.022, 0.0315), Vector3(0.018, 0.022, 0.004), GLASS)
+	b.box(hp + Vector3(-0.0245, 0.016, 0.0245), Vector3(0.012, 0.026, 0.004), DOOR)
+	b.tag = EMISSIVE
+	b.box(hp + Vector3(0, 0.022, 0.0335), Vector3(0.013, 0.016, 0.0015), LAMP)
+	b.tag = PLAIN
+	# a lamp on a bracket at the gate post and a price board on a post by the track
+	b.pole(Vector3(0.04, 0.048, 0.0), Vector3(0.04, 0.048, -0.016), 0.0016, IRON, 4)
+	b.box(Vector3(0.04, 0.044, -0.018), Vector3(0.008, 0.01, 0.008), IRON)
+	b.tag = EMISSIVE
+	b.box(Vector3(0.04, 0.044, -0.018), Vector3(0.0055, 0.0075, 0.0055), LAMP)
+	b.tag = PLAIN
+	b.pole(Vector3(-0.1, 0.0, -0.05), Vector3(-0.1, 0.06, -0.05), 0.0026, POST, 4)
+	b.box(Vector3(-0.1, 0.066, -0.05), Vector3(0.05, 0.034, 0.004), BOARD)
+	for k in 3:
+		b.box(Vector3(-0.1, 0.075 - 0.0095 * k, -0.0475), Vector3(0.036 - 0.004 * k, 0.003, 0.0015), IRON)
 	return b.commit()

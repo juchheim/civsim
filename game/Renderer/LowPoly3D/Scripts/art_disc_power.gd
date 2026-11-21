@@ -18,6 +18,9 @@
 ##                            a rig rocks it about Z
 ##   atmospheric_engine       the body with the beam fixed level, working: the firebox glows
 ##   atmospheric_engine_idle  banked: the firebox dark, no coal heap (no coal or no engineers)
+##   coke_oven         FIR-12: a bank of five brick beehive ovens in a row, each with a charging hole on top and a door at the front, a chimney stack behind,
+##                     a heap of coal on one side and of silver-grey coke on the other, a quench trough with water; working: the doors glow
+##   coke_oven_idle    cold: the doors dark, the heaps small
 ##   factory           a long brick shed with a sawtooth roof whose glazed teeth face the village, a tall chimney, a power shaft and belt wheel on the end
 ##                     wall, a loading dock with crates and bales, a water tank on stilts and a gear sign; working: every window lit
 ##   factory_cold      the same with the windows dark (no power or no staff)
@@ -71,6 +74,8 @@ static func build(kit) -> void:
 	kit.meshes["atmospheric_engine_beam"] = _beam(kit)
 	kit.meshes["atmospheric_engine"] = _engine(kit, true, true)
 	kit.meshes["atmospheric_engine_idle"] = _engine(kit, false, true)
+	kit.meshes["coke_oven"] = _coke_oven(kit, true)
+	kit.meshes["coke_oven_idle"] = _coke_oven(kit, false)
 	kit.meshes["factory"] = _factory(kit, true)
 	kit.meshes["factory_cold"] = _factory(kit, false)
 	kit.meshes["factory_site"] = _factory_site(kit)
@@ -508,4 +513,44 @@ static func _factory_site(kit) -> ArrayMesh:
 	# the chimney's foot and the first courses of the stack
 	b.prism(Vector3(0.15, 0.01, -0.1), 0.04, 0.034, 0.045, 4, BRICK_DARK, BRICK_DARK, PI / 4.0)
 	b.prism(Vector3(0.15, 0.055, -0.1), 0.034, 0.03, 0.03, 4, BRICK, BRICK_DARK, PI / 4.0)
+	return b.commit()
+
+# ------------------------------------------------------------------ coke oven
+
+static func _coke_oven(kit, hot: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1730 if hot else 1731)
+	b.tag = PLAIN
+	b.box(Vector3(0, 0.005, 0), Vector3(0.36, 0.01, 0.2), STONE_DARK, STONE)
+	# the brick bank the ovens sit in, with a buttress at each end
+	b.box(Vector3(0, 0.03, -0.01), Vector3(0.26, 0.04, 0.09), BRICK, BRICK_LIGHT)
+	for sx in [-1.0, 1.0]:
+		var x: float = sx
+		b.box(Vector3(x * 0.14, 0.03, -0.01), Vector3(0.022, 0.05, 0.1), BRICK_DARK, BRICK)
+	# five beehive domes in a row, a charging hole on each crown and a door at the front
+	for k in 5:
+		var cx := -0.1 + 0.05 * k
+		b.blob(Vector3(cx, 0.044, -0.01), Vector3(0.026, 0.036, 0.04), 7, 3, BRICK_LIGHT if k % 2 == 0 else BRICK, 0.0, BRICK)
+		b.prism(Vector3(cx, 0.077, -0.01), 0.007, 0.0055, 0.006, 6, COAL_DARK, CAST)
+		b.box(Vector3(cx, 0.03, 0.0375), Vector3(0.022, 0.026, 0.004), BRICK_DARK)
+		if hot:
+			b.tag = EMISSIVE
+			b.box(Vector3(cx, 0.027, 0.0402), Vector3(0.014, 0.014, 0.002), FIRE)
+			b.tag = PLAIN
+		else:
+			b.box(Vector3(cx, 0.027, 0.0402), Vector3(0.014, 0.014, 0.002), COAL_DARK)
+	# the chimney stack behind: a tall square shaft with a stone cap
+	b.prism(Vector3(0.0, 0.01, -0.085), 0.026, 0.02, 0.1, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(0.0, 0.11, -0.085), 0.02, 0.017, 0.07, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(0.0, 0.18, -0.085), 0.019, 0.021, 0.008, 4, STONE_LIGHT, STONE, PI / 4.0)
+	# the heaps either side: raw coal left, finished coke right; and a plank apron in front
+	b.box(Vector3(0, 0.012, 0.075), Vector3(0.26, 0.004, 0.05), TIMBER_LIGHT, TIMBER_LIGHT.lightened(0.05))
+	_coal_heap(b, Vector3(-0.18, 0.006, 0.05), Vector3(0.045, 0.035 if hot else 0.018, 0.035), 4)
+	for k in 5:
+		var coke_col := Color("#8c8f96") if k % 2 == 0 else Color("#767a82")
+		var sz := 0.016 if hot else 0.01
+		b.blob(Vector3(0.17 + 0.012 * (k % 3) - 0.01, 0.01 + 0.011 * (k / 3), 0.05 + 0.008 * (k % 2)), Vector3(sz, sz * 0.8, sz), 4, 2, coke_col, 0.2, coke_col.darkened(0.2))
+	# the quench trough: a timber box of water with a rake across it
+	b.box(Vector3(0.0, 0.016, 0.1), Vector3(0.1, 0.012, 0.03), TIMBER_DARK, TIMBER)
+	b.box(Vector3(0.0, 0.0225, 0.1), Vector3(0.094, 0.002, 0.024), WATER)
+	b.pole(Vector3(-0.07, 0.03, 0.115), Vector3(0.08, 0.024, 0.085), 0.0022, CAST, 4)
 	return b.commit()

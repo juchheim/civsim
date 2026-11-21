@@ -7,6 +7,8 @@
 ##
 ##   caravel   a slim, fast ocean ship: a low forecastle, a small raised poop, three masts: a square sail on the fore and main and a lateen on the mizzen,
 ##             a short bowsprit, masthead pennants, a few barrels on deck. 0.46 long, against the cog's 0.5 (a caravel is narrower and lower).
+##   barge_coal  TRN-11: a long narrow canal barge lying along Z, bow to +Z, with a heap of coal in its open hold, a tiller and a small cabin at the stern
+##               with a stovepipe, a towing post forward and a coiled tow rope; it rides a navigation canal (art_disc_land.gd canal_nav_straight)
 ##   galleon   a tall armed ship: a long hull with two rows of gun ports on each side, a beakhead and a bowsprit with a spritsail, a high stern castle with
 ##             a gallery of windows and a lantern, a forecastle, three masts: fore with a course and a topsail, main with a course, topsail and topgallant,
 ##             and a lateen mizzen. 0.62 long.
@@ -32,6 +34,7 @@ const EMISSIVE := M7MeshBuilder.TAG_EMISSIVE
 static func build(kit) -> void:
 	kit.meshes["caravel"] = _caravel(kit)
 	kit.meshes["galleon"] = _galleon(kit)
+	kit.meshes["barge_coal"] = _barge(kit)
 
 # ------------------------------------------------------------------ the hull
 
@@ -302,4 +305,41 @@ static func _galleon(kit) -> ArrayMesh:
 	for k in 2:
 		_barrel(b, Vector3(-0.03 + 0.06 * k, base, 0.065))
 	b.box(Vector3(0, base + 0.004, -0.07), Vector3(0.05, 0.008, 0.034), PLANK_LOW, PLANK_MID)
+	return b.commit()
+
+# ------------------------------------------------------------------ the canal barge
+
+static func _barge(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1920)
+	b.tag = PLAIN
+	var length := 0.34
+	var beam := 0.07
+	var half := length * 0.5
+	# a box-shaped hull with slightly raked ends, planked in two tones, a CIV stripe along the gunwale
+	for sx in [-1.0, 1.0]:
+		var x: float = sx
+		b.quad(Vector3(x * beam * 0.5, 0.004, -half), Vector3(x * beam * 0.5, 0.004, half - 0.03), Vector3(x * beam * 0.5, 0.02, half - 0.03), Vector3(x * beam * 0.5, 0.02, -half), PLANK_LOW, Vector3(0, 0.01, 0))
+		b.quad(Vector3(x * beam * 0.5, 0.02, -half), Vector3(x * beam * 0.5, 0.02, half - 0.03), Vector3(x * beam * 0.5, 0.034, half - 0.03), Vector3(x * beam * 0.5, 0.034, -half), PLANK_UP, Vector3(0, 0.02, 0))
+		b.tri(Vector3(x * beam * 0.5, 0.004, half - 0.03), Vector3(x * beam * 0.5, 0.034, half - 0.03), Vector3(0, 0.026, half), PLANK_MID, Vector3(0, 0.02, 0))
+	b.quad(Vector3(-beam * 0.5, 0.004, -half), Vector3(beam * 0.5, 0.004, -half), Vector3(beam * 0.5, 0.034, -half), Vector3(-beam * 0.5, 0.034, -half), PLANK_MID, Vector3(0, 0.02, 0))
+	b.quad(Vector3(-beam * 0.5, 0.004, -half), Vector3(beam * 0.5, 0.004, -half), Vector3(beam * 0.5, 0.004, half - 0.03), Vector3(-beam * 0.5, 0.004, half - 0.03), PLANK_LOW, Vector3(0, 1.0, 0))
+	b.tag = CIV
+	for sx in [-1.0, 1.0]:
+		var x2: float = sx
+		b.pole(Vector3(x2 * beam * 0.5, 0.034, -half), Vector3(x2 * beam * 0.5, 0.034, half - 0.03), 0.0035, Color.WHITE)
+	b.tag = PLAIN
+	# the hold: a dark floor with a heap of coal mounded above the gunwale
+	b.box(Vector3(0, 0.03, 0.03), Vector3(beam * 0.9, 0.003, 0.16), PITCH)
+	b.blob(Vector3(0, 0.038, 0.03), Vector3(beam * 0.46, 0.022, 0.085), 7, 3, Color("#26262b"), 0.2, Color("#17171a"))
+	for k in 4:
+		b.blob(Vector3(-0.012 + 0.008 * k, 0.054 - 0.004 * (k % 2), 0.0 + 0.03 * (k / 2) + 0.03), Vector3(0.008, 0.007, 0.008), 4, 2, Color("#3d3d44"), 0.2)
+	# the cabin at the stern with a stovepipe, a hatch roof and a tiller
+	b.box(Vector3(0, 0.05, -half + 0.045), Vector3(beam * 0.84, 0.032, 0.08), WOOD_LIGHT, PLANK_UP)
+	b.box(Vector3(0, 0.068, -half + 0.045), Vector3(beam * 0.9, 0.006, 0.088), WOOD, PLANK_MID)
+	b.box(Vector3(0, 0.05, -half + 0.0845), Vector3(0.014, 0.018, 0.003), GLASS)
+	b.pole(Vector3(0.016, 0.07, -half + 0.03), Vector3(0.016, 0.1, -half + 0.03), 0.0034, IRON, 4)
+	b.pole(Vector3(0, 0.044, -half - 0.002), Vector3(0, 0.05, -half - 0.05), 0.0032, WOOD, 4)
+	# the towing post forward and a coil of rope on the bow deck
+	b.pole(Vector3(0, 0.034, half - 0.05), Vector3(0, 0.07, half - 0.05), 0.0045, WOOD, 4)
+	b.prism(Vector3(0.012, 0.034, half - 0.07), 0.01, 0.01, 0.006, 8, ROPE, ROPE)
 	return b.commit()
