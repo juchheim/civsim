@@ -10,6 +10,11 @@
 ##                     turnips     rows of dark leafy tufts with pale round roots half out of the ground (the fodder that feeds the winter herds)
 ##                     barley      closer, finer rows (TAG_CROP), told from the wheat by the tight spacing and a paler soil between them
 ##                     clover      a low pink-flowered meadow with three sheep folded on it (the nitrogen the next wheat needs)
+##   field_cane      FOD-10: a sugar-cane field on a cane tile (the cane deposit marker already stands there): dense rows of tall green canes with feathery
+##                   leaves and a cart waiting at the edge, fixed greens (a perennial, so it takes no seasonal tint); sugar has no building of its own
+##   field_cane_cut  the same at harvest: the near rows cut to stubble, the cut canes tied in bundles on the ground and loaded on the cart, two cutters at work
+##   fishing_bank    HNT-12: a patch of the sea 2 to 3 tiles from a harbor town that has fleets working it: a scatter of pale ripple rings on the water, a few
+##                   small red-and-white buoys, and gulls wheeling over it; set at the water's surface and drawn only while a fleet fishes there
 ##   canal_nav_straight  TRN-11: one tile of navigation canal along X, flat-to-flat (0.84): a straight channel of dark water between stone-faced banks with
 ##                       a gravel towpath on the +Z side and a few mooring posts (the E3 irrigation canal is a ditch; this is wider, straight and faced)
 ##   canal_nav_lock      the same tile with a lock: higher stone chamber walls, a pair of mitre gates at each end with balance beams, a paddle post and
@@ -51,6 +56,9 @@ static func build(kit) -> void:
 			kinds.append((band + phase) % 4)
 		kit.meshes["field_four_%d" % phase] = _field(kit, kinds, 2001 + phase)
 	kit.meshes["hedge_line"] = _hedge_line(kit)
+	kit.meshes["field_cane"] = _cane_field(kit, false)
+	kit.meshes["field_cane_cut"] = _cane_field(kit, true)
+	kit.meshes["fishing_bank"] = _bank(kit)
 	kit.meshes["canal_nav_straight"] = _canal(kit, false)
 	kit.meshes["canal_nav_lock"] = _canal(kit, true)
 	kit.meshes["toll_gate"] = _toll_gate(kit)
@@ -316,4 +324,140 @@ static func _toll_gate(kit) -> ArrayMesh:
 	b.box(Vector3(-0.1, 0.066, -0.05), Vector3(0.05, 0.034, 0.004), BOARD)
 	for k in 3:
 		b.box(Vector3(-0.1, 0.075 - 0.0095 * k, -0.0475), Vector3(0.036 - 0.004 * k, 0.003, 0.0015), IRON)
+	return b.commit()
+
+# ------------------------------------------------------------------ sugar cane
+
+const CANE := Color("#6aa23c")
+const CANE_DARK := Color("#4e8a2c")
+const CANE_LIGHT := Color("#8cc454")
+const CANE_STUBBLE := Color("#a5a05a")
+const SOIL_WET := Color("#6a4a30")
+const BUOY_RED := Color("#c9342a")
+const GULL := Color("#f4f0e6")
+const RIPPLE := Color("#dff0f8")
+
+static func _cane_row(b: M7MeshBuilder, x0: float, x1: float, z: float, h: float, cut: bool) -> void:
+	if cut:
+		b.box(Vector3((x0 + x1) * 0.5, 0.01, z), Vector3(x1 - x0, 0.012, 0.022), CANE_STUBBLE, CANE_STUBBLE.lightened(0.08))
+		return
+	# a dense hedge-like block of canes, a lighter plume of leaves above it at intervals
+	b.box(Vector3((x0 + x1) * 0.5, h * 0.5, z), Vector3(x1 - x0, h, 0.02), CANE_DARK, CANE)
+	var n := maxi(3, int((x1 - x0) / 0.06))
+	for k in n:
+		var cx := lerpf(x0, x1, (float(k) + 0.5) / n)
+		b.blob(Vector3(cx, h + 0.008, z), Vector3(0.03, 0.016, 0.016), 5, 2, CANE_LIGHT if k % 2 == 0 else CANE, 0.2, CANE_DARK)
+
+static func _cane_field(kit, cut: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2060 if not cut else 2061)
+	var fr := M7WorldData.R * 0.84
+	b.tag = PLAIN
+	# the soil over the hex, dark and wet
+	var up := Vector3(0, -1, 0)
+	var ring: Array = M7LooksKit._hex_ring(fr)
+	for i in 6:
+		var p: Vector2 = ring[i]
+		var q: Vector2 = ring[(i + 1) % 6]
+		b.tri(Vector3(0, 0.004, 0), Vector3(p.x, 0.004, p.y), Vector3(q.x, 0.004, q.y), SOIL_WET, up)
+	# rows running along X, tall in the back half and (when cutting) stubble in the near rows
+	var rows := 7
+	for r in rows:
+		var z: float = lerpf(-fr * 0.82, fr * 0.78, float(r) / (rows - 1))
+		var w := M7MeshKit._hex_half_width(z, fr) - 0.045
+		if w < 0.06:
+			continue
+		var is_cut := cut and z > -fr * 0.1
+		_cane_row(b, -w, w, z, 0.058 + 0.008 * (r % 2), is_cut)
+	if cut:
+		# the cut canes tied in bundles lying between the stubble rows, and a pair of cutters
+		for k in 5:
+			var bx := -0.2 + 0.09 * k
+			b.box(Vector3(bx, 0.016, fr * 0.2 + 0.03 * (k % 2)), Vector3(0.07, 0.014, 0.014), CANE, CANE_LIGHT)
+			b.pole(Vector3(bx - 0.012, 0.018, fr * 0.2 + 0.03 * (k % 2) - 0.008), Vector3(bx - 0.012, 0.018, fr * 0.2 + 0.03 * (k % 2) + 0.008), 0.0016, ROPE_COL, 3)
+		for sx in [-0.12, 0.1]:
+			var x: float = sx
+			_cutter(b, Vector3(x, 0.006, fr * 0.42))
+	# the cart at the field's edge: a flat bed on two wheels with a shaft, loaded with bundles when cutting
+	var cx2 := -fr * 0.62
+	b.box(Vector3(cx2, 0.026, fr * 0.1), Vector3(0.05, 0.006, 0.09), WOOD, WOOD_LIGHT)
+	for sz in [-0.04, 0.04]:
+		var z2: float = sz
+		for sx in [-1.0, 1.0]:
+			var x2: float = sx
+			b.prism(Vector3(cx2 + x2 * 0.027, 0.018, fr * 0.1 + z2), 0.014, 0.014, 0.004, 8, WOOD, WOOD_LIGHT)
+	b.pole(Vector3(cx2, 0.026, fr * 0.1 + 0.045), Vector3(cx2, 0.03, fr * 0.1 + 0.11), 0.0026, WOOD, 4)
+	if cut:
+		for k in 3:
+			b.box(Vector3(cx2, 0.036 + 0.011 * k, fr * 0.1), Vector3(0.04, 0.011, 0.08 - 0.01 * k), CANE, CANE_LIGHT)
+	# corner stones as the other field meshes have
+	for i in 6:
+		var corner: Vector2 = M7LooksKit._hex_ring(fr * 0.97)[i]
+		b.blob(Vector3(corner.x, 0.008, corner.y), Vector3(0.012, 0.01, 0.011), 5, 3, M7MeshKit.STONE, 0.1, M7MeshKit.STONE_DARK)
+	return b.commit()
+
+const ROPE_COL := Color("#c8b88a")
+const WOOD_LIGHT := Color("#8a6a48")
+const CIV := M7MeshBuilder.TAG_CIV
+
+static func _cutter(b: M7MeshBuilder, p: Vector3) -> void:
+	# a stooping cutter a tenth tall with a straw hat and a long machete: a coat in the owner's colour on the shoulders, pale trousers, a bare forearm
+	var save := b.xf
+	b.xf = b.xf * Transform3D(Basis(Vector3.RIGHT, 0.5), p)
+	b.prism(Vector3(-0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, Color("#d8d2c0"), Color("#d8d2c0"))
+	b.prism(Vector3(0.0075, 0, 0), 0.0065, 0.007, 0.036, 5, Color("#d8d2c0"), Color("#d8d2c0"))
+	b.prism(Vector3(0, 0.034, 0), 0.0185, 0.0155, 0.036, 7, Color("#a8a090"), Color("#a8a090"))
+	b.tag = CIV
+	b.prism(Vector3(0, 0.054, 0), 0.0205, 0.009, 0.014, 7, Color.WHITE, Color.WHITE)
+	b.tag = PLAIN
+	b.blob(Vector3(0, 0.084, 0), Vector3(0.0125, 0.013, 0.0125), 7, 4, Color("#b07a52"), 0.0)
+	b.prism(Vector3(0, 0.091, 0), 0.0215, 0.02, 0.002, 9, Color("#d8c27a"), Color("#b8a45a"))
+	b.blob(Vector3(0, 0.095, 0), Vector3(0.0115, 0.007, 0.0115), 6, 3, Color("#d8c27a"), 0.0)
+	b.pole(Vector3(0.02, 0.06, 0), Vector3(0.026, 0.044, 0.016), 0.0045, Color("#b07a52"))
+	b.pole(Vector3(0.026, 0.044, 0.016), Vector3(0.03, 0.022, 0.034), 0.0021, Color("#8d949c"), 3)
+	b.xf = save
+
+# ------------------------------------------------------------------ the fishing bank
+
+static func _bank(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2070)
+	b.tag = PLAIN
+	# pale ripple rings spread on the water: flat annuli in the XZ plane at the surface, thin and a little irregular
+	var rings := [[0.0, 0.0, 0.085, 0.007], [0.13, 0.07, 0.06, 0.006], [-0.14, 0.05, 0.07, 0.006], [0.02, -0.15, 0.065, 0.006], [-0.07, -0.08, 0.045, 0.005], [0.12, -0.1, 0.05, 0.005]]
+	for rg in rings:
+		var cx: float = rg[0]
+		var cz: float = rg[1]
+		var rr: float = rg[2]
+		var th: float = rg[3]
+		for i in 14:
+			var a0 := TAU * i / 14.0
+			var a1 := TAU * (i + 1) / 14.0
+			if i % 5 == 4:
+				continue         # a gap in the ring so it reads as a ripple, not a hoop
+			var o0 := Vector3(cx + cos(a0) * rr, 0.004, cz + sin(a0) * rr)
+			var o1 := Vector3(cx + cos(a1) * rr, 0.004, cz + sin(a1) * rr)
+			var i0 := Vector3(cx + cos(a0) * (rr - th), 0.004, cz + sin(a0) * (rr - th))
+			var i1 := Vector3(cx + cos(a1) * (rr - th), 0.004, cz + sin(a1) * (rr - th))
+			b.quad(o0, o1, i1, i0, RIPPLE, Vector3(cx, -1.0, cz))
+	# three buoys: a short pole with a red-and-white float and a flag-less top mark
+	for bp in [[-0.06, 0.1], [0.1, -0.04], [-0.1, -0.12]]:
+		var bx: float = bp[0]
+		var bz: float = bp[1]
+		b.prism(Vector3(bx, 0.0, bz), 0.011, 0.009, 0.016, 7, BUOY_RED, BUOY_RED.lightened(0.1))
+		b.prism(Vector3(bx, 0.008, bz), 0.0115, 0.0115, 0.004, 7, GULL, GULL)
+		b.pole(Vector3(bx, 0.016, bz), Vector3(bx, 0.038, bz), 0.0017, Color("#4a3726"), 3)
+		b.blob(Vector3(bx, 0.04, bz), Vector3(0.004, 0.004, 0.004), 4, 2, BUOY_RED, 0.0)
+	# gulls: each a body with two swept wings, hovering at different heights over the patch
+	for gp in [[0.0, 0.1, 0.0, 0.5], [0.09, 0.14, 0.08, -0.4], [-0.1, 0.12, -0.03, 1.2], [0.04, 0.16, -0.12, 2.1]]:
+		var gx: float = gp[0]
+		var gy: float = gp[1]
+		var gz: float = gp[2]
+		var yaw: float = gp[3]
+		var d := Vector3(cos(yaw), 0, sin(yaw))
+		var sd := Vector3(-d.z, 0, d.x)
+		var c := Vector3(gx, gy, gz)
+		b.blob(c, Vector3(0.0095, 0.0045, 0.0055), 5, 2, GULL, 0.0)
+		b.tri(c + sd * 0.004, c + sd * 0.03 - d * 0.008 + Vector3(0, 0.006, 0), c + sd * 0.012 - d * 0.012, GULL, c + Vector3(0, -1.0, 0))
+		b.tri(c - sd * 0.004, c - sd * 0.03 - d * 0.008 + Vector3(0, 0.006, 0), c - sd * 0.012 - d * 0.012, GULL, c + Vector3(0, -1.0, 0))
+		b.tri(c + sd * 0.004, c + sd * 0.03 - d * 0.008 + Vector3(0, 0.006, 0), c + sd * 0.012 - d * 0.012, GULL.darkened(0.12), c + Vector3(0, 1.0, 0))
+		b.tri(c - sd * 0.004, c - sd * 0.03 - d * 0.008 + Vector3(0, 0.006, 0), c - sd * 0.012 - d * 0.012, GULL.darkened(0.12), c + Vector3(0, 1.0, 0))
 	return b.commit()

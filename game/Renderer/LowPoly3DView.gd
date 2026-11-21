@@ -640,9 +640,9 @@ func show_discovery_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(12.0, 36.0)
+	plane.size = Vector2(12.0, 44.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -11.2)
+	floor_mesh.position = Vector3(0.0, -0.01, -15.2)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -671,6 +671,10 @@ func show_discovery_gallery() -> Vector3:
 		# attacker's side); beside them the E5 wall at the same bands for scale
 		[["bastion_4", 1.0, 1.0, 1.5708], ["bastion_cracked", 1.0, 1.0, 1.5708], ["bastion_breach", 1.0, 1.0, 1.5708], ["bastion_ruin", 1.1, 1.0, 1.5708],
 			["wall_seg", 0.4, 1.6], ["wall_seg_cracked", 0.4, 1.6], ["wall_seg_breach", 0.4, 1.6]],
+		# P1 fishing and sugar: the lugger stowed and trawling, the offshore bank, the cane field growing and at harvest
+		[["lugger", 0.5, 1.8], ["lugger_netting", 0.7, 1.8], ["fishing_bank", 0.7, 1.5], ["field_cane", 1.1, 1.0], ["field_cane_cut", 1.1, 1.0]],
+		# P1 cargo for the flows layer: coal, coke, sugar loaves and salt cod
+		[["cargo_coal", 0.2, 3.0], ["cargo_coke", 0.2, 3.0], ["cargo_sugar", 0.2, 3.0], ["cargo_cod", 0.2, 3.0]],
 	]
 	var rig_works := []
 	for r in rows.size():
@@ -679,7 +683,7 @@ func show_discovery_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6, -27.4, -29.8][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5

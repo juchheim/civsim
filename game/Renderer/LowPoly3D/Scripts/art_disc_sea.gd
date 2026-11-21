@@ -9,6 +9,9 @@
 ##             a short bowsprit, masthead pennants, a few barrels on deck. 0.46 long, against the cog's 0.5 (a caravel is narrower and lower).
 ##   barge_coal  TRN-11: a long narrow canal barge lying along Z, bow to +Z, with a heap of coal in its open hold, a tiller and a small cabin at the stern
 ##               with a stovepipe, a towing post forward and a coiled tow rope; it rides a navigation canal (art_disc_land.gd canal_nav_straight)
+##   lugger          HNT-12: a small two-masted fishing boat, bow to +Z, with two tanned lug sails, baskets of cod on deck and the net stowed in a heap at the stern;
+##                   a harbor town's fleet of them fishes the offshore banks
+##   lugger_netting  the same with the net out: a trawl streaming astern from a beam, floats on the headrope and a full cod-end of silver fish
 ##   galleon   a tall armed ship: a long hull with two rows of gun ports on each side, a beakhead and a bowsprit with a spritsail, a high stern castle with
 ##             a gallery of windows and a lantern, a forecastle, three masts: fore with a course and a topsail, main with a course, topsail and topgallant,
 ##             and a lateen mizzen. 0.62 long.
@@ -35,6 +38,8 @@ static func build(kit) -> void:
 	kit.meshes["caravel"] = _caravel(kit)
 	kit.meshes["galleon"] = _galleon(kit)
 	kit.meshes["barge_coal"] = _barge(kit)
+	kit.meshes["lugger"] = _lugger(kit, false)
+	kit.meshes["lugger_netting"] = _lugger(kit, true)
 
 # ------------------------------------------------------------------ the hull
 
@@ -342,4 +347,82 @@ static func _barge(kit) -> ArrayMesh:
 	# the towing post forward and a coil of rope on the bow deck
 	b.pole(Vector3(0, 0.034, half - 0.05), Vector3(0, 0.07, half - 0.05), 0.0045, WOOD, 4)
 	b.prism(Vector3(0.012, 0.034, half - 0.07), 0.01, 0.01, 0.006, 8, ROPE, ROPE)
+	return b.commit()
+
+# ------------------------------------------------------------------ the fishing lugger
+
+const TAN := Color("#c79a5c")
+const TAN_DARK := Color("#a87c44")
+const NET := Color("#6c7a5c")
+const NET_DARK := Color("#4f5c42")
+const FISH := Color("#aeb8c2")
+const CORK := Color("#e8dcc0")
+
+## A lug sail: a trapezoid in the plane over the keel, hung from a yard that is long on its forward end, both faces.
+static func _lug(b: M7MeshBuilder, p: Vector3, y0: float, y1: float, z_aft: float, z_fore: float) -> void:
+	var a := p + Vector3(0, y0, z_aft)
+	var bb := p + Vector3(0, y0, z_fore)
+	var c := p + Vector3(0, y1, z_fore - 0.012)
+	var d := p + Vector3(0, y1, z_aft + 0.02)
+	b.quad(a, bb, c, d, TAN, a + Vector3(1.0, 0, 0))
+	b.quad(a, bb, c, d, TAN_DARK, a + Vector3(-1.0, 0, 0))
+	b.pole(d + Vector3(0, 0.002, -0.006), c + Vector3(0, 0.002, 0.012), 0.0028, WOOD_LIGHT, 4)
+	b.pole(a, bb, 0.0017, ROPE, 3)
+	b.tag = CIV
+	var m0 := a.lerp(d, 0.4)
+	var m1 := bb.lerp(c, 0.4)
+	var m2 := a.lerp(d, 0.55)
+	var m3 := bb.lerp(c, 0.55)
+	b.quad(m0 + Vector3(0.0008, 0, 0), m1 + Vector3(0.0008, 0, 0), m3 + Vector3(0.0008, 0, 0), m2 + Vector3(0.0008, 0, 0), Color.WHITE, m0 + Vector3(1, 0, 0))
+	b.quad(m0 - Vector3(0.0008, 0, 0), m1 - Vector3(0.0008, 0, 0), m3 - Vector3(0.0008, 0, 0), m2 - Vector3(0.0008, 0, 0), Color.WHITE, m0 - Vector3(1, 0, 0))
+	b.tag = PLAIN
+
+static func _lugger(kit, netting: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(1930 if not netting else 1931)
+	b.tag = PLAIN
+	var length := 0.3
+	var beam := 0.085
+	var depth := 0.045
+	_hull(b, length, beam, depth, 1.6, 0.3, 0)
+	var half := length * 0.5
+	var base := depth * 0.72
+	# two masts, the foresail longer; a small deckhouse aft with the tiller
+	var fore := Vector3(0, base, 0.065)
+	var aft := Vector3(0, base, -0.055)
+	_mast(b, fore, 0.17, 0.0032)
+	_mast(b, aft, 0.14, 0.0028)
+	_lug(b, fore, 0.05, 0.155, -0.045, 0.07)
+	_lug(b, aft, 0.045, 0.125, -0.04, 0.05)
+	b.box(Vector3(0, base + 0.012, -half + 0.04), Vector3(beam * 0.6, 0.024, 0.05), WOOD_LIGHT, PLANK_UP)
+	b.pole(Vector3(0, base + 0.006, -half - 0.002), Vector3(0, base + 0.014, -half - 0.04), 0.003, WOOD, 4)
+	# baskets of cod on deck amidships
+	for k in 4:
+		b.prism(Vector3(-0.018 + 0.012 * (k % 3), base, 0.02 + 0.02 * (k / 3)), 0.0078, 0.0095, 0.013, 6, Color("#b08a4e"), FISH)
+	_pennant(b, Vector3(0, base + 0.17, 0.065), 0.03)
+	# a lantern on the stern post
+	b.tag = EMISSIVE
+	b.box(Vector3(0, base + 0.032, -half + 0.012), Vector3(0.006, 0.008, 0.006), LANTERN)
+	b.tag = PLAIN
+	if not netting:
+		# the net stowed: a heap of netting over the stern rail, floats showing
+		b.blob(Vector3(0.018, base + 0.008, -half + 0.075), Vector3(0.022, 0.013, 0.02), 6, 3, NET, 0.15, NET_DARK)
+		for k in 3:
+			b.blob(Vector3(0.006 + 0.012 * k, base + 0.02, -half + 0.075), Vector3(0.004, 0.004, 0.004), 4, 2, CORK, 0.0)
+		return b.commit()
+	# the trawl out: a beam over the stern, a pair of warps and a long bag streaming astern with its cod-end full, floats along the headrope
+	b.pole(Vector3(-beam * 0.5, base + 0.02, -half + 0.01), Vector3(beam * 0.5, base + 0.02, -half + 0.01), 0.0034, WOOD, 4)
+	var mouth_l := Vector3(-0.05, 0.003, -half - 0.12)
+	var mouth_r := Vector3(0.05, 0.003, -half - 0.12)
+	var tail := Vector3(0, 0.004, -half - 0.26)
+	b.pole(Vector3(-beam * 0.5, base + 0.02, -half + 0.01), mouth_l, 0.0013, ROPE, 3)
+	b.pole(Vector3(beam * 0.5, base + 0.02, -half + 0.01), mouth_r, 0.0013, ROPE, 3)
+	b.tri(mouth_l, mouth_r, tail, NET, Vector3(0, 1.0, -half - 0.2))
+	b.tri(mouth_l, mouth_r, tail, NET_DARK, Vector3(0, -1.0, -half - 0.2))
+	b.pole(mouth_l, mouth_r, 0.0018, ROPE, 3)
+	for k in 6:
+		var u := (float(k) + 0.5) / 6.0
+		b.blob(mouth_l.lerp(mouth_r, u) + Vector3(0, 0.003, 0), Vector3(0.0045, 0.0045, 0.0045), 4, 2, CORK, 0.0)
+	b.blob(tail + Vector3(0, 0.003, 0.012), Vector3(0.016, 0.009, 0.026), 6, 3, NET, 0.1, NET_DARK)
+	for k in 5:
+		b.blob(tail + Vector3(-0.008 + 0.004 * k, 0.012, 0.018 - 0.008 * (k % 2)), Vector3(0.006, 0.0025, 0.0035), 4, 2, FISH, 0.0)
 	return b.commit()

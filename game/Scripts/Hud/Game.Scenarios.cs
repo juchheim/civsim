@@ -894,6 +894,11 @@ public partial class Game
                     // bastion damage, row z -24.6 (x -2.3 whole, -1.15 cracked, 0.0 breached, 1.2 ruined; E5 walls at 2.2, 2.6, 3.0)
                     ("breach", 0.0f, -24.6f, 4.6f, 42.0f, 0.0f), ("breach-close", 0.0f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-cracked", -1.15f, -24.6f, 2.2f, 34.0f, 270.0f),
                     ("breach-ruin", 1.2f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-top", 0.0f, -24.6f, 3.0f, 75.0f, 0.0f), ("breach-walls", 2.6f, -24.6f, 2.6f, 30.0f, 0.0f),
+                    // fishing and sugar, row z -27.4 (lugger -1.8, trawling -1.2, bank -0.5, cane 0.4, cut cane 1.5); cargo, row z -29.8 (x -0.3 .. 0.3)
+                    ("fish", -0.2f, -27.4f, 3.4f, 36.0f, 0.0f), ("fish-lugger", -1.8f, -27.4f, 1.6f, 28.0f, 30.0f), ("fish-lugger-side", -1.8f, -27.4f, 1.6f, 24.0f, 90.0f),
+                    ("fish-netting", -1.2f, -27.4f, 1.8f, 34.0f, 140.0f), ("fish-bank", -0.5f, -27.4f, 1.6f, 40.0f, 0.0f),
+                    ("cane", 0.95f, -27.4f, 3.2f, 48.0f, 0.0f), ("cane-close", 0.4f, -27.4f, 1.9f, 36.0f, 20.0f), ("cane-cut", 1.5f, -27.4f, 1.9f, 36.0f, 20.0f),
+                    ("cargo", 0.0f, -29.8f, 1.3f, 34.0f, 0.0f), ("cargo-close", -0.1f, -29.8f, 1.0f, 28.0f, 25.0f),
                 })
                 {
                     string itemName = item;

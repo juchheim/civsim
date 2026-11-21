@@ -10,6 +10,10 @@
 ##   mark_blocked       a red caution triangle with a bar and a dot: working cue but blocked (an engine out of coal, a factory out of power, a fort with no garrison)
 ##   mark_flooded       a blue water drop on a dark plate: the coal mine's deep seam has flooded and no engine pumps it
 ##   mark_strained      a yellow ring: a colony whose Cohesion is low from sea strain
+##   cargo_coal         a load for a cart, barge or quay (the flows layer): a heap of black coal lumps in a low plank crate, a couple of lumps spilled
+##   cargo_coke         the same load in pale silver-grey coke, lighter and more porous looking
+##   cargo_sugar        a tray of refined sugar loaves: white cones in blue paper wrappers, stacked three over four
+##   cargo_cod          salt cod: a bundle of flat split fish pressed together and tied with rope, standing beside a small cask
 ##   mark_blockaded     a red ring with a small ship stood in it: a colony whose harbor is under blockade
 extends RefCounted
 
@@ -36,6 +40,10 @@ static func build(kit) -> void:
 	kit.meshes["mark_flooded"] = _flooded(kit)
 	kit.meshes["mark_strained"] = _ring(kit, YELLOW, false, 2201)
 	kit.meshes["mark_blockaded"] = _ring(kit, RED, true, 2202)
+	kit.meshes["cargo_coal"] = _cargo_coal(kit, false)
+	kit.meshes["cargo_coke"] = _cargo_coal(kit, true)
+	kit.meshes["cargo_sugar"] = _cargo_sugar(kit)
+	kit.meshes["cargo_cod"] = _cargo_cod(kit)
 
 ## A flat disc plate (a short 12-sided cylinder standing along Z) of radius r at p.
 static func _disc(b: M7MeshBuilder, p: Vector3, r: float, col: Color, depth: float = 0.004) -> void:
@@ -126,4 +134,66 @@ static func _ring(kit, col: Color, ship: bool, seed: int) -> ArrayMesh:
 	_ring_plate(b, Vector3.ZERO, SIZE * 0.78, SIZE * 1.0, col)
 	if ship:
 		_ship(b, Vector3(0, 0.003, 0.002), 0.012, col)
+	return b.commit()
+
+# ------------------------------------------------------------------ cargo props
+
+static func _cargo_coal(kit, coke: bool) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2230 if not coke else 2231)
+	b.tag = PLAIN
+	var plank := Color("#8a6a48")
+	b.box(Vector3(0, 0.008, 0), Vector3(0.07, 0.016, 0.05), plank, plank.lightened(0.06))
+	b.box(Vector3(0, 0.0075, 0.0255), Vector3(0.072, 0.01, 0.002), plank.darkened(0.2))
+	var col := Color("#26262b") if not coke else Color("#8c8f96")
+	var light := Color("#3d3d44") if not coke else Color("#adb0b6")
+	b.blob(Vector3(0, 0.02, 0), Vector3(0.033, 0.015, 0.023), 7, 3, col, 0.2, col.darkened(0.2))
+	for k in 7:
+		var a := TAU * k / 7.0
+		b.blob(Vector3(cos(a) * 0.017, 0.029 + 0.002 * (k % 3), sin(a) * 0.011), Vector3(0.007, 0.006, 0.007), 4, 2, light if k % 2 == 0 else col, 0.25, col.darkened(0.2))
+	b.blob(Vector3(0.039, 0.005, 0.01), Vector3(0.006, 0.005, 0.006), 4, 2, col, 0.2)
+	b.blob(Vector3(-0.037, 0.005, -0.012), Vector3(0.005, 0.0045, 0.005), 4, 2, light, 0.2)
+	return b.commit()
+
+static func _cargo_sugar(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2232)
+	b.tag = PLAIN
+	b.box(Vector3(0, 0.005, 0), Vector3(0.07, 0.01, 0.05), Color("#8a6a48"), Color("#a07a54"))
+	# loaves: cones with a rounded tip, wrapped in blue paper below and bare white above, four in the back row, three in front
+	for row in 2:
+		var n := 4 if row == 0 else 3
+		for k in n:
+			var x := -0.024 + 0.016 * k + (0.008 if row == 1 else 0.0)
+			var z := -0.011 if row == 0 else 0.011
+			b.prism(Vector3(x, 0.01, z), 0.0068, 0.004, 0.012, 7, Color("#3f6fa6"), Color("#3f6fa6"))
+			b.prism(Vector3(x, 0.022, z), 0.004, 0.0, 0.012, 7, Color("#f4f0e6"), Color("#f4f0e6"))
+			b.blob(Vector3(x, 0.034, z), Vector3(0.0018, 0.0018, 0.0018), 4, 2, Color("#f4f0e6"), 0.0)
+	return b.commit()
+
+static func _cargo_cod(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2233)
+	b.tag = PLAIN
+	var fish := Color("#e0d6b4")
+	var fish_dark := Color("#bdb08a")
+	# a stack of split fish lying flat on a board, each a clear fish shape from above (a lozenge body with a forked tail and a dark eye), turned a little
+	# against the one below so the stack reads as fish, not a mat
+	b.box(Vector3(0, 0.003, 0), Vector3(0.07, 0.006, 0.042), Color("#8a6a48"), Color("#a07a54"))
+	for k in 5:
+		var y := 0.0075 + 0.0042 * k
+		var yaw := (float(k) - 2.0) * 0.16
+		var c := fish if k % 2 == 0 else fish_dark
+		var d := Vector3(cos(yaw), 0, sin(yaw))
+		var sd := Vector3(-d.z, 0, d.x)
+		var o := Vector3(-0.004, y, 0.0)
+		var nose := o - d * 0.027
+		var tail := o + d * 0.02
+		b.quad(nose, o + sd * 0.01, tail, o - sd * 0.01, c, Vector3(0, -1.0, 0))
+		b.tri(tail, tail + d * 0.012 + sd * 0.0085, tail + d * 0.006, c.darkened(0.08), Vector3(0, -1.0, 0))
+		b.tri(tail, tail + d * 0.012 - sd * 0.0085, tail + d * 0.006, c.darkened(0.08), Vector3(0, -1.0, 0))
+		b.blob(nose + d * 0.006 + Vector3(0, 0.0015, 0) + sd * 0.0025, Vector3(0.0018, 0.0012, 0.0018), 4, 2, Color("#2a2119"), 0.0)
+	# a rope round the stack, and a small cask of salt at the end
+	b.pole(Vector3(-0.012, 0.0285, -0.016), Vector3(-0.012, 0.0285, 0.016), 0.0014, Color("#c8b88a"), 3)
+	var wood := Color("#8a6a48")
+	b.prism(Vector3(0.05, 0.0, 0.0), 0.0092, 0.0092, 0.019, 8, wood, wood.lightened(0.1))
+	b.prism(Vector3(0.05, 0.004, 0.0), 0.01, 0.01, 0.0018, 8, Color("#4a4f57"), Color("#4a4f57"))
+	b.prism(Vector3(0.05, 0.0125, 0.0), 0.01, 0.01, 0.0018, 8, Color("#4a4f57"), Color("#4a4f57"))
 	return b.commit()
