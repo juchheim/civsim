@@ -115,7 +115,7 @@ projects:
     name: "Logarithms & Analytic Geometry"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-09, COM-10]
     effects:
       - {kind: mod, stat: navigation_calc_speed, op: mult, value: 2.0, note: "navigation and engineering calculation (P)"}
@@ -126,7 +126,7 @@ projects:
     name: Calculus
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-10]
     effects:
       - {kind: mod, stat: inq_project_cost, op: mult, value: 0.9, note: "INQ projects, stacking with Know-how only down to the existing cost floor (P)"}

@@ -150,7 +150,7 @@ projects:
     name: "Four-Course Rotation & Enclosure"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [AGR-11, HUS-10, TER-10]
     effects:
       - {kind: mod, stat: field_output, op: mult, value: 1.2, note: "fallow is replaced by fodder and legume in a four-course rotation. Only half the land bears grain, so the gain is manure and fed livestock; e6_economy_oracle Part A finds x0.9 to x1.3 over three-field and x1.5 only with an unrealistic conversion, so the field step is x1.2 and HUS-11 carries the rest (P)"}

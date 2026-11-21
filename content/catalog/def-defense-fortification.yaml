@@ -122,7 +122,7 @@ projects:
     name: Star Forts
     era: 6
     type: S
-    status: draft
+    status: numeric
     requires: [DEF-09, NUM-07, WAR-12]
     effects:
       - {kind: build, structure: bastion_fort}

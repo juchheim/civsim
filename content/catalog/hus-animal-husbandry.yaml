@@ -146,7 +146,7 @@ projects:
     name: "Fodder Crops & Stall-Feeding"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [HUS-10, AGR-11]
     effects:
       - {kind: mod, stat: winter_herd_loss, op: mult, value: 0.2, note: "livestock survive winter +80%: the loss falls to a fifth of the base, paid from stored fodder (P)"}

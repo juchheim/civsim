@@ -112,7 +112,7 @@ projects:
     name: Coal Mining
     era: 6
     type: D
-    status: draft
+    status: numeric
     requires: [MIN-08]
     gates: [{kind: seen, target: Coal}]
     effects:
@@ -126,7 +126,7 @@ projects:
     name: Black-Powder Blasting
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [MIN-09, CHM-07]
     effects:
       - {kind: mod, stat: mine_quarry_output, op: mult, value: 2.0, note: "mine and quarry (P)"}

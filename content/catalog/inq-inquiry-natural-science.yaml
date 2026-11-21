@@ -81,7 +81,7 @@ projects:
     name: "Telescope & Heliocentrism"
     era: 6
     type: D
-    status: draft
+    status: numeric
     requires: [INQ-06, CER-10]
     effects:
       - {kind: good, id: G-TELESCOPE}
@@ -95,26 +95,26 @@ projects:
     name: Scientific Method
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [INQ-07, LRN-08]
     effects:
       - {kind: mod, stat: project_cost, op: mult, value: 0.9, note: "all project costs, applied through the existing diffusion-discount floor so no stack reaches zero (P)"}
       - {kind: mod, stat: insight_total, op: mult, value: 1.1, note: "staffed Insight sources only (P)"}
       - {kind: rule, text: "KEY-7 prerequisite."}
-    practice: [{action: teach, share: 50}, {action: count_stores, share: 50}]
+    practice: [{action: scout, share: 100}]
     flavor: "Doubt it, test it, write it down."
     moment: "A natural philosopher drops two weights from a tower and counts."
   - id: INQ-09
     name: Newtonian Physics
     era: 6
     type: M
-    status: draft
+    status: numeric
     cost: 64000
     cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 32000 x M 1.0."
     requires: [INQ-08, NUM-11]
     effects:
       - {kind: mod, stat: mec_nrg_sea_effects, op: mult, value: 1.1, note: "MEC, NRG and SEA project effects (P)"}
-    practice: [{action: count_stores, share: 100}]
+    practice: [{action: scout, share: 100}]
     flavor: "The same law moves the apple and the moon."
     moment: "A scholar fits an orbit to a chalked ellipse."
   - id: INQ-10

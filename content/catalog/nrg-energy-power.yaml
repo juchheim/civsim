@@ -70,7 +70,7 @@ projects:
     name: Steam Engine
     era: 6
     type: D
-    status: draft
+    status: numeric
     requires: [NRG-05, MIN-09, MET-12]
     effects:
       - {kind: build, structure: atmospheric_engine}

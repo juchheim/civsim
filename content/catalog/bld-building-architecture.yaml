@@ -177,7 +177,7 @@ projects:
     name: Renaissance Architecture
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [BLD-11, NUM-10]
     effects:
       - {kind: mod, stat: city_move_and_build_speed, op: mult, value: 1.15, note: "perspective-planned streets in a City (P)"}

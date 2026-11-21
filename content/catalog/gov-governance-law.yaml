@@ -160,7 +160,7 @@ projects:
     name: Nation-State
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [GOV-11, COM-10]
     effects:
       - {kind: admin, span: 1, note: "national offices staff provinces"}

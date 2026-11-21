@@ -161,7 +161,7 @@ projects:
     name: "Caravels & Ocean Voyages"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-11, WAY-09]
     effects:
       - {kind: unlock_action, action: ocean_voyage}
@@ -174,7 +174,7 @@ projects:
     name: "Galleons & Ships of the Line"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-12, WAR-12]
     effects:
       - {kind: combat, text: "An armed ocean ship carries cannon (powder per shot) and fights on the existing naval rows; a fleet at sea is out of the defense pool (P)."}

@@ -105,7 +105,7 @@ projects:
     name: Resident Embassies
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [DIP-08, COM-10]
     effects:
       - {kind: diplo, text: "A resident embassy in a contacted civilization shows that civilization its research slots to the host and the host's to it; one embassy per rival."}

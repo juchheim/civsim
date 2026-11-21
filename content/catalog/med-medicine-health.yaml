@@ -107,7 +107,7 @@ projects:
     name: Anatomy
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [MED-08, LRN-08]
     effects:
       - {kind: mod, stat: surgery_success, op: mult, value: 1.3, note: "a hospital with a physician (P)"}

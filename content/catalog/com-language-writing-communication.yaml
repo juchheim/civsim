@@ -136,7 +136,7 @@ projects:
     name: "Newspapers & Pamphlets"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [COM-10]
     effects:
       - {kind: good, id: G-PAMPHLET}

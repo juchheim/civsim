@@ -107,7 +107,7 @@ keystones:
     era: 6
     enters: 7
     type: K
-    status: draft
+    status: numeric
     requires: [NRG-06, MEC-10, TRD-10, INQ-08]
     breadth: {era: 6, min: 14}
     effects:

@@ -15,8 +15,8 @@ namespace CivSim.Harness;
 
 /// <summary>
 /// Plays whole Discovery-chapter matches with the stock AI (docs/MVP/38, M13 WP-E6-12): the diagnostic that answers whether a match can reach KEY-6 and KEY-7 and what the E6 systems
-/// do on the way. Nothing here changes the simulation. <c>--grant-e5</c> grants a civilization the E5 projects (except KEY-6) when it completes KEY-5, as fief-match does;
-/// <c>--grant-e6</c> also grants KEY-6 with the E5 projects (the stock AI does not research a draft keystone) and every E6 project except KEY-7 when KEY-6 is done, so the E6 systems can be watched before the age is promoted. Both are draft-row diagnostics.
+/// do on the way. Nothing here changes the simulation. <c>--grant-e5</c> grants a civilization every E5 project, KEY-6 included, when it completes KEY-5 (E5 is still draft, and the stock AI researches only numeric rows; unlike fief-match, KEY-6 does not end this chapter);
+/// <c>--grant-e6</c> additionally grants every E6 project except KEY-7 when KEY-6 is done (the E6 rows are numeric since WP-E6-12, so without it the AI researches them itself). Both are draft-row diagnostics; <c>--grant-e6</c> implies <c>--grant-e5</c>.
 /// </summary>
 internal static class DiscoveryMatchCommand
 {
@@ -75,7 +75,7 @@ internal static class DiscoveryMatchCommand
                     if (grantedE5[c] || !research.IsDone(c, key5)) continue;
                     grantedE5[c] = true;
                     foreach (ProjectDef p in research.Catalog.Projects)
-                        if (p.Era == 5 && (p.Index != key6 || grantE6)) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
+                        if (p.Era == 5) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
                 }
             if (grantE6)
                 for (int c = 0; c < civs; c++)

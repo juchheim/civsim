@@ -130,7 +130,7 @@ projects:
     name: Sugar Refining
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [FOD-09, SEA-12]
     gates: [{kind: has, target: Sugarcane}]
     effects:

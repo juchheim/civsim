@@ -153,7 +153,7 @@ projects:
     name: "Reformation & Tolerance"
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-11, COM-10]
     effects:
       - {kind: mod, stat: diversity_cohesion_loss, op: mult, value: 0.5, note: "religious diversity inside a realm costs half the Cohesion (P)"}

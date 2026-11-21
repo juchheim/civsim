@@ -126,7 +126,7 @@ projects:
     name: Renaissance Patronage
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [ART-09, TRD-08]
     effects:
       - {kind: mod, stat: legend_chance, op: mult, value: 2.0, note: "only while a court or a Wonder patron stands in the realm (P)"}

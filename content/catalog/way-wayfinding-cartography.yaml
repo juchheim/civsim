@@ -124,7 +124,7 @@ projects:
     name: Marine Chronometer
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [WAY-09, MEC-09]
     effects:
       - {kind: good, id: G-CHRONOMETER}

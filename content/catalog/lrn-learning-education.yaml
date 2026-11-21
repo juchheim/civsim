@@ -112,7 +112,7 @@ projects:
     name: Learned Societies
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [LRN-08, COM-10]
     effects:
       - {kind: build, structure: learned_society}

@@ -152,7 +152,7 @@ projects:
     name: Middle Class
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [SOC-11, TRD-08]
     effects:
       - {kind: mod, stat: commons_insight, op: mult, value: 1.2, note: "Commons Insight (P)"}

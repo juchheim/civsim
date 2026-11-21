@@ -40,7 +40,13 @@ internal static class TestPack
                 int at = text.IndexOf("id: " + id + "\n", StringComparison.Ordinal);
                 if (at < 0) continue;
                 int status = text.IndexOf("status: draft", at, StringComparison.Ordinal);
-                if (status < 0) throw new InvalidOperationException($"{id} is not a draft project.");
+                int nextRow = text.IndexOf("\n  - id: ", at + 1, StringComparison.Ordinal);
+                if (status < 0 || nextRow >= 0 && status > nextRow)
+                {
+                    // Already numeric (a promoted row, such as every E6 row since WP-E6-12): nothing to do.
+                    if (text.IndexOf("status: numeric", at, StringComparison.Ordinal) is var numeric && numeric >= 0 && (nextRow < 0 || numeric < nextRow)) { found = true; continue; }
+                    throw new InvalidOperationException($"{id} is not a draft project.");
+                }
                 files[i] = (files[i].Path, text[..status] + "status: numeric" + text[(status + "status: draft".Length)..]);
                 found = true;
             }

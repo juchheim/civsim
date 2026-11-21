@@ -131,7 +131,7 @@ projects:
     name: "Turnpikes & Coaches"
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [TRN-08, GOV-11]
     effects:
       - {kind: mod, stat: road_speed, op: mult, value: 1.5, note: "maintained toll roads (P); in the sim a road-linked town's walk to its capital counts a further x1.5 faster"}
@@ -143,12 +143,12 @@ projects:
     name: "Canals & Locks"
     era: 6
     type: S
-    status: draft
+    status: numeric
     requires: [TRN-10, MEC-09]
     effects:
       - {kind: build, structure: navigation_canal}
       - {kind: mod, stat: bulk_haul_inland, op: mult, value: 10.0, note: "coal and grain along a river or surveyed line (P)"}
-    practice: [{action: build, share: 100}]
+    practice: [{action: haul, share: 100}]
     flavor: "Water carries what wagons cannot."
     moment: "A barge is raised in a lock and glides on."
   - id: TRN-12

@@ -35,3 +35,27 @@ dotnet run --project src/CivSim.Harness -c Release -- discovery-match --pack civ
 1. **Promotion** of all 42 rows together (draft to numeric), with the pack and its golden, and the Forecast catalog and Council prior to follow (WP-E6-10).
 2. A **natural-play measurement** of coal, coke and steam share, colonies founded and lost, voyage losses, the factory's labor effect, pollution and KEY-7 timing over a large sample (WP-E6-13), which needs promotion first.
 3. Replay and snapshot acceptance for Discovery matches (record and resume through the harness), as `fief-match --record-dir` does.
+
+
+## Update, same day: the 42 E6 rows are promoted (WP-E6-12 slice 2), and the AI plays the age
+
+**Promotion.** All 41 E6 projects and KEY-7 went from draft to numeric together (rule V23: no half-promoted age). `civsim validate --strict` stays at 0 errors and 0 warnings after four practice lists were corrected so each feeds its own lineage (INQ-08 and INQ-09 now `scout`, MEC-09 `build`, TRN-11 `haul`; the practice registry was not touched, so the E0 to E4 Know-how numbers do not move). The pack is 313 numeric projects (271 for E0 to E4 plus 42) and 206 draft (E5 and E7 to E9); the content-pack golden is refreshed (`b1964600…`). **The research, politics and toy finals are unchanged** (`cb6fd7b2b6ebfd06`, `5d3ebe260a0f55b5`), because the chapters below Discovery cannot reach an E6 row. E5 stays draft (its own balance work), so a natural Discovery run still grants E5 with `--grant-e5`, KEY-6 included.
+
+**The first natural runs** (`discovery-match --grant-e5`, 200 minutes, two worlds, no E6 grants; the AI researches the E6 rows itself):
+
+| | seed 20261019 | seed 20261020 |
+|---|---|---|
+| KEY-6 (granted with E5) | seasons 352, 360 to 362 | 354, 365, 376, 385 |
+| **KEY-7, civilization by civilization** | 540, 574, 581, 581 | 535, 571, 594, 598 |
+| seasons from KEY-6 to KEY-7 | 188, 212, 220, 221 | 181, 206, 209, 222 |
+| engines / ovens / canals / factories | 44 / 41 / 39 / 40 | 40 / 36 / 34 / 36 |
+| galleons / exchange houses / harbors | 11 / 11 / 12 | 7 / 6 / 7 |
+| bastion forts | 0 | 0 |
+| settlements holding coal | 82 of 124 | 72 of 118 |
+
+1. **The stock AI reaches KEY-7 in every civilization in both worlds, with no help.** It researches the promoted E6 rows, the whole critical closure (NRG-06, MEC-10, TRD-10, INQ-08 and their prerequisites) and 14 breadth projects. WP-E6-10 is therefore **not** a blocker for the age to be playable; it remains for tuning (coal, ocean, colony and bastion policy, Council prior).
+2. **Pacing is about twice the design.** KEY-6 to KEY-7 takes **181 to 222 seasons, 45 to 56 minutes**, against the 25 minutes of decision D8 (the 25-minute age was the recommendation, not a fitted number). The Insight rate (27,000 to 34,000 a year) is not the problem; the era cost base is: E6 costs, with the late doubling of D9, make the age about twice as long. This is the number to tune next (the era base of 32,000 flagged "unfit" earlier), not any system.
+3. **Natural play builds the systems.** Dozens of engines, ovens, canals and factories appear without any help; the AI builds more galleons and exchange houses (6 to 11) than in the granted runs because it had more time. **No bastion fort was built:** a bastion needs a garrisoned castle and the AI builds few castles, so DEF-10 is unexercised by natural play.
+4. **A Discovery match does not end when an AI civilization completes KEY-7** (only the human ending ends it; decision D11 has no rival countdown), so the runs above continued to their 200-minute limit with every civilization in era 7.
+
+Two more notes: the run of 200 minutes takes about 4.8 minutes of wall time; and `--grant-e6` remains for watching the E6 systems before the AI reaches them.

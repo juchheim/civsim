@@ -168,7 +168,7 @@ projects:
     name: Deep-Sea Fishing Fleets
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [HNT-10, SEA-12]
     effects:
       - {kind: mod, stat: offshore_fish_yield, op: mult, value: 3.0, note: "an offshore fleet from a harbor (P)"}

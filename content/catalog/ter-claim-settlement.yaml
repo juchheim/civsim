@@ -133,7 +133,7 @@ projects:
     name: Overseas Colonies
     era: 6
     type: I
-    status: draft
+    status: numeric
     requires: [TER-09, SEA-12]
     effects:
       - {kind: unlock_action, action: colonize}

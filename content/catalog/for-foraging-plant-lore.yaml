@@ -127,7 +127,7 @@ projects:
     name: "Herbals & Botanical Gardens"
     era: 6
     type: S
-    status: draft
+    status: numeric
     requires: [FOR-08, COM-10]
     effects:
       - {kind: build, structure: botanical_garden}
@@ -141,7 +141,7 @@ projects:
     name: Columbian Exchange
     era: 6
     type: M
-    status: draft
+    status: numeric
     requires: [FOR-09, SEA-12]
     effects:
       - {kind: mod, stat: food_yield, op: mult, value: 1.2, note: "only in a settlement that can grow the imported staple on its biome (P)"}

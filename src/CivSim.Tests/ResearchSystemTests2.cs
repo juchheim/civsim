@@ -379,7 +379,7 @@ public class ResearchVisibleChangeTests
     {
         var rig = new ResearchRig(rules: CivSim.Sim.Research.ChapterRules.Iron); // E4 can be granted only in an Iron match
         ResearchCatalog catalog = rig.Catalog;
-        var numeric = catalog.Projects.Where(p => p.Numeric).ToList();
+        var numeric = catalog.Projects.Where(p => p.Numeric && p.Era <= 4).ToList(); // E6 is numeric too, but an Iron match refuses it
         Assert.Equal(271, numeric.Count);
         foreach (ProjectDef p in numeric) rig.Do(rig.Grant(0, p.Id));
 
