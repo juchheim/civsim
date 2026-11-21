@@ -1213,6 +1213,7 @@ public sealed partial class LivingEconomyModel
             if (c.ConqueredTerm < 0) c.ConqueredTerm = Math.Min(0, c.ConqueredTerm + _civic.ConqueredRecovery);
             c.LowSeasons = now < _civic.SecessionBelow ? (byte)Math.Min(255, c.LowSeasons + 1) : (byte)0;
             if (c.LowSeasons >= _civic.SecessionSeasons && CapitalOf(s.Civilization) != s.Id) Secede(s, c);
+            else if (DiscoveryChain && yearEnd && ColonyBreaksAway(s, now, season)) Secede(s, c);
         }
     }
 
@@ -1304,6 +1305,7 @@ public sealed partial class LivingEconomyModel
             if (Done(civ, "HUS-08") && MostlyOpenGround(s)) over *= Fix64.Half;
             over *= DistanceStrainFactor(s);
             t -= over;
+            if (DiscoveryChain) t -= ColonyStrain(s, over);
             t -= Fix64.FromInt(_civic.SpanPenalty * Math.Max(0, MemberCount(civ) - AdminSpanOf(civ))) * SpanStrainFactor(s);
         }
         t += Fix64.FromInt(c.ConqueredTerm);

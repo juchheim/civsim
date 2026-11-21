@@ -201,7 +201,7 @@ public sealed partial class PoliticsSystem
     /// </summary>
     public int FoundReach(int civ, bool bySea)
     {
-        if (bySea) return CanSail(civ) ? _rules.SeaReach : 0;
+        if (bySea) return CanSail(civ) ? HasColonyReach(civ) ? ColonySettleReach : _rules.SeaReach : 0;
         return _rules.SettleReach + (Done(civ, _bp.Trn05) ? _rules.CartBonus : 0);
     }
 

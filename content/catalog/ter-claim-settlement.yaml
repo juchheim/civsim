@@ -137,6 +137,7 @@ projects:
     requires: [TER-09, SEA-12]
     effects:
       - {kind: unlock_action, action: colonize}
+      - {kind: rule, text: "With SEA-12, a daughter band or a decree may found across the sea up to 40 tiles (the channel is 31 to 39), where outriggers reach 24 (P, docs/MVP/38 §5.2)."}
       - {kind: rule, text: "A colony is a settlement founded across an ocean; it pays a distance-based Overreach strain and carries a bounded, seeded independence risk, never a score-based one. A blockade cuts it off."}
       - {kind: risk, text: "Independence event: a colony far from the capital with low Cohesion may secede (seeded, replay-stable; P)."}
     practice: [{action: colonize, share: 100}]

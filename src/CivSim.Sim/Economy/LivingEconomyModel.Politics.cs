@@ -24,6 +24,8 @@ public interface IFissionSiteAdvisor
     bool Reachable(int civ, int fromTile, int toTile);
     /// <summary>True if the band's voyage turns back (shipwreck); it then stays home this season.</summary>
     bool VoyageLost(int civ, int fromTile, int toTile, int season);
+    /// <summary>Whether a blockade has shut this settlement's harbor to the sea (an overseas colony so cut off is strained and may break away).</summary>
+    bool CutOffBySea(int settlement);
 }
 
 public enum BeaconSiteBlockReason : byte

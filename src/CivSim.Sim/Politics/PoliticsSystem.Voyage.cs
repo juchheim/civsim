@@ -28,6 +28,8 @@ public sealed partial class PoliticsSystem
     public const int VoyageBaseRiskPermille = 30, VoyageRiskPerSeaTile = 8, VoyageMaxRiskPermille = 400;
     /// <summary>Hex distance a daughter band may settle from its parent: on foot, and by boat.</summary>
     public const int LandSettleReach = 14, SailSettleReach = 24;
+    /// <summary>The sea settle reach of a civilization with TER-11 and SEA-12: far enough to found across the 31 to 39 tile channel (provisional).</summary>
+    public const int ColonySettleReach = 40;
     /// <summary>A landmass this small is an island (12 §3.1).</summary>
     public const int IslandMaxTiles = 40;
 
@@ -41,6 +43,7 @@ public sealed partial class PoliticsSystem
     private int[]?[] _oceanFrom = Array.Empty<int[]?>();
     private int _sea12 = -1;
     private int _way10 = -1;
+    private int _ter11 = -1;
     private int _way08 = -1;
     private int _way09 = -1;
     private int _sea11 = -1;
@@ -52,6 +55,7 @@ public sealed partial class PoliticsSystem
         _sea11 = _research.Catalog.IndexOf("SEA-11");
         _sea12 = _research.Catalog.IndexOf("SEA-12");
         _way10 = _research.Catalog.IndexOf("WAY-10");
+        _ter11 = _research.Catalog.IndexOf("TER-11");
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
         _landmass = new int[n];
@@ -244,7 +248,13 @@ public sealed partial class PoliticsSystem
 
     // ---- IFissionSiteAdvisor: reach, reachability and the voyage --------------------------
 
-    public int SettleReach(int civ) => CanSail(civ) ? SailSettleReach : LandSettleReach;
+    public int SettleReach(int civ) => CanSail(civ) ? HasColonyReach(civ) ? ColonySettleReach : SailSettleReach : LandSettleReach;
+
+    /// <summary>Whether a blockade holds this settlement's harbor (the colony-cutoff hook of the economy).</summary>
+    public bool CutOffBySea(int settlement) => IsBlockaded(settlement);
+
+    /// <summary>TER-11 with SEA-12 (Discovery): colonists cross the channel in one leg, so a daughter or a decree may found this far across the sea.</summary>
+    public bool HasColonyReach(int civ) => HasOceanReach(civ) && _ter11 >= 0 && _research.IsDone(civ, _ter11);
 
     public bool Reachable(int civ, int fromTile, int toTile) => CanReach(civ, fromTile, toTile);
 
