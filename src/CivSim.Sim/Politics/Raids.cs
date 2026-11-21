@@ -10,7 +10,7 @@ public readonly record struct Defenses(
     bool ThornBarrier, bool Palisade, bool Watchers, bool Dogs, bool SignalFires, bool AlarmCalls, bool HillSite,
     bool Archery, bool Night, bool RaidedRecently, bool Hillfort = false, bool StoneWalls = false, bool HillfortRefuge = false,
     bool BronzeRules = false, bool Gatehouse = false, bool Castle = false, bool Feudal = false, bool ConcentricCastle = false,
-    bool PowderBreach = false)
+    bool PowderBreach = false, bool BastionFort = false)
 {
     public static readonly Defenses None = default;
 
@@ -22,6 +22,14 @@ public readonly record struct Defenses(
     public static readonly Fix64 CastleStrongpoint = Fix64.FromRatio(5, 4);
     /// <summary>DEF-09's fitted upgrade to an already garrisoned castle; x1.25 × x1.5 = x1.875, below the 1.9 storm crossover.</summary>
     public static readonly Fix64 ConcentricCastleMultiplier = Fix64.FromRatio(3, 2);
+
+    /// <summary>
+    /// DEF-10's bastion fort, an alternative to the concentric step (docs/MVP/38 §5.6, e6_combat_oracle.py Part 2): defenders fight at x1.5 on top of the garrisoned castle
+    /// (1.25 x 1.5 = 1.875, below the 1.9 storm crossover). Its other job is the wall below.
+    /// </summary>
+    public static readonly Fix64 BastionStormMultiplier = Fix64.FromRatio(3, 2);
+    /// <summary>The bastion's wall on the integrity track: 1.5 times a gatehouse wall (oracle Part 1: a three-cannon train needs one to two more seasons).</summary>
+    public static readonly Fix64 BastionWall = Fix64.FromRatio(27, 4);
 
     /// <summary>Product of the defense multipliers on defenders' strength (13 §6.2; Bronze barriers replace each other).</summary>
     public Fix64 Multiplier()
@@ -50,7 +58,7 @@ public readonly record struct Defenses(
         }
         if (modernBarrier) m = m * barrier;
         if (HillSite) m = m * Fix64.FromRatio(12, 10);
-        if (Castle) m = m * CastleStrongpoint * (ConcentricCastle ? ConcentricCastleMultiplier : Fix64.One);
+        if (Castle) m = m * CastleStrongpoint * (ConcentricCastle ? ConcentricCastleMultiplier : BastionFort ? BastionStormMultiplier : Fix64.One);
         if (Feudal) m = m * FeudalLocalDefense;
         if (Archery && (modernBarrier ? barrier > Fix64.One : ThornBarrier || Palisade)) m = m * Fix64.FromRatio(5, 4);
         return m;

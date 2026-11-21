@@ -2243,6 +2243,10 @@ public sealed partial class LivingEconomyModel
     public bool CastleGarrisoned(int settlementIndex)
         => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Castle) > 0 && s.Metal is { } m && m.IronSoldiersSupplied >= CastleGarrison;
 
+    /// <summary>A Discovery settlement has a built DEF-10 bastion fort (it also needs its castle's garrison in post to count, see <c>PoliticsSystem.DefensesOf</c>).</summary>
+    public bool BastionFortBuilt(int settlementIndex)
+        => DiscoveryChain && IronWorksCount(_settlements[settlementIndex], IronStructure.BastionFort) > 0;
+
     /// <summary>A Fief settlement has a built DEF-09 concentric-castle upgrade.</summary>
     public bool ConcentricCastleBuilt(int settlementIndex)
         => FiefChain && IronWorksCount(_settlements[settlementIndex], IronStructure.ConcentricCastle) > 0;
@@ -2563,7 +2567,7 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort,
         Count
     }
 
@@ -2637,6 +2641,8 @@ public sealed partial class LivingEconomyModel
         new("factory", "MEC-10", 50, 20, 0, 10, 4, Stone: true),
         // An exchange house (TRD-11, docs/MVP/38 §5.2): the registry's 14 block and 6 wood, in a harbor town (provisional).
         new("exchange_house", "TRD-11", 30, 14, 0, 6, 0, Stone: true),
+        // A bastion fort (DEF-10, docs/MVP/38 §5.6): the registry's 40 block and 20 fired brick, counted as block (provisional).
+        new("bastion_fort", "DEF-10", 70, 60, 0, 0, 0, Stone: true),
     };
 
     /// <summary>

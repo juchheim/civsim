@@ -48,7 +48,7 @@ public enum BuildWhy : byte
     // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
     NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
     // Discovery (appended): the atmospheric engine needs a coal supply and a use for its power.
-    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower,
+    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower, AlternativeBuilt,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -260,6 +260,7 @@ public sealed partial class LivingEconomyModel
                 if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
+                if (DiscoveryChain && IronWorksCount(s, IronStructure.BastionFort) > 0) return Stop(BuildCause.Taken, BuildWhy.AlternativeBuilt);
                 if (!Done(civ, "DEF-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-09");
                 if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
                 return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
@@ -357,6 +358,15 @@ public sealed partial class LivingEconomyModel
                 if (!CoalObtainable(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsCoal);
                 if (includeAppetite && !CokeSmeltingActive(s)) return Stop(BuildCause.NotNeeded, BuildWhy.CokeNotNeeded);
                 return BuildGate.Pass;
+            case IronStructure.BastionFort:
+                // DEF-10 (docs/MVP/38 §5.6): a star fort on a garrisoned castle, an alternative to the concentric step, never on top of it.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "DEF-10")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-10");
+                if (IronWorksCount(s, IronStructure.ConcentricCastle) > 0) return Stop(BuildCause.Taken, BuildWhy.AlternativeBuilt);
+                if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
+                return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
             case IronStructure.ExchangeHouse:
                 // TRD-11 (docs/MVP/38 §5.2): one exchange house to a civilization, in a harbor town that can spare brokers.
                 if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);

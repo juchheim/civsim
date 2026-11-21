@@ -127,7 +127,7 @@ projects:
     effects:
       - {kind: build, structure: bastion_fort}
       - {kind: defense, structure: bastion_fort, mult: 1.5, text: "Garrisoned bastion fort, an alternative to the concentric step (castle 1.25 x 1.5 = 1.875, below the 1.9 storm crossover; e6_combat_oracle Part 2); its real job is the integrity track below (P)"}
-      - {kind: rule, text: "The bastion fort counts as a wall of about 6.75 to 9.0 on the integrity track (1.5 to 2 times a gatehouse wall; a three-cannon train needs 1 to 2 more seasons, e6_combat_oracle Part 1), the gunpowder wall penalty is halved (P), and engine and cannon crews suffer 25% more attrition; it needs a garrison like a castle."}
+      - {kind: rule, text: "The bastion fort counts as a wall of about 6.75 to 9.0 on the integrity track (1.5 to 2 times a gatehouse wall; a three-cannon train needs 1 to 2 more seasons, e6_combat_oracle Part 1), and engine and cannon crews suffer 25% more attrition; it needs a garrison like a castle. In the sim (docs/MVP/38 §5.6, e6_combat_oracle.py): the bastion wall is 6.75 on the integrity track, defenders fight at x1.5 on top of the castle (1.875 in all, below the 1.9 storm crossover) as an alternative to the concentric step, and the gunpowder wall penalty is NOT halved, because the oracle shows a halved penalty with a x1.5 multiplier closes the storm for good; the crew attrition rule is not built yet (P)."}
     practice: [{action: build, share: 100}]
     flavor: "Angles, not height, turn the shot."
     moment: "A star-shaped rampart rises where a round tower stood."

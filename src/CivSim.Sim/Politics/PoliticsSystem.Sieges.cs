@@ -385,7 +385,7 @@ public sealed partial class PoliticsSystem
             return true;
         }
         Defenses defenses = DefensesOf(investment.Settlement);
-        investment.Integrity = Sieges.Batter(investment.Integrity, Fix64.FromInt(running) + firingCannons * Sieges.CannonWallDamage, defenses.Gatehouse ? Defenses.IntactTowerWall : Fix64.FromInt(3));
+        investment.Integrity = Sieges.Batter(investment.Integrity, Fix64.FromInt(running) + firingCannons * Sieges.CannonWallDamage, defenses.BastionFort ? Defenses.BastionWall : defenses.Gatehouse ? Defenses.IntactTowerWall : Fix64.FromInt(3));
         if (firingCannons > 0) investment.PowderBreach = true;
         UpdateSiegeTrace(trace, investment, supplied, enginesBefore, cannonsBefore, engineCrews, cannonCrews,
             firingCannons, integrityBefore);
