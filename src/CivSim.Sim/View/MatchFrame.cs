@@ -27,6 +27,8 @@ public sealed class MatchFrame
 
     /// <summary>The Faith &amp; Fief-only read model; inactive in Bronze and Iron.</summary>
     public readonly FiefFrame Fief = new();
+    /// <summary>The Discovery-only read model; inactive in every other chapter.</summary>
+    public readonly DiscoveryFrame Discovery = new();
 
     // ---- header -------------------------------------------------------------------------------
     /// <summary>Build number from the builder that wrote it (1, 2, 3, ...).</summary>
