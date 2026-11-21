@@ -173,7 +173,7 @@ Figure budget is unchanged: **at most 600 per civilization**; the sim stays 1:1 
 | Master mason | the E5 master mason (a P2 figure in doc 32, not built yet; build it once for both Wonders) | Palace site | P2 |
 | Colonist group | a handful of figures with bundles and tools at a beached caravel | at a new colony on founding | P2 |
 
-Notes: the drilled levy needs a `LOOK_DRILL` bit (§9): before WAR-13 the E5 crossbow, longbow and gunner figures stay; after it, the levy takes the coat-and-ranks variant. The sim has no typed musketeer role yet (doc 38 WP-E6-9 "musket rung" remaining); art waits for it, as decided in §12.
+Notes: the drilled levy needs a `LOOK_DRILL` bit (§9): before WAR-13 the E5 crossbow, longbow and gunner figures stay; after it, the levy takes the coat-and-ranks variant. The sim has no typed musketeer role yet (doc 38 WP-E6-9 "musket rung" remaining); the wiring waits for it, as decided in §12. **No new figure mesh is needed for this:** `person_pikeman`, `person_musketeer`, `person_rifleman` and `field_gun` already exist from the WAR-13/14 levy art (doc 35 §7, `art_fief_people.gd`), so only the `LOOK_DRILL` switch is left.
 
 ## 7. Ships, flows and the open sea
 
@@ -187,7 +187,7 @@ Doc 32 §7 decided **no open-sea route art in E5**; doc 38 §5.2 delivers ocean 
 - **Wreck (P1).** A floating broken mast and flotsam for a lost voyage, a transient marker (a few seconds) at the tile of the loss, with a Chronicle line. WAY-10 and TRD-11 reduce losses (−70%, −50%); they change how often this appears, not how it looks.
 - **Beached caravel (P2).** A caravel pulled up at a new colony's shore at founding.
 - **States:** in port (at the quay), at sea on a lane, **on station** (a galleon blockading a harbor, drawn at the station tile), **escorting** (a galleon trailing a caravan, P2). A galleon on station shows a small **anchor glyph** at its home harbor: the crew is out of the defense pool (doc 38 §5.2).
-- **Scale:** galleon about 0.22 long, caravel 0.15, cog 0.13, galley 0.16 (P). Audit against the harbor mesh and tile size at the first gallery capture (decided, §12).
+- **Scale (mesh units, as built):** galleon 0.62 long, caravel 0.46, cog 0.5, so a caravel is slimmer and lower than a cog and a galleon is the biggest ship on the map (the first draft of this line gave figures in a different unit, in error). Audit against the harbor mesh and tile size at the gallery captures (decided, §12).
 
 ### 7.2 Ocean sea lanes (P0)
 - **Drawn:** **dashed ocean arcs** between harbors that really have a sailed route, with ship tokens moving along them (08 §3.3). Reuse the dashed-line shader of `fief_overlay.gd` (`route_line.gdshader`) with an arc height and a lane tint in the owner's colour.
@@ -283,7 +283,7 @@ The renderer never reads sim state directly; it reads the frame. Doc 38 §3.3 sa
 7. **P1 effects:** bastion breaches, wreck marker, blockade and fleet-away markers, rival KEY-7 banner.
 8. **P2 polish.**
 
-**Status (2026-11-21): none of this exists.** The E6 coal deposit and cane deposit markers (`art_deposits.gd`), the E5 `print_shop`, `cannon`, `person_gunner`, `person_knight`, wall pieces, `cog`, `cog_lateen`, `harbor`, `galley`, `fief_overlay.gd` (route-line shader) and the E5 gallery scenario are the reusable base. Nothing places an E6 object in a match.
+**Status (2026-11-21): the P0 meshes are built, as meshes, not wired.** On `codex/e6-art-p0` (worktree `civsim-e6-art`): `art_disc_power.gd` (`coal_mine`, `_idle`, `_flooded`, `_site` and the separate `coal_mine_wheel`; `atmospheric_engine`, `_idle` and the separate `atmospheric_engine_beam`; `factory`, `_cold`, `_site`), `art_disc_war.gd` (`bastion_1..4`, `bastion_4_idle`), `art_disc_sea.gd` (`caravel`, `galleon`), `art_disc_land.gd` (`field_four_0..3`, `hedge_line`) and `art_disc_marks.gd` (`colony_pennant`, `mark_dormant`, `mark_blocked`, `mark_flooded`, `mark_strained`, `mark_blockaded`), registered last in `ART_PASSES` and photographed by `--scenario=discovery-gallery` (`LowPoly3DView.show_discovery_gallery`; `--discovery-only=` filters shots by prefix; the game args go after `--`). First gallery pass done: lit factory glow toned to amber, the engine beam thinned, the coal stain shrunk. **Weight:** the four-course field is about 2,500 triangles against the three-field field's 934 (the first draft was 6,900: its hedge was blobs, now box runs); that is the one P0 mesh to watch for A-5. **Not built:** the smoke, steam and beam/wheel rigs, the ocean-lane overlay, the colony state wiring, the bastion breach pieces, the P1 and P2 items, and anything that places a mesh in a match (that needs the `DiscoveryFrame`, WP-E6-11).
 
 ## 11. Acceptance
 

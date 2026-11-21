@@ -624,6 +624,58 @@ func show_fief_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## Dev aid for scenarios (discovery-gallery, docs/MVP/39): the Discovery meshes on a plain stage, rows 2.4 apart from the nearest (+z): the coal mine working,
+## idle, flooded and as a site, the engine working and banked, the factory lit, cold and as a site, the bastion fort in its four stages and idle, the ships
+## (the galley and the cog beside them for scale), the four-course fields beside the three-field one, and the state marks. Returns the stage centre.
+func show_discovery_gallery() -> Vector3:
+	var stage := Node3D.new()
+	stage.name = "DiscoveryGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(11.0, 22.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, -4.2)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	# [mesh, width it needs, scale]; the coal mine's body gets its wheel and the engine its beam fitted at the pivot
+	var rows := [
+		[["coal_mine", 0.7, 1.35], ["coal_mine_idle", 0.7, 1.35], ["coal_mine_flooded", 0.7, 1.35], ["coal_mine_site", 0.6, 1.35]],
+		[["atmospheric_engine", 0.7, 1.35], ["atmospheric_engine_idle", 0.7, 1.35], ["factory", 0.75, 1.3], ["factory_cold", 0.75, 1.3], ["factory_site", 0.7, 1.3]],
+		[["bastion_1", 1.0, 1.0], ["bastion_2", 1.0, 1.0], ["bastion_3", 1.0, 1.0], ["bastion_4", 1.0, 1.0], ["bastion_4_idle", 1.0, 1.0]],
+		[["galley", 0.8, 1.3], ["cog", 0.8, 1.3], ["caravel", 0.75, 1.3], ["galleon", 0.9, 1.3]],
+		[["field_three_0", 1.1, 1.0], ["field_four_0", 1.1, 1.0], ["field_four_1", 1.1, 1.0], ["field_four_2", 1.1, 1.0], ["field_four_3", 1.1, 1.0], ["hedge_line", 0.4, 1.4]],
+		[["colony_pennant", 0.4, 1.6], ["mark_dormant", 0.3, 2.4], ["mark_blocked", 0.3, 2.4], ["mark_flooded", 0.3, 2.4], ["mark_strained", 0.3, 2.4], ["mark_blockaded", 0.3, 2.4]],
+	]
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(i % 4), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			var s := float(item[2])
+			var y := 0.0
+			if name.begins_with("mark_"):
+				y = 0.2
+			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	return centre
+
 ## Dev aid for scenarios (fief-overlays, docs/MVP/32): fills the Faith & Fief overlay tables from the live map round the human capital (pilgrimage routes,
 ## quarantine, disease spreading, outbreaks) and returns where to look (the origin when the map has no suitable ground).
 func show_fief_overlay_demo() -> Vector3:

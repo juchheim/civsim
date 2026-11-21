@@ -841,6 +841,62 @@ public partial class Game
                     Shot($"fief-{itemName}");
                 }
                 break;
+            case "discovery-gallery":
+                // the Discovery meshes (docs/MVP/39) on a stage above the map (LowPoly3DView.show_discovery_gallery): coal mine, engine, factory, bastion fort,
+                // ships, four-course fields and the state marks, each in its states and stages
+                Vector3 discOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 1.5f);
+                Step(() =>
+                {
+                    discOrigin = (Vector3)_visualRenderer!.Call("show_discovery_gallery");
+                    _moveAnimating = false;
+                    _target = discOrigin;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("disc-all");
+                foreach (var (item, dx, dz, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    // rows: z 2.4 coal mines (x -1.35 .. 1.35), 0.2 engines and factories, -2.2 bastions (x -2.0 .. 2.0), -5.2 ships, -8.0 fields, -10.4 marks
+                    ("mine", 0.0f, 2.4f, 3.6f, 38.0f, 0.0f), ("mine-work", -1.4f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-work-side", -1.4f, 2.4f, 1.8f, 30.0f, 70.0f),
+                    ("mine-idle", -0.45f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-flooded", 0.5f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-site", 1.45f, 2.4f, 1.8f, 30.0f, 0.0f),
+                    ("works", 0.0f, 0.2f, 4.2f, 40.0f, 0.0f), ("engine", -1.6f, 0.2f, 1.7f, 28.0f, 0.0f), ("engine-side", -1.6f, 0.2f, 1.7f, 28.0f, 80.0f),
+                    ("engine-idle", -0.65f, 0.2f, 1.7f, 28.0f, 0.0f), ("factory", 0.35f, 0.2f, 2.0f, 30.0f, 0.0f), ("factory-side", 0.35f, 0.2f, 2.0f, 32.0f, 60.0f),
+                    ("factory-back", 0.35f, 0.2f, 2.0f, 32.0f, 160.0f), ("factory-cold", 1.4f, 0.2f, 2.0f, 30.0f, 0.0f), ("factory-site", 2.4f, 0.2f, 2.0f, 30.0f, 0.0f),
+                    ("bastion", 0.0f, -2.2f, 5.0f, 44.0f, 0.0f), ("bastion-stages", -1.0f, -2.2f, 3.2f, 40.0f, 0.0f), ("bastion-done", 1.0f, -2.2f, 2.0f, 36.0f, 0.0f),
+                    ("bastion-done-side", 1.0f, -2.2f, 2.0f, 36.0f, 60.0f), ("bastion-idle", 2.0f, -2.2f, 2.0f, 36.0f, 0.0f), ("bastion-top", 1.0f, -2.2f, 2.4f, 70.0f, 0.0f),
+                    ("ships", 0.0f, -5.2f, 3.4f, 34.0f, 0.0f), ("caravel", 0.15f, -5.2f, 1.5f, 28.0f, 0.0f), ("caravel-side", 0.15f, -5.2f, 1.5f, 24.0f, 90.0f),
+                    ("galleon", 1.05f, -5.2f, 1.7f, 28.0f, 0.0f), ("galleon-side", 1.05f, -5.2f, 1.7f, 22.0f, 90.0f), ("galleon-stern", 1.05f, -5.2f, 1.7f, 30.0f, 200.0f),
+                    ("fields", 0.0f, -8.0f, 5.0f, 50.0f, 0.0f), ("fields-close", 0.55f, -8.0f, 2.0f, 46.0f, 0.0f), ("fields-low", 0.55f, -8.0f, 1.8f, 24.0f, 0.0f),
+                    ("marks", 0.0f, -10.4f, 2.6f, 34.0f, 0.0f), ("marks-close", -0.2f, -10.4f, 1.4f, 14.0f, 0.0f),
+                })
+                {
+                    string itemName = item;
+                    // --discovery-only=mine,bastion : photograph only the shots whose name starts with one of these (a short run, for a busy machine)
+                    string? discOnly = ArgumentValue("--discovery-only=");
+                    if (discOnly is not null && !Array.Exists(discOnly.Split(','), o => itemName.StartsWith(o))) continue;
+                    float x = dx, z = dz, zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        _target = new Vector3(discOrigin.X + x, discOrigin.Y, discOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot($"disc-{itemName}");
+                }
+                break;
             case "fief-overlays":
                 // the Faith & Fief route and spread overlays (docs/MVP/32 §7, §8.4) on the live map round the capital, with synthetic data from
                 // LowPoly3DView.show_fief_overlay_demo: pilgrimage routes with way-posts and pilgrims, quarantine, disease spreading and outbreaks

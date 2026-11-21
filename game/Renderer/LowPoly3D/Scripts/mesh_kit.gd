@@ -81,6 +81,12 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_civic.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_people.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_marks.gd"),
+	# Discovery (E6), docs/MVP/39: new meshes only, none replaces an older one
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_power.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_war.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_sea.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_land.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_marks.gd"),
 ]
 
 func get_mesh(name: String) -> ArrayMesh:
