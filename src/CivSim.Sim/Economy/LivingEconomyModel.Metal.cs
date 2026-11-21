@@ -2772,6 +2772,7 @@ public sealed partial class LivingEconomyModel
         Fix64 rate = QuarryRate(s);
         Fix64 want = Fix64.Min(net, craftPool * rate);
         Fix64 got = TakeRangeStone(s, want);
+        if (BlastingOutput(s) > Fix64.One) PayBlastingPowder(s, got);
         m.Goods[(int)MetalGood.Block] += got;
         craftPool -= got / rate;
     }
@@ -2781,7 +2782,7 @@ public sealed partial class LivingEconomyModel
         Fix64 best = Fix64.One;
         foreach (FigureState f in Residents(s.Id))
             if (f.Kit != 0) best = Fix64.Max(best, KitMod(f, "quarry"));
-        return BaseRate("quarry", Fix64.FromInt(3)) * best;
+        return BaseRate("quarry", Fix64.FromInt(3)) * best * BlastingOutput(s);
     }
 
     private Fix64 TakeRangeStone(SettlementState s, Fix64 amount)
@@ -2952,6 +2953,8 @@ public sealed partial class LivingEconomyModel
                 {
                     Fix64 rate = MineRate(civ, camp.Tile, camp.MineHead, out _);
                     if (discoveryGood is not null) rate *= FloodedSeamFactor(s, camp.Tile);
+                    Fix64 blasting = BlastingOutput(s);
+                    rate *= blasting;
                     Fix64 effective = rate * SkillMultiplier(f, SkillFamily.Gather) * KitMod(f, "mine");
                     if (effective > Fix64.Zero)
                     {
@@ -2965,6 +2968,7 @@ public sealed partial class LivingEconomyModel
                                 : DigDiscoveryOre(s, camp.Tile, discoveryGood!.Value, effective, litres / effective, litres);
                         if (B12CopperShareTraceEnabled && s.Id == 11 && season is >= 255 and <= 267 && good == MetalGood.CopperOre)
                             copperCampDug += dug;
+                        if (blasting > Fix64.One) PayBlastingPowder(s, dug);
                         Fix64 spent = dug * perLitre;
                         if (good is { } hauledGood) RecordIT6OreHaul(civ, dug * haul, hauledGood == MetalGood.IronOre);
                         used += spent;
