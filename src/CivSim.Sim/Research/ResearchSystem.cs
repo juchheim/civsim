@@ -76,6 +76,9 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
     private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _statWritingRoleOutput, _statDiffusionDiscount, _wonderLibrary;
     private readonly int _statProjectCost, _statInqProjectCost, _statInsightTotal; // INQ-08, NUM-11 (Discovery)
+    private readonly int _lrn09;
+    /// <summary>LRN-09's typed Know-how spillover share (the row's know_how_spillover), read once from the catalog.</summary>
+    private readonly Fix64 _societySpillover;
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statAdminCapacity;
     private long _tick;
 
@@ -123,6 +126,10 @@ public sealed partial class ResearchSystem : IResearchView
         _wonderLibrary = catalog.IndexOf("LRN-06");
         _com09 = catalog.IndexOf("COM-09");
         _com10 = catalog.IndexOf("COM-10");
+        _lrn09 = catalog.IndexOf("LRN-09");
+        if (_lrn09 >= 0)
+            foreach (EffectDef e in catalog.Projects[_lrn09].Effects)
+                if (e.Kind == EffectKind.Mod && e.Stat == "know_how_spillover" && e.HasValue) _societySpillover = e.Value;
         _cer10 = catalog.IndexOf("CER-10");                               // spectacles gate its Elder Insight
         _roleMonk = catalog.RoleIndex("monk");
         _statMonasteryInsight = catalog.StatIndex("monastery_insight");   // ART-09
@@ -186,6 +193,7 @@ public sealed partial class ResearchSystem : IResearchView
     public int DoneCount(int civ) { int n = 0; foreach (bool d in _civs[civ].Done) if (d) n++; return n; }
     public int DoneInEra(int civ, int era) => _civs[civ].DoneByEra[era];
     public Fix64 Progress(int civ, int project) => _civs[civ].Progress[project];
+    internal void FixtureAddKnowHow(int civ, int lineage, Fix64 amount) => _civs[civ].KnowHow[lineage] += amount;
     public Fix64 KnowHow(int civ, int lineage) => _civs[civ].KnowHow[lineage];
     public Fix64 KnowHowApplied(int civ, int project) => _civs[civ].KnowHowApplied[project];
     public Fix64 InsightPerYear(int civ) => _civs[civ].InsightPerYear;
@@ -274,7 +282,12 @@ public sealed partial class ResearchSystem : IResearchView
         // The Great Library (LRN-06, once built) doubles each knowing civilization's discount; the floor stays, so a cost never goes below it.
         Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
         if (Rules.IsFief && _com10 >= 0 && c.Done[_com10] && _statDiffusionDiscount >= 0)
+        {
             step *= c.ModMult[_statDiffusionDiscount];
+            // LRN-09's diffusion bonus is a society's: without a scholar at work in one, the row's share of the modifier is taken back out.
+            if (Rules.IsDiscovery && _lrn09 >= 0 && c.Done[_lrn09] && !_source.SocietyStaffed(civ))
+                step = step / ProjectModFactor(civ, _lrn09, "diffusion_discount");
+        }
         Fix64 discount = knowers > 0 ? Fix64.Max(_diffusionFloor, Fix64.One - step * knowers) : Fix64.One;
         if (Rules.IsDiscovery)
         {
@@ -292,6 +305,20 @@ public sealed partial class ResearchSystem : IResearchView
         // INQ-05: machine (MEC) and energy (NRG) projects cost 10% less, applied to the current cost like every other discount (no credit for work already done).
         if (_statMecNrgCost >= 0 && (def.Id.StartsWith("MEC-", StringComparison.Ordinal) || def.Id.StartsWith("NRG-", StringComparison.Ordinal))) cost = cost * c.ModMult[_statMecNrgCost];
         return cost;
+    }
+
+    /// <summary>The factor a completed project contributes to a stat's multiplier, as <see cref="RebuildDerived"/> folds it in (1 when it has none).</summary>
+    private Fix64 ProjectModFactor(int civ, int project, string stat)
+    {
+        CivResearch c = _civs[civ];
+        ProjectDef def = _catalog.Projects[project];
+        Fix64 adopted = def.SpreadsAsSkill ? AdoptionFraction(civ, project) : Fix64.One;
+        Fix64 pioneer = c.Pioneer[project] ? PioneerBonus : Fix64.One;
+        Fix64 factor = Fix64.One;
+        foreach (EffectDef e in def.Effects)
+            if (e.Kind == EffectKind.Mod && e.Stat == stat && e.HasValue && e.Op == "mult")
+                factor *= Fix64.One + (e.Value - Fix64.One) * adopted * pioneer;
+        return factor;
     }
 
     /// <summary>Completions since the last call, for the economy to apply as <see cref="CommandKind.CompleteProject"/>.</summary>
@@ -526,6 +553,23 @@ public sealed partial class ResearchSystem : IResearchView
                     if (_source.HasSettlementKnowHowRetention)
                         _source.DebitKnowHowBuckets(c, def.Lineage, kh);
                     progress += kh;
+                }
+                // LRN-09: a staffed society lets a share of the other lineages' Know-how count toward this project (the donors pay ten for each one given).
+                if (Rules.IsDiscovery && _lrn09 >= 0 && civ.Done[_lrn09] && _societySpillover > Fix64.Zero && _source.SocietyStaffed(c))
+                {
+                    Fix64 want = Fix64.Min(amount - kh, Fix64.Max(Fix64.Zero, cost * KnowHowCostShare - civ.KnowHowApplied[p]));
+                    for (int other = 0; other < civ.KnowHow.Length && want.Raw > 0; other++)
+                    {
+                        if (other == def.Lineage) continue;
+                        Fix64 give = Fix64.Min(civ.KnowHow[other] * _societySpillover, want);
+                        if (give.Raw <= 0) continue;
+                        Fix64 paid = give / _societySpillover;
+                        civ.KnowHow[other] -= paid;
+                        civ.KnowHowApplied[p] += give;
+                        if (_source.HasSettlementKnowHowRetention) _source.DebitKnowHowBuckets(c, other, paid);
+                        progress += give;
+                        want -= give;
+                    }
                 }
             }
             if (progress < cost) { civ.Progress[p] = progress; return; }

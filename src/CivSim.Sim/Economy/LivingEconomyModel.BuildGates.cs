@@ -48,7 +48,7 @@ public enum BuildWhy : byte
     // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
     NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
     // Discovery (appended): the atmospheric engine needs a coal supply and a use for its power.
-    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower, AlternativeBuilt, HospitalNotNeeded,
+    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower, AlternativeBuilt, HospitalNotNeeded, NoScholarsHere,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -382,6 +382,15 @@ public sealed partial class LivingEconomyModel
                 if (!(gate = Town()).Open) return gate;
                 if (!Done(civ, "FOR-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "FOR-09");
                 if (includeAppetite && !HospitalStaffed(s)) return Stop(BuildCause.NotNeeded, BuildWhy.HospitalNotNeeded);
+                return BuildGate.Pass;
+            case IronStructure.LearnedSociety:
+                // LRN-09 (docs/MVP/38 §5.3): a town of scholars raises a society, at most MaxSocieties to a civilization.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "LRN-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "LRN-09");
+                if (CivWorksCount(civ, IronStructure.LearnedSociety) >= MaxSocieties) return Stop(BuildCause.Taken, BuildWhy.OnePerCivilization);
+                if (includeAppetite && IronWorksCount(s, IronStructure.Academy) + IronWorksCount(s, IronStructure.University) == 0) return Stop(BuildCause.NotNeeded, BuildWhy.NoScholarsHere);
                 return BuildGate.Pass;
             case IronStructure.Factory:
                 // MEC-10 (docs/MVP/38 §5.7): a large town with a power source in its ledger raises one factory.

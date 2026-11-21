@@ -38,6 +38,10 @@ dotnet run --project src/CivSim.Harness -c Release -- discovery-match --pack civ
 
 (about 90 seconds; `--resume-at 70` is the identical control).
 
+## Narrowed further (same day)
+
+At the first diverging tick **exactly one tile's forage stock differs** (tile 8675 of 16,000 in the Fief repro; 1.886 against 1.945, about 3%). Its field owner, wildfire, forest state and low-season counters, its forage-owning settlement (32, civilization 1) and that civilization's `winter_forage_stock` (x2), `autumn_forage` (x1.4) and the winter multiplier (1.08) are **identical** on both sides, as is the season count. So the difference is not an input that a restored match holds differently at the end of the step; it arises inside the season-end regrowth or harvest of that tile (the stock is `min(stock + regrowth, capacity)`), or from a state the hash does not cover. The harness prints this (`TileDiff`) on a divergence.
+
 ## Next steps for whoever takes it
 
-Bisect by tick inside the first diverging season (the harness already steps tick by tick after the restore), diff the two economies tile by tile at the first differing tile (index about 9,150 of 16,000 in the forage array) and ask what that tile's regrowth reads that a restored match would hold differently.
+Bisect by tick inside the first diverging season (the harness already steps tick by tick after the restore), trace tile 8675 through the final tick of the season (harvest by foragers, then `RegrowResources`) on both sides: the stock before the step is equal in the hash, so the question is which term of `min(stock + regrowth, capacity)` or which harvest share differs.

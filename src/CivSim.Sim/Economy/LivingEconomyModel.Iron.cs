@@ -2068,7 +2068,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain || !Done(s.Civilization, "LRN-05")) return 0;
         int slots = IronWorksCount(s, IronStructure.Academy) +
-            (FiefChain && Done(s.Civilization, "LRN-08") ? IronWorksCount(s, IronStructure.University) : 0);
+            (FiefChain && Done(s.Civilization, "LRN-08") ? IronWorksCount(s, IronStructure.University) : 0) + SocietySeats(s);
         if (!FiefChain || !Done(s.Civilization, "LRN-07")) return slots;
 
         int monasteries = IronWorksCount(s, IronStructure.Monastery);
@@ -2567,7 +2567,7 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort, BotanicalGarden,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort, BotanicalGarden, LearnedSociety,
         Count
     }
 
@@ -2645,6 +2645,8 @@ public sealed partial class LivingEconomyModel
         new("bastion_fort", "DEF-10", 70, 60, 0, 0, 0, Stone: true),
         // A botanical garden (FOR-09, docs/MVP/38 §5.4): the registry's 4 wood and 6 stone (provisional); it works only with a botanist.
         new("botanical_garden", "FOR-09", 20, 0, 6, 4, 0),
+        // A learned society (LRN-09, docs/MVP/38 §5.3): the registry's 10 block, 4 wood and 4 planks (provisional); it works only with scholars in it.
+        new("learned_society", "LRN-09", 24, 10, 0, 4, 0, Stone: true, Plank: 4),
     };
 
     /// <summary>

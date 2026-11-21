@@ -392,6 +392,7 @@ public sealed class LivingEconomySource : IResearchSource
             }
     }
 
+    public bool SocietyStaffed(int civ) => _economy.SocietyStaffed(civ);
     public bool HasSettlementKnowHowRetention => _economy.FiefChain;
     public int RetentionSettlementCount(int civ)
     {

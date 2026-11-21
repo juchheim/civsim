@@ -22,7 +22,7 @@ internal static class DiscoveryMatchCommand
 {
     private static readonly EconomyArchetype[] Archetypes = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Warlord, EconomyArchetype.Sage };
     private static readonly string[] Structures =
-        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden" };
+        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden", "learned_society", "academy", "university" };
 
     public static int Run(string[] args)
     {
@@ -51,6 +51,40 @@ internal static class DiscoveryMatchCommand
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
         for (int n = 0; n < seeds; n++) Play(first + (ulong)n, pack, minutes, grantE5, grantE6, resumeAt, rules);
         return 0;
+    }
+
+    /// <summary>Diagnostic: the first tiles whose forage stock differs, with the per-tile state that regrowth reads (read through reflection; nothing is written).</summary>
+    private static void TileDiff(LivingEconomyModel a, LivingEconomyModel b)
+    {
+        const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        object? Get(LivingEconomyModel m, string name) => typeof(LivingEconomyModel).GetField(name, F)?.GetValue(m);
+        var fa = (Fix64[])Get(a, "_forageStock")!; var fb = (Fix64[])Get(b, "_forageStock")!;
+        int shown = 0, total = 0;
+        for (int t = 0; t < fa.Length; t++)
+        {
+            if (fa[t] == fb[t]) continue;
+            total++;
+            if (shown++ >= 6) continue;
+            string Cell(string name) => Get(a, name) is Array xa && Get(b, name) is Array xb && t < xa.Length ? $"{name}={xa.GetValue(t)}|{xb.GetValue(t)}" : $"{name}=?";
+            Console.WriteLine($"    tile {t}: forage {fa[t].Raw} vs {fb[t].Raw} (diff {fa[t].Raw - fb[t].Raw}); {Cell("_fieldOwner")} {Cell("_wildfireSeasonsRemaining")} {Cell("_forestState")} {Cell("_forestLowSeasons")}");
+        }
+        Console.WriteLine($"    forage tiles differing: {total}");
+        for (int t = 0; t < fa.Length; t++)
+        {
+            if (fa[t] == fb[t]) continue;
+            object? Call(LivingEconomyModel m, string name, params object[] args) => typeof(LivingEconomyModel).GetMethod(name, F)!.Invoke(m, args);
+            int ownerA = (int)Call(a, "FirstSettlementForageOwner", t)!, ownerB = (int)Call(b, "FirstSettlementForageOwner", t)!;
+            Console.WriteLine($"    tile {t}: owner {ownerA} vs {ownerB}");
+            foreach (var m in new[] { a, b })
+            {
+                int owner = (int)Call(m, "FirstSettlementForageOwner", t)!;
+                if (owner < 0) continue;
+                var settlements = (System.Collections.IList)Get(m, "_settlements")!;
+                int civ = (int)(settlements[owner]!.GetType().GetField("Civilization")?.GetValue(settlements[owner]) ?? settlements[owner]!.GetType().GetProperty("Civilization")!.GetValue(settlements[owner])!);
+                Console.WriteLine($"      civ {civ}: winter_forage_stock {Call(m, "Modifier", civ, "winter_forage_stock")}, autumn_forage {Call(m, "Modifier", civ, "autumn_forage")}, winterMult {Get(m, "_winterForageMultiplier")}, seasons {Get(m, "_seasonsCompleted")}");
+            }
+            break;
+        }
     }
 
     private static byte[] EconomyBytes(MatchModel m)
@@ -118,6 +152,7 @@ internal static class DiscoveryMatchCommand
                         int first = -1, count = 0;
                         for (int k = 0; k < Math.Min(a.Length, b.Length); k++) if (a[k] != b[k]) { if (first < 0) first = k; count++; }
                         Console.WriteLine($"  economy snapshot: {a.Length:N0} vs {b.Length:N0} bytes, first difference at byte {first:N0}, {count:N0} bytes differ");
+                        TileDiff(match.Economy, twin.Economy);
                         int clusters = 0, startAt = -1, last = -1;
                         for (int k = 0; k <= Math.Min(a.Length, b.Length) && clusters < 14; k++)
                         {

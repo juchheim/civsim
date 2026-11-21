@@ -73,6 +73,9 @@ internal sealed class FixedSource : IResearchSource
     public Fix64 PractisingShare { get; set; }
     public readonly List<(int Parent, int Daughter)> Fissions = new();
     public int ClimateGate = -1;
+    /// <summary>LRN-09: whether a learned society has a scholar at work (the Discovery rules read it).</summary>
+    public bool Society;
+    public bool SocietyStaffed(int civ) => Society;
 
     public FixedSource(ResearchCatalog catalog, int civs = 1)
     {

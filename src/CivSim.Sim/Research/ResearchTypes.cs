@@ -114,6 +114,8 @@ public interface IResearchSource
     void GetPractice(int civ, IResearchView view, Span<Fix64> workByPracticeIndex, out Fix64 practisingShare);
     /// <summary>Fief-only local attribution. The span is settlement-major; sources without local retention leave it untouched.</summary>
     void GetPracticeBySettlement(int civ, IResearchView view, Span<Fix64> workBySettlementPractice) { }
+    /// <summary>LRN-09 (Discovery): whether the civilization has a learned society with a scholar in it. Sources without societies answer false.</summary>
+    bool SocietyStaffed(int civ) => false;
     bool HasSettlementKnowHowRetention => false;
     int RetentionSettlementCount(int civ) => 0;
     int RetentionSettlementId(int civ, int ordinal) => -1;
