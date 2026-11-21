@@ -65,8 +65,8 @@ public sealed partial class LivingEconomyModel
             // Put the least-equipped producer first; stable settlement id resolves equal coverage.
             receivers.Sort((a, b) =>
             {
-                int aFighters = Math.Max(1, FightingAgeCount(a) + _bronzeConstants.SpareArms);
-                int bFighters = Math.Max(1, FightingAgeCount(b) + _bronzeConstants.SpareArms);
+                int aFighters = Math.Max(1, FightingReadyCount(a) + _bronzeConstants.SpareArms);
+                int bFighters = Math.Max(1, FightingReadyCount(b) + _bronzeConstants.SpareArms);
                 long aCovered = (long)TotalIssuedWeaponStock(a) * bFighters;
                 long bCovered = (long)TotalIssuedWeaponStock(b) * aFighters;
                 int coverage = aCovered.CompareTo(bCovered);
@@ -457,7 +457,7 @@ public sealed partial class LivingEconomyModel
     private int MilitaryGoodNeed(SettlementState settlement, string good)
     {
         int civ = settlement.Civilization;
-        int fighters = FightingAgeCount(settlement);
+        int fighters = FightingReadyCount(settlement);
         Fix64 stock = Stock(settlement, SlotOf(good));
         if (good is "G-ARMS5" or "G-ARMS4" or "G-ARMS3")
         {
@@ -507,11 +507,11 @@ public sealed partial class LivingEconomyModel
                               good == "G-ARMS4" && Done(settlement.Civilization, "MET-10") && !(FiefChain && Done(settlement.Civilization, "MET-11")) ||
                               good == "G-ARMS3" && Done(settlement.Civilization, "WAR-08") && !Done(settlement.Civilization, "MET-10"))
                 return Math.Min(stock, Math.Max((settlement.Metal?.IronSoldiersSupplied ?? 0) + ((settlement.Metal?.IronSoldiersSupplied ?? 0) > 0 ? 1 : 0),
-                    Math.Max(0, FightingAgeCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock))));
+                    Math.Max(0, FightingReadyCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock))));
         }
         int slot = SlotOf(good);
         if (good is "G-ARMS1" or "G-ARMS2A" or "G-ARMS2T" or "G-ARMS3" or "G-ARMS4" or "G-ARMS5")
-            return Math.Min(stock, Math.Max(0, FightingAgeCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock)));
+            return Math.Min(stock, Math.Max(0, FightingReadyCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock)));
         if (good is "G-CROSSBOW" or "G-LONGBOW")
             return Math.Min(stock, Math.Max(0, LevyBowTarget(settlement) - Stock(settlement, SlotOf(good == "G-CROSSBOW" ? "G-LONGBOW" : "G-CROSSBOW")).FloorToInt()));
         if (good == "G-BOW") return Math.Min(stock, LevyBowTarget(settlement));
@@ -536,15 +536,27 @@ public sealed partial class LivingEconomyModel
         return total;
     }
 
-    private int FightingAgeCount(SettlementState settlement)
+    /// <summary>People who can take the field this season; wounded residents are not part of the field-arms reserve.</summary>
+    private int FightingReadyCount(SettlementState settlement)
     {
         int count = 0;
-        foreach (FigureState figure in Residents(settlement.Id)) if (figure.Age >= 14) count++;
+        foreach (FigureState figure in Residents(settlement.Id))
+            if (figure.Age >= 14 && figure.WoundSeasons == 0) count++;
         return count;
     }
 
     internal void FixtureShareFinishedMilitaryGoods(int civ) => ShareFinishedMilitaryGoods(checked((int)_seasonsCompleted));
     internal void FixtureShareMilitaryProductionInputs(int civ) => ShareMilitaryProductionInputs(checked((int)_seasonsCompleted) + 1, civ);
+    internal int FixtureMilitaryGoodNeed(int settlementIndex, string good)
+        => MilitaryGoodNeed(_settlements[settlementIndex], good);
+    internal int FixtureMilitaryGoodSurplus(int settlementIndex, string good)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        int slot = SlotOf(good);
+        if (slot == NoSlot) return 0;
+        int stock = Stock(settlement, slot).FloorToInt();
+        return Math.Max(0, stock - MilitaryGoodReserve(settlement, good, stock));
+    }
     internal int FixtureMilitaryProductionInputDemandCount(int settlementIndex)
         => MilitaryProductionInputDemands(_settlements[settlementIndex]).Count;
 }

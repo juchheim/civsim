@@ -242,14 +242,52 @@ internal sealed class FiefArmsLifecycleTrace
             if (relevant && season % 4 == 3)
             {
                 double idleStock = stock.Select((value, i) => Math.Max(0, value - carried[i])).Sum();
-                output.AppendLine($"fief-arms-state seed={seed} season={season} civ={civ} settlement={lite.Id} pop={economy.Population(lite.Id)} forge={forge} kiln={kiln} smelter={metal.Smelters} arsenicSource={arsenicSource.ToString().ToLowerInvariant()} arsenicStockAccess={metal.ArsenicAccess.ToString().ToLowerInvariant()} blastFurnace={ProducerCount(economy, settlement, "blast_furnace", forge)} powderMill={ProducerCount(economy, settlement, "powder_mill", forge)} forgeQueue={(forgeItem is null ? "none" : forgeItem.Status.ToString())} forgeCause={(forgeItem is null ? "none" : forgeItem.Gate.Cause.ToString())} forgeShortages={(shortages.Length == 0 ? "none" : shortages)} research={researchBits} fighters={arms.Fighters} soldiers={arms.Soldiers} warriors={arms.Warriors} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stockCarriedByTier={tierStocks} idleStock={F(idleStock)} chariots={arms.Chariots} chariotCrew={arms.ChariotCrew} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} activeSieges={activeSieges} inputs={materials} recipeInputsReady={recipeReadiness}");
+                output.AppendLine($"fief-arms-state seed={seed} season={season} civ={civ} settlement={lite.Id} pop={economy.Population(lite.Id)} forge={forge} kiln={kiln} smelter={metal.Smelters} arsenicSource={arsenicSource.ToString().ToLowerInvariant()} arsenicStockAccess={metal.ArsenicAccess.ToString().ToLowerInvariant()} blastFurnace={ProducerCount(economy, settlement, "blast_furnace", forge)} powderMill={ProducerCount(economy, settlement, "powder_mill", forge)} forgeQueue={(forgeItem is null ? "none" : forgeItem.Status.ToString())} forgeCause={(forgeItem is null ? "none" : forgeItem.Gate.Cause.ToString())} forgeShortages={(shortages.Length == 0 ? "none" : shortages)} research={researchBits} fighters={arms.Fighters} wounded={arms.Wounded} fightingAge={arms.Fighters + arms.Wounded} soldiers={arms.Soldiers} warriors={arms.Warriors} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stockCarriedByTier={tierStocks} idleStock={F(idleStock)} chariots={arms.Chariots} chariotCrew={arms.ChariotCrew} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} activeSieges={activeSieges} inputs={materials} recipeInputsReady={recipeReadiness}");
             }
 
-            civRows[civ].Add(new SiteRow(lite.Id, arms, stock, carried, forge > 0, kiln > 0, metal.Smelters > 0,
+            civRows[civ].Add(new SiteRow(settlement, arms, stock, carried, forge > 0, kiln > 0, metal.Smelters > 0,
                 metal.ArsenicAccess, arsenicSource,
                 economy.GoodStock(settlement, "G-ASORE"), economy.GoodStock(settlement, "G-CHAR"),
                 economy.GoodStock(settlement, "G-ABRONZE"), forgeItem is not null, recipeBits,
                 engineStock, cannonStock, powderStock, siegeEngines, siegeCannons));
+        }
+
+        if (season >= 519)
+        for (int civ = 0; civ < civRows.Length; civ++)
+        {
+            List<SiteRow> rows = civRows[civ];
+            int fighters = rows.Sum(row => row.Arms.Fighters);
+            int armed = rows.Sum(row => row.Carried.Sum());
+            output.AppendLine($"fief-arms-handoff seed={seed} season={season} civ={civ} fighters={fighters} armed={armed} gap={Math.Max(0, fighters - armed)}");
+            foreach (SiteRow receiver in rows)
+            {
+                int gap = receiver.Arms.Fighters - receiver.Carried.Sum();
+                if (gap <= 0) continue;
+                int reach = economy.FixtureSharing(civ, receiver.SettlementIndex, receiver.SettlementIndex).Reach;
+                var candidates = new List<(int Distance, int Donor, string Tier, int Surplus, int Need)>();
+                foreach (SiteRow donor in rows)
+                {
+                    if (donor.SettlementIndex == receiver.SettlementIndex) continue;
+                    (int donorReach, int distance) = economy.FixtureSharing(civ, receiver.SettlementIndex, donor.SettlementIndex);
+                    if (donorReach != reach || distance > reach) continue;
+                    for (int tierIndex = 0; tierIndex < Tiers.Length; tierIndex++)
+                    {
+                        string good = Tiers[tierIndex].Good;
+                        int need = economy.FixtureMilitaryGoodNeed(receiver.SettlementIndex, good);
+                        int surplus = economy.FixtureMilitaryGoodSurplus(donor.SettlementIndex, good);
+                        if (need <= 0 || surplus <= 0) continue;
+                        candidates.Add((distance, donor.SettlementIndex, Tiers[tierIndex].Tier, surplus, need));
+                    }
+                }
+                string candidateText = candidates.Count == 0 ? "none" : string.Join(';', candidates
+                    .OrderBy(candidate => candidate.Distance)
+                    .ThenByDescending(candidate => candidate.Surplus)
+                    .ThenBy(candidate => candidate.Donor)
+                    .Take(6)
+                    .Select(candidate => $"s{economy.SettlementLite(candidate.Donor).Id}/d{candidate.Distance}/{candidate.Tier}+{candidate.Surplus}:need{candidate.Need}"));
+                int receiverId = economy.SettlementLite(receiver.SettlementIndex).Id;
+                output.AppendLine($"fief-arms-gap seed={seed} season={season} civ={civ} settlement={receiverId} fighters={receiver.Arms.Fighters} wounded={receiver.Arms.Wounded} fightingAge={receiver.Arms.Fighters + receiver.Arms.Wounded} armed={receiver.Carried.Sum()} gap={gap} shareReach={reach} eligibleSurplusDonors={candidateText}");
+            }
         }
 
         if (season % 4 != 3) return;
@@ -293,7 +331,6 @@ internal sealed class FiefArmsLifecycleTrace
             Fix64 charcoalInStores = rows.Aggregate(Fix64.Zero, (sum, row) => sum + row.Charcoal);
             Fix64 arsenicalBronzeInStores = rows.Aggregate(Fix64.Zero, (sum, row) => sum + row.ArsenicalBronze);
             output.AppendLine($"fief-arms-summary seed={seed} season={season} civ={civ} settlements={rows.Count} forgeSites={rows.Count(row => row.Forge)} smelterSites={rows.Count(row => row.Smelter)} queuedForgeSites={rows.Count(row => row.ForgeQueued)} fighters={fighters} armed={armed} metalArmed={metalArmed} bowArmed={bowArmed} withoutWeapon={withoutWeapon} stock={F(stockTotal)} idleStock={F(idle)} idleStockSites={idleSites} withoutWeaponSites={baseOnlySites} localOverlapSites={overlap} chariots={chariots} chariotCrew={chariotCrew} idleChariots={idleChariots} chariotStockSites={chariotStockSites} chariotCrewSites={chariotCrewSites} engineStock={F(engineStock)} siegeEngines={siegeEngines} cannonStock={F(cannonStock)} siegeCannons={siegeCannons} powderStock={F(powderStock)} chainDelivered=ASORE:{F(_arsenicalOreDeliveredByCiv[civ])},ABRONZE:{F(arsenicalBronzeDelivered)},CSTEEL:{F(crucibleSteelDelivered)} oneBatchInputReadiness={recipes}");
-
             int arsenicalCamps = 0, builtArsenicalCamps = 0, arsenicalCrew = 0;
             Fix64 arsenicalOreLeft = Fix64.Zero;
             for (int campIndex = 0; campIndex < economy.MiningCampCount; campIndex++)
@@ -316,7 +353,7 @@ internal sealed class FiefArmsLifecycleTrace
         }
     }
 
-    private sealed record SiteRow(int Settlement, SettlementArms Arms, double[] Stock, int[] Carried, bool Forge, bool Kiln, bool Smelter,
+    private sealed record SiteRow(int SettlementIndex, SettlementArms Arms, double[] Stock, int[] Carried, bool Forge, bool Kiln, bool Smelter,
         bool ArsenicAccess, bool ArsenicSource, Fix64 ArsenicalOre, Fix64 Charcoal, Fix64 ArsenicalBronze, bool ForgeQueued, string RecipeBits,
         Fix64 EngineStock, Fix64 CannonStock, Fix64 PowderStock, int SiegeEngines, int SiegeCannons);
 
