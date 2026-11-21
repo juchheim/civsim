@@ -104,6 +104,8 @@ func sync(works: Array) -> void:
 		return
 	signature = sig
 	_clear()
+	if not works.is_empty():
+		b.kit.ensure_discovery()
 	for w in works:
 		var working := String(w.state) == "work"
 		var rot := M7WorldBuilder.rot_y(float(w.get("yaw", 0.0)))

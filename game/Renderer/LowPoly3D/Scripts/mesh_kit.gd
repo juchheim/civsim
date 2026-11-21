@@ -81,7 +81,11 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_civic.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_people.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_fief_marks.gd"),
-	# Discovery (E6), docs/MVP/39: new meshes only, none replaces an older one
+]
+
+## Discovery (E6) art, docs/MVP/39: new meshes only, none replaces an older one. Built on first use (`ensure_discovery`), not in `_init`, so Bronze, Iron and Fief
+## matches pay nothing for content they cannot reach (about 110 meshes, some of several thousand triangles).
+const DISCOVERY_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_power.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_war.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_sea.gd"),
@@ -91,8 +95,18 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_p2.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_marks.gd"),
 ]
+var discovery_built := false
+
+func ensure_discovery() -> void:
+	if discovery_built:
+		return
+	discovery_built = true
+	for art in DISCOVERY_PASSES:
+		art.build(self)
 
 func get_mesh(name: String) -> ArrayMesh:
+	if not meshes.has(name) and not discovery_built:
+		ensure_discovery()
 	return meshes[name]
 
 func _b(seed: int = 1) -> M7MeshBuilder:

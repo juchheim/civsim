@@ -70,7 +70,6 @@ func setup_frame(frame_data: Dictionary) -> void:
 	_make_environment()
 	_make_camera()
 	_make_grade_overlay()
-	_make_chart_grain()
 	RenderingServer.global_shader_parameter_set("map_lat", Vector2(world.height * M7WorldData.S * 0.5, world.height * M7WorldData.S * 0.5))
 	builder = M7WorldBuilder.new(world, kit, mats)
 	world_root = builder.build()
@@ -644,6 +643,7 @@ func show_fief_gallery() -> Vector3:
 ## idle, flooded and as a site, the engine working and banked, the factory lit, cold and as a site, the bastion fort in its four stages and idle, the ships
 ## (the galley and the cog beside them for scale), the four-course fields beside the three-field one, and the state marks. Returns the stage centre.
 func show_discovery_gallery() -> Vector3:
+	kit.ensure_discovery()
 	var stage := Node3D.new()
 	stage.name = "DiscoveryGallery"
 	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
@@ -1132,24 +1132,32 @@ func _make_camera() -> void:
 	add_child(camera)
 	camera.make_current()
 
-## Discovery chart grain (docs/MVP/39 §5): a screen overlay under the HUD, off (amount 0) until the HUD turns it up at Z3 to Z4 in a Discovery match.
+## Discovery chart grain (docs/MVP/39 §5): a screen overlay under the HUD. It is created the first time the HUD turns it up (amount above 0) and hidden whenever the
+## amount is 0, so a match that never asks for it, and Bronze, Iron and Fief in particular, has no extra full-screen pass at all.
+var chart_grain_layer: CanvasLayer
 var chart_grain_material: ShaderMaterial
 
 func _make_chart_grain() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 0
+	chart_grain_layer = CanvasLayer.new()
+	chart_grain_layer.layer = 0
 	var rect := ColorRect.new()
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chart_grain_material = ShaderMaterial.new()
 	chart_grain_material.shader = load("res://Renderer/LowPoly3D/Shaders/chart_grain.gdshader")
 	rect.material = chart_grain_material
-	layer.add_child(rect)
-	add_child(layer)
+	chart_grain_layer.add_child(rect)
+	add_child(chart_grain_layer)
 
 func set_chart_grain(amount: float) -> void:
-	if chart_grain_material != null:
-		chart_grain_material.set_shader_parameter("amount", clampf(amount, 0.0, 1.0))
+	if amount <= 0.0:
+		if chart_grain_layer != null:
+			chart_grain_layer.visible = false
+		return
+	if chart_grain_layer == null:
+		_make_chart_grain()
+	chart_grain_layer.visible = true
+	chart_grain_material.set_shader_parameter("amount", clampf(amount, 0.0, 1.0))
 
 func _make_grade_overlay() -> void:
 	var layer := CanvasLayer.new()

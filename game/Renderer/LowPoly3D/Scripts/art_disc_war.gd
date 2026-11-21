@@ -82,6 +82,11 @@ static func _ring(k: float, y: float, dmg: int = 0) -> Array:
 			part_i += 1
 	return out
 
+## The lowest fraction of its height any part of the rampart keeps at damage level `dmg`: the inner slope and the parade ground drop to it, so a slumped rampart never
+## ends up lower than the ground it slopes down to (the slope would run uphill and leave a lip).
+static func _slump_floor(dmg: int) -> float:
+	return 0.08 if dmg >= 2 else 1.0
+
 ## How much of its height the rampart keeps at vertex `part` of bastion `i` for damage level `dmg` (0 whole .. 3 ruined). The back bastion (i = 2, angle 270
 ## degrees) takes the damage first: cracked loses a little at its tip, breached loses most of the tip and shoulders, ruined leaves three bastions as stumps.
 static func _slump(i: int, part: int, dmg: int) -> float:
@@ -137,12 +142,13 @@ static func _fort(kit, stage: int, garrisoned: bool, dmg: int = 0) -> ArrayMesh:
 	_band(b, _ring(1.045, h * 0.62, dmg), _ring(1.03, h * 0.7, dmg), STONE_LIGHT, 0)
 	_band(b, _ring(1.03, h * 0.7, dmg), _ring(0.985, h, dmg), EARTH, 0)
 	_band(b, _ring(0.985, h, dmg), _ring(0.88, h, dmg), EARTH_LIGHT, 1, EARTH)
-	_band(b, _ring(0.88, h, dmg), _ring(0.86, 0.012), EARTH_DARK, 2)
+	var floor_y := minf(0.012, h * _slump_floor(dmg))
+	_band(b, _ring(0.88, h, dmg), _ring(0.86, floor_y), EARTH_DARK, 2)
 	# the parade ground: a sandy floor over the middle
-	var floor_ring := _ring(0.86, 0.012)
+	var floor_ring := _ring(0.86, floor_y)
 	for i in floor_ring.size():
 		var j := (i + 1) % floor_ring.size()
-		b.tri(Vector3(0, 0.012, 0), floor_ring[i], floor_ring[j], SAND, Vector3(0, -1, 0))
+		b.tri(Vector3(0, floor_y, 0), floor_ring[i], floor_ring[j], SAND, Vector3(0, -1, 0))
 	if stage == 1:
 		_stage1(b)
 	elif stage == 2:

@@ -163,6 +163,8 @@ func sync(colonies: Array, foundings: Array, ground_y: float = NAN) -> void:
 	signature = sig
 	flat_y = ground_y
 	_clear()
+	if not colonies.is_empty() or not foundings.is_empty():
+		b.kit.ensure_discovery()
 	if colonies.is_empty() and foundings.is_empty():
 		return
 	var pennants := []
