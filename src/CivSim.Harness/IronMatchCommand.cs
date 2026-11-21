@@ -275,6 +275,9 @@ internal static class IronMatchCommand
         ChapterRules rules = fief ? ChapterRules.Fief : bronzeControl ? ChapterRules.Bronze :
             countdown == ChapterRules.IronCountdownSeasons ? ChapterRules.Iron : ChapterRules.IronWithCountdown(countdown);
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+        // This census captures per-settlement work requested and assigned by the metal planner.
+        // It is diagnostic-only and is emitted with the opt-in Fief arms trace.
+        if (fiefArmsLifecycleTrace) match.Economy.B12CensusTraceEnabled = true;
         match.Research.DiagnosticDraftProjectGrantsEnabled = grantE5;
         var fiefWp7Rows = fiefWp7Trace ? new StringBuilder() : null;
         var fiefTerritoryRows = fiefTerritoryTrace ? new StringBuilder() : null;
@@ -988,6 +991,25 @@ internal static class IronMatchCommand
         {
             L($"Iron kit production trace for s{ironKitTraceSettlement}, seasons {ironKitTraceFromSeason}–{ironKitTraceThroughSeason} (pre-craft inputs/plans, then planned→made recipe outputs and remaining metal/craft pools):");
             o.Append(ironKitProductionTrace);
+        }
+        if (fiefArmsLifecycleTrace && match.Economy.B12T18PlanSnapshots is { } smeltPlans)
+        {
+            int met04 = research.Catalog.IndexOf("MET-04");
+            L("  charcoal and ore stocks below are pre-craft; same-season charcoal made from cut or standing wood is not included in the stock figures.");
+            foreach (B12T18PlanSnapshot plan in smeltPlans)
+            {
+                if (plan.Season is < 483 or > 519 || plan.Season % 4 != 3 || plan.Civilization < 0 ||
+                    met04 < 0 || !research.IsDone(plan.Civilization, met04) ||
+                    plan.Smelters <= 0 && match.Economy.StructureCount(plan.SettlementId, LivingEconomyModel.StructureIndex("kiln")) <= 0)
+                    continue;
+                string N(Fix64 value) => value.ToDoubleForDisplay().ToString("F2", CultureInfo.InvariantCulture);
+                L($"fief-smelt-labor seed={seed} season={plan.Season} civ={plan.Civilization} settlement={plan.SettlementId} " +
+                    $"adults={plan.Adults} foodSec={N(plan.FoodSecurity)} work={N(plan.TotalWork)} chainCap={N(plan.PushCap)} " +
+                    $"chainPrimary={N(plan.PrimaryChain)}x{N(plan.PrimaryScale)} chainSecondary={N(plan.SecondaryChain)}x{N(plan.SecondaryScale)} " +
+                    $"mine={N(plan.MineAssigned)}/{N(plan.MineNeed)} charcoal={N(plan.CharcoalAssigned)}/{N(plan.CharcoalNeed)} " +
+                    $"smelt={N(plan.SmeltAssigned)}/{N(plan.SmeltNeed)} charBeforeCraft={N(plan.CharcoalStock)} charWant={N(plan.CharcoalWant)} " +
+                    $"asoreBeforeCraft={N(plan.ArsenicalOreStock)} asoreWant={N(plan.ArsenicalOreWant)}");
+            }
         }
         L();
         return o.ToString();
