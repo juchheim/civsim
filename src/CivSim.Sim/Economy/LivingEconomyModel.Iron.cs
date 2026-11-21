@@ -2010,6 +2010,7 @@ public sealed partial class LivingEconomyModel
             if (FiefChain && IronWorksCount(s, IronStructure.Hospital) > 0 && !HospitalStaffed(s)) idle++;
             if (IronWorksCount(s, IronStructure.Castle) > 0 && !CastleGarrisoned(s.Id)) idle++;
             if (IronWorksCount(s, IronStructure.Galley) > 0 && !CrewedGalley(s.Id)) idle++;
+            if (DiscoveryChain && IronWorksCount(s, IronStructure.Galleon) > 0 && !CrewedGalleon(s.Id)) idle++;
             if (Done(civ, "BEL-09") && s.Civic is { Temples: > 0 } && missionaries == 0) idle++;
         }
         return idle;
@@ -2152,6 +2153,8 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Soldiers who crew a war galley (docs/MVP/26 §4 asks for a crew; four, like an engine, provisional).</summary>
     private const int GalleyCrew = 4;
+    /// <summary>Soldiers who crew a galleon (SEA-13; six, a half again over a galley, provisional). While it holds a station they are out of the defense pool.</summary>
+    public const int GalleonCrew = 6;
 
     /// <summary>A seaport's group cap multiplier (SEA-07 port_city_cap_support).</summary>
     private static readonly Fix64 PortGroupCapMult = Fix64.FromRatio(12, 10);
@@ -2212,13 +2215,20 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>A war galley lies at this harbor with a crew of four supplied soldiers in post (SEA-09): the only ship that can blockade.</summary>
     public bool CrewedGalley(int settlementIndex)
-        => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galley) > 0 &&
-           s.Metal is { } m && m.IronSoldiersSupplied >= GalleyCrew;
+        => IronChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Harbor) > 0 &&
+           (IronWorksCount(s, IronStructure.Galley) > 0 && s.Metal is { } m && m.IronSoldiersSupplied >= GalleyCrew || CrewedGalleon(settlementIndex));
 
-    /// <summary>The galley is wrecked or beaten and is gone.</summary>
+    /// <summary>A galleon lies at this harbor with its crew of six supplied soldiers in post (SEA-13, Discovery only): it blockades like a galley and escorts convoys.</summary>
+    public bool CrewedGalleon(int settlementIndex)
+        => DiscoveryChain && _settlements[settlementIndex] is { } s && IronWorksCount(s, IronStructure.Harbor) > 0 && IronWorksCount(s, IronStructure.Galleon) > 0 &&
+           s.Metal is { } m && m.IronSoldiersSupplied >= GalleonCrew;
+
+    /// <summary>The station ship is wrecked or beaten and is gone: the galleon first, when there is one, else the galley.</summary>
     public void LoseGalley(int settlementIndex)
     {
-        if (IronChain && _settlements[settlementIndex].Metal?.IronWorks is { } works && works[(int)IronStructure.Galley] > 0) works[(int)IronStructure.Galley]--;
+        if (!IronChain || _settlements[settlementIndex].Metal?.IronWorks is not { } works) return;
+        if (DiscoveryChain && works[(int)IronStructure.Galleon] > 0 && CrewedGalleon(settlementIndex)) works[(int)IronStructure.Galleon]--;
+        else if (works[(int)IronStructure.Galley] > 0) works[(int)IronStructure.Galley]--;
     }
 
     /// <summary>A gatehouse stands on the settlement's wall (DEF-06): the wall's intact multiplier rises from 3.0 to 4.5.</summary>
@@ -2553,7 +2563,7 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon,
         Count
     }
 
@@ -2621,6 +2631,8 @@ public sealed partial class LivingEconomyModel
         new("coke_oven", "FIR-12", 20, 12, 0, 2, 0, Stone: true),
         // TRN-11 navigation canal (registry: 2.0 labor and 1 timber a tile; provisional 12 tiles of line).
         new("navigation_canal", "TRN-11", 24, 0, 0, 12, 0, Infrastructure: true),
+        // A galleon (SEA-13, docs/MVP/38 §5.2): the Discovery war and convoy ship, laid down at a harbor (timber and iron; provisional).
+        new("galleon", "SEA-13", 30, 0, 0, 20, 4),
     };
 
     /// <summary>

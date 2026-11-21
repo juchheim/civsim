@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using CivSim.Sim.Core;
+using CivSim.Sim.Economy;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Randomness;
 using CivSim.Sim.World;
@@ -104,13 +105,30 @@ public sealed partial class PoliticsSystem
         }
     }
 
+    /// <summary>The fighters on a station ship's crew count here, though they are out of the defense pool while it holds the station (see <see cref="SeaDutySoldiers"/>).</summary>
+    private bool _countSeaCrew;
+
     private Fix64 CrewStrength(int settlement)
     {
-        List<Fighter> fighters = Fighters(settlement, attacking: false, out _, _sTile[settlement]);
+        _countSeaCrew = true;
+        List<Fighter> fighters;
+        try { fighters = Fighters(settlement, attacking: false, out _, _sTile[settlement]); }
+        finally { _countSeaCrew = false; }
         fighters.Sort((x, y) => x.Strength != y.Strength ? y.Strength.CompareTo(x.Strength) : x.Id.CompareTo(y.Id));
         Fix64 total = Fix64.Zero;
-        for (int i = 0; i < Math.Min(Sieges.CrewPerEngine, fighters.Count); i++) total += fighters[i].Strength;
+        int crew = _economy.CrewedGalleon(settlement) ? LivingEconomyModel.GalleonCrew : Sieges.CrewPerEngine;
+        for (int i = 0; i < Math.Min(crew, fighters.Count); i++) total += fighters[i].Strength;
         return total;
+    }
+
+    /// <summary>
+    /// Soldiers of a galleon that is holding a blockade station (SEA-13, Discovery only): a fleet at sea is out of the defense pool, so the harbor
+    /// they left defends without them until the blockade ends. A galley's crew stays counted, as before (Fief and Iron bytes do not move).
+    /// </summary>
+    private int SeaDutySoldiers(int settlement)
+    {
+        if (!_economy.DiscoveryChain || _countSeaCrew || _blockades.Count == 0 || !BlockadingFrom(settlement) || !_economy.CrewedGalleon(settlement)) return 0;
+        return LivingEconomyModel.GalleonCrew;
     }
 
     private void EndBlockade(int index, int outcome)

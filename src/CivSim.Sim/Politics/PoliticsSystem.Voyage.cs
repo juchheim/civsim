@@ -24,6 +24,8 @@ public sealed partial class PoliticsSystem
     public const int OceanDeepRiskPerTile = 12;
     /// <summary>WAY-10 (marine chronometer) leaves this many parts in ten of the shipwreck risk, after WAY-08 (provisional).</summary>
     public const int ChronometerRiskTenths = 3;
+    /// <summary>A caravan escorted by a crewed galleon keeps this many parts in ten of its shipwreck risk (SEA-13 convoy_loss x0.6; provisional).</summary>
+    public const int ConvoyRiskTenths = 6;
     /// <summary>Shipwreck risk in permille: base plus a step per open-sea tile on the route, capped.</summary>
     public const int VoyageBaseRiskPermille = 30, VoyageRiskPerSeaTile = 8, VoyageMaxRiskPermille = 400;
     /// <summary>Hex distance a daughter band may settle from its parent: on foot, and by boat.</summary>
@@ -207,6 +209,11 @@ public sealed partial class PoliticsSystem
     /// An outbound party that crossed open water may turn back at the shore it left: goods return home and nothing is
     /// resolved. The return leg of a barter trip is not rolled.
     /// </summary>
+    private int ConvoyRisk(int risk, int fromSettlement)
+        => _economy.DiscoveryChain && _economy.CrewedGalleon(fromSettlement) ? risk * ConvoyRiskTenths / 10 : risk;
+
+    internal int FixtureConvoyRisk(int risk, int fromSettlement) => ConvoyRisk(risk, fromSettlement);
+
     private bool TurnedBackAtSea(Expedition e)
     {
         if (e.Kind == ExpeditionKind.Barter && e.Leg == 1) return false;
@@ -215,6 +222,8 @@ public sealed partial class PoliticsSystem
         int sea = SeaRoute(e.Civ, from, to, out int deep);
         if (sea <= 0) return false;
         int risk = VoyageRiskForSeaTiles(e.Civ, sea, deep);
+        // SEA-13: a trade fleet under escort of a crewed galleon at its home harbor loses 40% less (convoy_loss x0.6, Discovery only).
+        if (e.Kind == ExpeditionKind.Caravan) risk = ConvoyRisk(risk, e.FromSettlement);
         ulong entity = (ulong)(e.FromSettlement * 4099L + e.ToSettlement * 7L + (int)e.Kind);
         bool turnedBack = RollVoyageLost(risk, entity, _season, e.Civ);
         if (e.Kind == ExpeditionKind.Caravan)

@@ -357,6 +357,14 @@ public sealed partial class LivingEconomyModel
                 if (!CoalObtainable(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsCoal);
                 if (includeAppetite && !CokeSmeltingActive(s)) return Stop(BuildCause.NotNeeded, BuildWhy.CokeNotNeeded);
                 return BuildGate.Pass;
+            case IronStructure.Galleon:
+                // SEA-13 (docs/MVP/38 §5.2): a harbor town with a crew of six fed soldiers lays down a galleon.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (IronWorksCount(s, IronStructure.Harbor) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsHarbor);
+                if (!Done(civ, "SEA-13")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "SEA-13");
+                return s.Metal is { } gnm && gnm.IronSoldiersSupplied >= GalleonCrew ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, GalleonCrew);
             case IronStructure.NavigationCanal:
                 // TRN-11: a canal from a coal camp three or more tiles away carries its coal home (docs/MVP/38 §5.1).
                 if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);

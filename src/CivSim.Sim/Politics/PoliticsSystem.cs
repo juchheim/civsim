@@ -2065,10 +2065,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         Defenses targetDefenses = DefensesAtTile(battleTile);
         // Tin Folk defend at 0.8 strength (docs/MVP/22 §6.4).
         bool tinFolk = _tinFolk.Count > 0 && IsTinFolk(settlement);
+        int seaDuty = SeaDutySoldiers(settlement);
         foreach (var r in records)
         {
             if (r.Wounded) continue;
             if (r.Soldier) soldiersLeft--;
+            if (seaDuty > 0 && r.Soldier) { seaDuty--; continue; }
             bool warrior = r.Age < 45 && !r.Female && !r.Soldier && warriorSlots > 0;
             if (warrior) warriorSlots--;
             Fix64 weaponStrength = weapon;
