@@ -155,7 +155,7 @@ projects:
     effects:
       - {kind: mod, stat: field_output, op: mult, value: 1.2, note: "fallow is replaced by fodder and legume in a four-course rotation. Only half the land bears grain, so the gain is manure and fed livestock; e6_economy_oracle Part A finds x0.9 to x1.3 over three-field and x1.5 only with an unrealistic conversion, so the field step is x1.2 and HUS-11 carries the rest (P)"}
       - {kind: mod, stat: farm_labor_per_output, op: mult, value: 0.85, note: "enclosed, hedged fields need fewer hands; the freed adults move to towns, they are not erased (P)"}
-      - {kind: rule, text: "Fodder fed in the stall feeds more livestock (HUS-11); the rural labor released is shown as people moved to town work."}
+      - {kind: rule, text: "Fodder fed in the stall feeds more livestock (HUS-11); the rural labor released is shown as people moved to town work. In the sim half the strips bear grain each year (9/5 of a strip, an average of 0.9 against the three-field's 0.75) and the fields need 0.85 of the cropped labor (P, docs/MVP/38 §5.5)."}
     practice: [{action: farm, share: 100}]
     flavor: "Clover feeds the soil and the cattle together."
     moment: "A farmer sows turnips where a fallow field once lay."

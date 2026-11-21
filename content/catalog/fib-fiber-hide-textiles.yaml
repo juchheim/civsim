@@ -162,7 +162,7 @@ projects:
     effects:
       - {kind: mod, stat: weave_output, op: mult, value: 3.0, note: "a cottage loom with a flying shuttle, drawing its share of the shared power ledger (P)"}
       - {kind: mod, stat: spin_output, op: mult, value: 3.0, note: "a multi-spindle jenny; hand or water powered, never both for the same hours (P)"}
-      - {kind: rule, text: "Cottage cloth becomes a trade good; machines are kits made from precision parts (MEC-09) and need a spinner or weaver."}
+      - {kind: rule, text: "Cottage cloth becomes a trade good; machines are kits made from precision parts (MEC-09) and need a spinner or weaver. In the sim the jenny spins x3 for the labor (by hand) and the shuttle weaves from x1 (no power) to x3 (the ledger fully lends power hours), on top of the wheel and treadle loom (P, docs/MVP/38 §5.7)."}
     practice: [{action: fiber, share: 100}]
     flavor: "Eight spindles turn where one turned before."
     moment: "A weaver throws the shuttle with a tug of a cord and the loom races."

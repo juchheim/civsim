@@ -89,7 +89,7 @@ public sealed partial class LivingEconomyModel
             Fix64 horsePloughed = Fix64.Min(Fix64.Max(Fix64.Zero, croppedFields - oxPloughed), horseCapacity);
             need -= horsePloughed * Fix64.Half;
         }
-        return need;
+        return FourCourse(s) ? need * FourCourseLabor : need;
     }
 
     /// <summary>

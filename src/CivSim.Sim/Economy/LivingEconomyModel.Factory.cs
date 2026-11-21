@@ -65,6 +65,18 @@ public sealed partial class LivingEconomyModel
         return coverage <= Fix64.Zero ? Fix64.One : Fix64.One / (Fix64.One + coverage);
     }
 
+    /// <summary>
+    /// FIB-12 (docs/MVP/38 §5.7, M13 WP-E6-8 slice 2): the multi-spindle jenny spins three times as much for the labor, by hand; the flying shuttle weaves up to three times as
+    /// much, but only as far as the shared power ledger lends it hours (a hand shuttle gains nothing over the treadle loom, a fully powered one triples it). Applied on top
+    /// of the wheel (FIB-11) and the treadle loom (FIB-10). Other recipes are untouched.
+    /// </summary>
+    private Fix64 ShuttleAndJennyLaborFactor(SettlementState s, string recipeId)
+    {
+        if (recipeId == "spin_yarn") return Fix64.One / 3;
+        if (recipeId == "weave_cloth") return Fix64.One / (Fix64.One + Fix64.FromInt(2) * MillPower(s).Coverage(MillPowerJob.Craft));
+        return Fix64.One;
+    }
+
     // ---- soot -------------------------------------------------------------------------------------------
 
     internal Fix64 SootAt(int tile) => _soot is { } soot && (uint)tile < (uint)soot.Length ? soot[tile] : Fix64.Zero;

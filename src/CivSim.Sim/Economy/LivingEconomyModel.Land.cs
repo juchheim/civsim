@@ -20,20 +20,31 @@ public sealed partial class LivingEconomyModel
 
     private bool FiefFieldPolicy(SettlementState s) => FiefE5Policy(s);
 
-    /// <summary>Share of field strips cropped in a year by the Fief two-field baseline or AGR-11's three-field rotation.</summary>
+    /// <summary>
+    /// AGR-12's four-course rotation (docs/MVP/38 §5.5, M13 WP-E6-8 slice 2), Discovery only: wheat, turnips, barley, clover. Fallow is gone, but only half the strips bear grain
+    /// in a year (the other half are fodder and legume), so each grain strip yields 9/5 of a strip: an average of 0.9 grain per strip-year against the three-field's 0.75, the
+    /// row's field_output x1.2. Enclosure cuts the hands the fields need to 0.85 (see <c>FieldLaborNeed</c>); the adults it frees go to other work, they are not erased.
+    /// </summary>
+    private bool FourCourse(SettlementState s) => DiscoveryChain && FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-12");
+
+    private static readonly Fix64 FourCourseGrainYield = Fix64.FromRatio(9, 5);
+    private static readonly Fix64 FourCourseLabor = Fix64.FromRatio(85, 100);
+
+    /// <summary>Share of field strips cropped in a year by the Fief two-field baseline, AGR-11's three-field rotation or AGR-12's four-course.</summary>
     private Fix64 FiefFieldCropShare(SettlementState s)
-        => !FiefFieldPolicy(s) ? Fix64.One : HasProject(s.Civilization, "AGR-11") ? Fix64.FromRatio(2, 3) : Fix64.Half;
+        => !FiefFieldPolicy(s) ? Fix64.One : FourCourse(s) ? Fix64.Half : HasProject(s.Civilization, "AGR-11") ? Fix64.FromRatio(2, 3) : Fix64.Half;
 
     private bool FiefFieldCropped(SettlementState s, int fieldIndex, int year)
     {
         if (!FiefFieldPolicy(s)) return true;
+        if (FourCourse(s)) return ((fieldIndex + year) % 4 + 4) % 4 % 2 == 0;
         int cycle = HasProject(s.Civilization, "AGR-11") ? 3 : 2;
         int phase = ((fieldIndex + year) % cycle + cycle) % cycle;
         return phase < cycle - 1;
     }
 
     private Fix64 FiefFieldYield(SettlementState s)
-        => (FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-11") ? LegumeRotationYield : Fix64.One) * ExchangeCropYield(s);
+        => (FourCourse(s) ? FourCourseGrainYield : FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-11") ? LegumeRotationYield : Fix64.One) * ExchangeCropYield(s);
 
     private bool FiefHorseCollar(SettlementState s)
         => FiefFieldPolicy(s) && HasProject(s.Civilization, "NRG-04") && s.Civic is { Horses: > 0 };
@@ -126,6 +137,10 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>NRG-04 doubles draft power; provisionally, horse-held Fief towns pay half labor for modeled hauling.</summary>
     private Fix64 FiefHorseHaulFactor(SettlementState s) => FiefHorseCollar(s) ? Fix64.Half : Fix64.One;
+
+    /// <summary>Tests only: the share of strips cropped in a year and the yield of each cropped strip (the rotation's two numbers).</summary>
+    internal (Fix64 CropShare, Fix64 StripYield) FixtureFieldPlan(int settlementIndex)
+        => (FiefFieldCropShare(_settlements[settlementIndex]), FiefFieldYield(_settlements[settlementIndex]));
 
     // Test fixtures intentionally use the same production path as the live harvest.
     internal int FixtureCroppedFields(int settlementIndex, int year)

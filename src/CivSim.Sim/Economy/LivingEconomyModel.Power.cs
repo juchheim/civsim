@@ -241,6 +241,7 @@ public sealed partial class LivingEconomyModel
         if (id == "weave_cloth" && Done(civ, "FIB-10")) labor *= Fix64.Half;                               // treadle loom x2
         if (id == "weave_cloth" && Done(civ, "MEC-07") && HasMill(s))
             labor *= MillPoweredLaborFactor(s, MillPowerJob.Craft, _civic.MillLabor);                        // a fulling mill shares the craft budget
+        if (DiscoveryChain && Done(civ, "FIB-12")) labor *= ShuttleAndJennyLaborFactor(s, id);
         if (FurnaceActive(s, r)) labor *= FurnaceLaborFactor(s);
         // SOC-11 applies to recipes assigned to craft-role labor (order >= CraftOrder); the research stat is
         // a speed factor, so a value above one reduces work required per batch. Metal-chain recipes and kits stay separate.
