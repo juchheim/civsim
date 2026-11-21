@@ -172,6 +172,7 @@ projects:
     requires: [HNT-10, SEA-12]
     effects:
       - {kind: mod, stat: offshore_fish_yield, op: mult, value: 3.0, note: "an offshore fleet from a harbor (P)"}
+      - {kind: rule, text: "A town with a harbor fishes the water two to three tiles out at three times the labor rate; open water holds offshore banks (4.8 a year, up to 7.2 a tile) that only a fleet reaches, so the fleet moves food from a finite sea and mints none (P, docs/MVP/38 §5.2)."}
       - {kind: good, id: G-COD}
       - {kind: rule, text: "Cod and herring are salted for trade (recipe salt_cod); fleets are away from the coast in season."}
     practice: [{action: fish, share: 100}]

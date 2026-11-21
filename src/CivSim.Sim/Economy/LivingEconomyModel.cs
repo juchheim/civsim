@@ -1383,7 +1383,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             RecordB13WoodRegrowth(tile, _woodStock[tile] - woodBeforeRegrowth);
             if (_bronzeActive) UpdateForestState(tile);
             _fishStock[tile] = Fix64.Min(_fishStock[tile] + SeasonalFishRegrowth(tile, seasonOfYear, year),
-                input.InitialFish + input.TotalFishGrowthPerYear);
+                DiscoveryChain && IsFishBank(input) ? BankFishCap : input.InitialFish + input.TotalFishGrowthPerYear);
         }
         if (_hasIndividualHerds) RebuildWildHerdFoodStock();
     }
@@ -1563,6 +1563,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         WorldEconomyTile input = _world.Tile(tile);
         Fix64 growth = input.FishGrowthPerYear / 4 + (season == 2 ? input.SalmonAutumnGrowth : Fix64.Zero);
+        if (DiscoveryChain && IsFishBank(input)) growth = BankFishGrowthPerYear / 4;
         return IsDrought(tile, year ?? checked((int)(_seasonsCompleted / 4)))
             ? growth * Fix64.Parse("0.7")
             : growth;
@@ -6677,6 +6678,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private bool CanFishTile(SettlementState settlement, int tile)
     {
+        if (DiscoveryChain && OffshoreFleet(settlement) && FleetWater(settlement, tile)) return true;
         if (!CanFish(settlement) || _world.Tile(tile).FishGrowthPerYear <= Fix64.Zero) return false;
         WorldEconomyTile input = _world.Tile(tile);
         int distance = HexGrid.Distance(settlement.SiteTile, tile, _world.Width);
@@ -6686,7 +6688,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
 
     private Fix64 FishTileRate(SettlementState settlement, int tile, Fix64 baseRate)
-        => CanFishTile(settlement, tile) && HexGrid.Distance(settlement.SiteTile, tile, _world.Width) > 1
+        => DiscoveryChain && OffshoreFleet(settlement) && FleetWater(settlement, tile) ? baseRate * FleetFishRate :
+           CanFishTile(settlement, tile) && HexGrid.Distance(settlement.SiteTile, tile, _world.Width) > 1
             ? baseRate * Fix64.Parse("1.5")
             : baseRate;
 
