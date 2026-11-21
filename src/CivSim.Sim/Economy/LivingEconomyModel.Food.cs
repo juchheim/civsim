@@ -288,15 +288,25 @@ public sealed partial class LivingEconomyModel
     /// </summary>
     private Fix64 E3FuelNeed(SettlementState s, bool winter)
     {
-        if (!E3Food(s)) return Fix64.Zero;
+        E3FuelParts(s, winter, out Fix64 heat, out Fix64 other);
+        // FIR-11 coal firing (docs/MVP/38 §5.1): zero outside a Discovery match, so every other chapter's demand is exactly heat + other.
+        return heat - (DiscoveryChain ? CoalHeatRelief(s, heat) : Fix64.Zero) + other;
+    }
+
+    /// <summary>The wood demand split into what burns for heat (hearths and kilns, the part coal can replace) and what is built or baked.</summary>
+    private void E3FuelParts(SettlementState s, bool winter, out Fix64 heat, out Fix64 other)
+    {
+        heat = other = Fix64.Zero;
+        if (!E3Food(s)) return;
         int pop = Population(s.Id);
-        if (pop == 0) return Fix64.Zero;
+        if (pop == 0) return;
         Fix64 households = Fix64.Max(Fix64.One, Fix64.FromInt(pop) / _civic.HearthPeople);
         Fix64 hearth = (households - Fix64.One) * (winter ? Fix64.FromInt(3) : Fix64.FromRatio(3, 2));
         Fix64 kiln = s.Structures[(int)Structure.Kiln] > 0 ? Fix64.FromInt(pop) * _civic.KilnWood / 4 : Fix64.Zero;
         Fix64 build = Fix64.FromInt(pop) * _civic.BuildWood / 4;
         Fix64 bakery = Fix64.FromInt(2 * (s.Civic?.Bakeries ?? 0));
-        return hearth + kiln + build + bakery;
+        heat = hearth + kiln;
+        other = build + bakery;
     }
 
     /// <summary>
@@ -307,6 +317,7 @@ public sealed partial class LivingEconomyModel
     {
         Fix64 need = E3FuelNeed(s, winter);
         if (need <= Fix64.Zero) return;
+        if (DiscoveryChain) BurnCoalForHeat(s, winter);
         Fix64 perTile = _civic.Deadwood / 4;
         foreach (int tile in RangeTiles(s.SiteTile))
         {

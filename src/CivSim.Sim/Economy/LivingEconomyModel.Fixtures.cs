@@ -773,7 +773,7 @@ public sealed partial class LivingEconomyModel
         byte id = role switch
         {
             "administrator" => Role.Administrator, "governor" => Role.Governor,
-            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason,
+            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason, "engineer" => Role.Engineer,
             _ => throw new ArgumentException(role, nameof(role))
         };
         int n = 0;
@@ -1153,7 +1153,8 @@ public sealed partial class LivingEconomyModel
     internal static int FixtureStructureCount => (int)Structure.Count;
     internal int FixtureCivicBuildKind(int settlementIndex) => (int)(_settlements[settlementIndex].Civic?.BuildKind ?? CivicBuild.None);
     internal static int FixtureCivicKindCount => (int)CivicBuild.Ziggurat + 1;
-    internal int FixtureIronKindCount => (int)IronStructure.Count;
+    /// <summary>The structure kinds this chapter can build: the engine counts only in a Discovery match.</summary>
+    internal int FixtureIronKindCount => DiscoveryChain ? (int)IronStructure.Count : (int)IronStructure.AtmosphericEngine;
     internal Fix64 FixtureWood(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Wood];
     /// <summary>Lays fields until the settlement is at its allowance or the ground runs out (so the planner's field rule is satisfied in a fixture).</summary>
     internal int FixtureFillFields(int settlementIndex)

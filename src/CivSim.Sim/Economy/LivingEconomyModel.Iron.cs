@@ -1384,7 +1384,7 @@ public sealed partial class LivingEconomyModel
     /// <summary>Test hook: write the Iron section with this many structure kinds, as a snapshot from before the Arsenal did (Fief version 47 and older).</summary>
     internal int? FixtureLegacyIronStructureCount { get; set; }
 
-    private int SnapshotIronStructureCount => FiefChain ? (int)IronStructure.Count : IronStructuresBeforeFief;
+    private int SnapshotIronStructureCount => DiscoveryChain ? (int)IronStructure.Count : FiefChain ? (int)IronStructure.AtmosphericEngine : IronStructuresBeforeFief;
 
     private static void HashLaterIronKinds(ref StateHasher hash, int[]? works, int kindCount)
     {
@@ -1479,7 +1479,7 @@ public sealed partial class LivingEconomyModel
             if (metal.IronSoldiersSupplied < 0) throw new InvalidDataException("Negative Iron-chapter soldier count.");
             if (metal.IronBuildKind < -1 || metal.IronBuildKind >= structureCount || metal.IronBuildProgress < Fix64.Zero)
                 throw new InvalidDataException("Invalid Iron-chapter build state.");
-            var works = new int[SnapshotIronStructureCount];
+            var works = new int[(int)IronStructure.Count]; // always full length: gates index every kind, and a kind past the snapshot's count is simply zero
             bool any = false;
             for (int k = 0; k < structureCount; k++)
             {
@@ -2411,7 +2411,9 @@ public sealed partial class LivingEconomyModel
     /// distance counts as two thirds, rounded up. Unlinked settlements, and every Bronze settlement, keep the plain walk.
     /// </summary>
     private int RoadAdjustedWalk(SettlementState s, int walk)
-        => RoadLinked(s) && Done(s.Civilization, "TRN-07") ? (walk * 2 + 2) / 3 : walk;
+        => RoadLinked(s) && Done(s.Civilization, "TRN-07")
+            ? (DiscoveryChain && Done(s.Civilization, "TRN-10") ? (walk * 4 + 8) / 9 : (walk * 2 + 2) / 3) // TRN-10 maintained roads: a further x1.5 (road_speed)
+            : walk;
 
     // ---- orchards (FOR-08) ---------------------------------------------------------------------------------
 
@@ -2550,6 +2552,8 @@ public sealed partial class LivingEconomyModel
         Windmill, Sawmill, BlastFurnace, Monastery, University, Hospital, ConcentricCastle, PowderMill, PrintShop, ClockTower, GothicCathedral, CathedralSchool,
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
+        // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
+        AtmosphericEngine, CokeOven, NavigationCanal,
         Count
     }
 
@@ -2611,6 +2615,12 @@ public sealed partial class LivingEconomyModel
         new("cathedral_school", "LRN-07", 30, 12, 0, 6, 0, Stone: true),
         // Arsenal (docs/MVP/37-arsenal.md): provisional cost, above a castle and below a wonder.
         new("arsenal", "WAR-12", 100, 12, 24, 12, 4, Large: true, Stone: true),
+        // NRG-06 atmospheric engine (registry: 4 cast iron, 8 block, 6 timber; the cast iron is counted as bloom iron), a Discovery-only structure.
+        new("atmospheric_engine", "NRG-06", 36, 8, 0, 6, 4, Stone: true),
+        // FIR-12 coke oven (registry: 12 fired brick, 4 clay; the brick is counted as block as the blast furnace's is, the clay is not charged).
+        new("coke_oven", "FIR-12", 20, 12, 0, 2, 0, Stone: true),
+        // TRN-11 navigation canal (registry: 2.0 labor and 1 timber a tile; provisional 12 tiles of line).
+        new("navigation_canal", "TRN-11", 24, 0, 0, 12, 0, Infrastructure: true),
     };
 
     /// <summary>

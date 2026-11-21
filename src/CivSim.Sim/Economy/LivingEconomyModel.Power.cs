@@ -87,6 +87,7 @@ public sealed partial class LivingEconomyModel
     {
         if (!IronChain) return Fix64.Zero;
         if (IronWorksCount(s, IronStructure.WaterMill) > 0) return Fix64.One;
+        if (DiscoveryChain && s.EngineUnits > Fix64.Zero) return Fix64.One; // a fired engine drives a bellows, a saw or a hammer as well as a wheel does
         return FiefChain && IronWorksCount(s, IronStructure.Windmill) > 0 && Done(s.Civilization, "NRG-05") ? WindAvailability : Fix64.Zero;
     }
 
@@ -119,9 +120,9 @@ public sealed partial class LivingEconomyModel
         int windSources = Done(s.Civilization, "NRG-05") ? IronWorksCount(s, IronStructure.Windmill) + extraWindSources : 0;
         Fix64 adults = Fix64.FromInt(population);
         Fix64 available = Fix64.FromInt(waterSources) * WaterMillPowerHours +
-                          Fix64.FromInt(windSources) * WindmillPowerHours * WindAvailability;
+                          Fix64.FromInt(windSources) * WindmillPowerHours * WindAvailability + SteamPowerHours(s);
         Fix64 grindingDemand = adults * GrindingWorkShare / GrindingMultiplier;
-        bool hasPoweredSawmill = (waterSources > 0 || windSources > 0) &&
+        bool hasPoweredSawmill = (waterSources > 0 || windSources > 0 || SteamPowerHours(s) > Fix64.Zero) &&
                                  IronWorksCount(s, IronStructure.Sawmill) > 0 && Done(s.Civilization, "WOD-09");
         Fix64 sawingDemand = hasPoweredSawmill ? adults * SawingWorkShare / SawingMultiplier : Fix64.Zero;
         Fix64 craftDemand = adults * PoweredCraftWorkShare / PoweredCraftMultiplier;
@@ -298,6 +299,12 @@ public sealed partial class LivingEconomyModel
             GrainMilledPeople = p.GrainMilledPeople,
             GrainCoverage = p.GrainCoverage,
         };
+    }
+    internal BuildGate FixtureIronGate(int settlementIndex, string kind, bool includeAppetite = true)
+    {
+        for (int k = 0; k < (int)IronStructure.Count; k++)
+            if (IronWorkId(k) == kind) return IronGate(_settlements[settlementIndex], (IronStructure)k, includeAppetite);
+        throw new ArgumentException($"No Iron structure '{kind}'.", nameof(kind));
     }
     internal bool FixtureIronGateOpen(int settlementIndex, string kind, bool includeAppetite = true)
     {

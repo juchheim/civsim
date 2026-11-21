@@ -1009,6 +1009,7 @@ public sealed partial class LivingEconomyModel
             q *= Fix64.One + FiefRecipeWasteRate(s.Civilization);
         if (BellowsActive(s, r) && Array.IndexOf(r.InputSlots[input], MetalSlot(MetalGood.Charcoal)) >= 0)
             q *= Modifier(s.Civilization, "charcoal_per_smelt");
+        if (DiscoveryChain && r.Def.Id == "make_coke" && IronWorksCount(s, IronStructure.CokeOven) > 0) q *= CokeOvenCoalFactor;
         if (FurnaceActive(s, r))
         {
             // Output remains tied to the x4 factor. Default charcoal remains x2; the opt-in Fief fit varies only its input factor.
@@ -1025,6 +1026,7 @@ public sealed partial class LivingEconomyModel
         if (id is "make_wheel" or "build_cart" or "build_chariot") labor *= Modifier(s.Civilization, "wheel_and_cart_labor");
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
+        if (DiscoveryChain && id == "make_coke" && IronWorksCount(s, IronStructure.CokeOven) > 0) labor *= CokeOvenLaborFactor;
         // Outside Fief preserve Iron's water-mill rule. In Fief these jobs draw from one budget in priority order:
         // grinding, sawing, then powered craft and bellows work.
         if (IronChain && (r.Def.Bellows || IsMillPowered(id)))
@@ -1075,6 +1077,7 @@ public sealed partial class LivingEconomyModel
 
         // Kits and arms come first; the other goods get what is left of the push cap (docs/MVP/23 §7.3).
         PrimaryWants(s, m, plan, pop, needKits);
+        if (DiscoveryChain) EngineCoalWants(s, plan);
         var primaryTerminalUnscaled = (Fix64[])plan.Terminal.Clone();
         SecondaryWants(s, m, plan, pop);
         // Exports are secondary to equipping the supplier's own people. They still use residual chain capacity and are
@@ -2919,6 +2922,7 @@ public sealed partial class LivingEconomyModel
             Fix64 want = plan.Want[goodSlot];
             Fix64 net = want * 2 - Stock(s, goodSlot);
             Fix64 haulDivisor = Done(civ, "TRN-05") ? Fix64.FromInt(5) : Fix64.One;
+            if (discoveryGood is not null) haulDivisor = CoalHaulDivisor(s, haulDivisor);
             Fix64 haul = HaulPerLitreTile * camp.Distance / haulDivisor * FiefHorseHaulFactor(s);
             Fix64 idle = Fix64.Zero;
             int crewCount = 0;
@@ -2946,6 +2950,7 @@ public sealed partial class LivingEconomyModel
                 if (camp.Built && left > Fix64.Zero && net > Fix64.Zero && _ore[camp.Tile] > Fix64.Zero)
                 {
                     Fix64 rate = MineRate(civ, camp.Tile, camp.MineHead, out _);
+                    if (discoveryGood is not null) rate *= FloodedSeamFactor(s, camp.Tile);
                     Fix64 effective = rate * SkillMultiplier(f, SkillFamily.Gather) * KitMod(f, "mine");
                     if (effective > Fix64.Zero)
                     {

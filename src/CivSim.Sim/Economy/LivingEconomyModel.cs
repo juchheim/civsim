@@ -378,6 +378,10 @@ public sealed partial class LivingEconomyModel : ISimModel
         public Fix64[]? FiefGoods;
         /// <summary>Discovery chapter's coal and coke (docs/MVP/38); null until one is stocked, and never set outside a Discovery match.</summary>
         public Fix64[]? DiscoveryGoods;
+        /// <summary>Power units this town's atmospheric engines delivered to the shared ledger in the latest season, after pumping (docs/MVP/38 §5.1); zero outside Discovery.</summary>
+        public Fix64 EngineUnits;
+        /// <summary>Whether the engines drained this town's flooded coal seams in the latest season.</summary>
+        public bool EnginePumping;
         public readonly Fix64[] Stores = new Fix64[(int)Good.Count];
         /// <summary>Stock of every store slot at the last season end, for the era report's goods-gained readout (never hashed).</summary>
         public Fix64[]? GainBaseline;
@@ -1905,6 +1909,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         totalWork -= careWork;
         Fix64 staffWork = settlement.Civic is not null ? StaffRoles(settlement) : Fix64.Zero;
         totalWork -= staffWork;
+        if (DiscoveryChain) BurnEngines(settlement);
         Fix64 openingFoodStores = Fix64.Zero, openingFoodNeed = Fix64.Zero;
         bool openingFoodShort = false;
         bool skipScoutsWhenFoodShort = SkipScoutsWhenFoodShortForCivsForDiagnostics is { } skipForCiv &&
@@ -7115,6 +7120,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         HashFiefKnowHow(ref hash);
         HashFiefGoods(ref hash);
         HashDiscoveryGoods(ref hash);
+        HashSteam(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -7212,6 +7218,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteFiefKnowHow(writer);
         WriteFiefGoods(writer);
         WriteDiscoveryGoods(writer);
+        WriteSteam(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7375,6 +7382,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         }
         ReadFiefGoods(reader);
         ReadDiscoveryGoods(reader);
+        ReadSteam(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7653,6 +7661,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             SurfaceOchre = source.SurfaceOchre,
             FiefGoods = source.FiefGoods is null ? null : (Fix64[])source.FiefGoods.Clone(),
             DiscoveryGoods = source.DiscoveryGoods is null ? null : (Fix64[])source.DiscoveryGoods.Clone(),
+            EngineUnits = source.EngineUnits,
+            EnginePumping = source.EnginePumping,
             FoodSecurity = source.FoodSecurity,
             LastSeasonFoodStoresBeforeConsumption = source.LastSeasonFoodStoresBeforeConsumption,
             LateWinterForecast = source.LateWinterForecast,

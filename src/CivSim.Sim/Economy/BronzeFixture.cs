@@ -99,6 +99,11 @@ internal sealed class BronzeFixture
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
             extraProjects, fiefChain: true, discoveryChain: true, coalDeposit: true);
 
+    /// <summary>The Discovery camp settlement with its coal seam at depth tier 3, the depth that floods without a pumping engine (docs/MVP/38 §5.1).</summary>
+    public static BronzeFixture CreateDiscoveryWithDeepCoal(ContentPack pack, ulong seed, int people, params string[] extraProjects)
+        => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
+            extraProjects, fiefChain: true, discoveryChain: true, coalDeposit: true, coalDepth: 3);
+
     /// <summary>The Discovery camp settlement with no coal deposit anywhere near, for the towns that must keep the Fief furnace.</summary>
     public static BronzeFixture CreateDiscoveryWithoutCoal(ContentPack pack, ulong seed, int people, params string[] extraProjects)
         => Build(pack, seed, people, coppice: true, tin: true, arsenic: true, shaftMining: true, holdPopulation: false, ironChain: true, ironCamp: true,
@@ -171,7 +176,7 @@ internal sealed class BronzeFixture
         bool shaftMining, bool holdPopulation, bool ironChain, bool ironCamp, string[] extraProjects, int forestCount = 13,
         bool terrace = false, FuelForestPlacement? fuelForestPlacement = null, bool fiefChain = false,
         FiefLandGeography? landGeography = null, bool fiefChemistryDeposits = false, bool fiefChemistryCamp = false,
-        bool discoveryChain = false, bool coalDeposit = false)
+        bool discoveryChain = false, bool coalDeposit = false, byte coalDepth = 1)
     {
         GeneratedWorld generated = WorldGenerator.Generate(seed);
         WorldEconomyInput source = WorldEconomyInput.FromGeneratedWorld(generated);
@@ -210,7 +215,7 @@ internal sealed class BronzeFixture
                 campTile = t;
         }
         if (campTile >= 0) deposits[campTile] = new WorldDeposit(DepositKind.CopperOre, 2, 1);
-        if (coalDeposit) deposits[range[3]] = new WorldDeposit(DepositKind.Coal, 2, 1);
+        if (coalDeposit) deposits[range[3]] = new WorldDeposit(DepositKind.Coal, 2, coalDepth);
         if (fiefChemistryDeposits && fiefChemistryCamp && campTile >= 0)
             deposits[campTile] = new WorldDeposit(DepositKind.Saltpeter, 2, 1);
         int ironTile = -1;

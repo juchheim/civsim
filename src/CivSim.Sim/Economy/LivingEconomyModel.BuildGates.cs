@@ -47,6 +47,8 @@ public enum BuildWhy : byte
     MillAlready, NeedsMill, NeedsForge, MonasteryLimit, NeedsCastle, MillCoverageMet, PowderNotNeeded, NeedsMasterMason,
     // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
     NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
+    // Discovery (appended): the atmospheric engine needs a coal supply and a use for its power.
+    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -336,6 +338,32 @@ public sealed partial class LivingEconomyModel
                 if (includeAppetite && !ArsenalWantedFor(civ)) return Stop(BuildCause.NotNeeded, BuildWhy.PowderNotNeeded);
                 if (includeAppetite && !IsPreferredArsenalSite(s)) return Stop(BuildCause.NotNeeded, BuildWhy.ArsenalPreferredElsewhere);
                 return BuildGate.Pass;
+            case IronStructure.AtmosphericEngine:
+                // NRG-06 (docs/MVP/38 §5.1): a Discovery-only engine, at most two to a town, wanted where coal can be had and the power or the pumping has a use.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built(MaxEnginesPerTown)).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "NRG-06")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "NRG-06");
+                if (!(gate = Size(EngineMinPopulation)).Open) return gate;
+                if (!CoalObtainable(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsCoal);
+                if (includeAppetite && !EngineWanted(s)) return Stop(BuildCause.NotNeeded, BuildWhy.EngineNotNeeded);
+                return BuildGate.Pass;
+            case IronStructure.CokeOven:
+                // FIR-12 (docs/MVP/38 §5.1): a Discovery-only oven, wanted where coke smelting runs on coal.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "FIR-12")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "FIR-12");
+                if (!CoalObtainable(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsCoal);
+                if (includeAppetite && !CokeSmeltingActive(s)) return Stop(BuildCause.NotNeeded, BuildWhy.CokeNotNeeded);
+                return BuildGate.Pass;
+            case IronStructure.NavigationCanal:
+                // TRN-11: a canal from a coal camp three or more tiles away carries its coal home (docs/MVP/38 §5.1).
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "TRN-11")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "TRN-11");
+                return FarthestCoalCamp(s) >= CanalMinDistance ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsCoalCamp, CanalMinDistance);
             case IronStructure.Colonnade:
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;

@@ -134,7 +134,7 @@ projects:
     status: draft
     requires: [TRN-08, GOV-11]
     effects:
-      - {kind: mod, stat: road_speed, op: mult, value: 1.5, note: "maintained toll roads (P)"}
+      - {kind: mod, stat: road_speed, op: mult, value: 1.5, note: "maintained toll roads (P); in the sim a road-linked town's walk to its capital counts a further x1.5 faster"}
       - {kind: rule, text: "Scheduled coaches carry messages and people between connected towns; tolls pay for upkeep from traffic."}
     practice: [{action: haul, share: 100}]
     flavor: "A smooth road pays for itself."

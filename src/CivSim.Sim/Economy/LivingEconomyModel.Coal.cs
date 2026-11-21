@@ -152,6 +152,75 @@ public sealed partial class LivingEconomyModel
         }
     }
 
+    // ---- coal firing, FIR-11 (docs/MVP/38 §5.1) -------------------------------------------------------
+
+    /// <summary>Litres of loose wood one litre of coal replaces as heat (<c>WOOD_L_PER_COAL_L</c> in e6_power_oracle.py; provisional).</summary>
+    private static readonly Fix64 WoodLitresPerCoalLitre = Fix64.FromInt(4);
+
+    /// <summary>Wood the town does not burn this season because coal heats it instead: the FIR-11 share of its hearth and kiln wood, all or nothing on the coal being in store.</summary>
+    private Fix64 CoalHeatRelief(SettlementState s, Fix64 heatWood)
+    {
+        if (heatWood <= Fix64.Zero || !Done(s.Civilization, "FIR-11")) return Fix64.Zero;
+        Fix64 mult = Modifier(s.Civilization, "heat_wood_demand");
+        if (mult >= Fix64.One) return Fix64.Zero;
+        Fix64 relief = heatWood * (Fix64.One - mult);
+        return Stock(s, DiscoverySlot(DiscoveryGood.Coal)) >= relief / WoodLitresPerCoalLitre ? relief : Fix64.Zero;
+    }
+
+    /// <summary>Coal a town would burn in a season to take its FIR-11 share off the forest (independent of what is in store, so it can be wanted).</summary>
+    private Fix64 CoalHeatNeed(SettlementState s, bool winter)
+    {
+        if (!Done(s.Civilization, "FIR-11")) return Fix64.Zero;
+        E3FuelParts(s, winter, out Fix64 heat, out _);
+        Fix64 mult = Modifier(s.Civilization, "heat_wood_demand");
+        return mult >= Fix64.One ? Fix64.Zero : heat * (Fix64.One - mult) / WoodLitresPerCoalLitre;
+    }
+
+    /// <summary>Season step: charges the coal that replaced wood. The wood side is already out of <c>E3FuelNeed</c>, which grants the relief only when this coal is in store.</summary>
+    private void BurnCoalForHeat(SettlementState s, bool winter)
+    {
+        E3FuelParts(s, winter, out Fix64 heat, out _);
+        Fix64 relief = CoalHeatRelief(s, heat);
+        if (relief > Fix64.Zero) AddStock(s, DiscoverySlot(DiscoveryGood.Coal), -(relief / WoodLitresPerCoalLitre));
+    }
+
+    /// <summary>Tests only: the season's hearth, kiln and building wood demand (coal-firing relief included), and a direct run of the coal-for-heat charge.</summary>
+    internal Fix64 FixtureFuelNeed(int settlementIndex, bool winter) => E3FuelNeed(_settlements[settlementIndex], winter);
+
+    internal void FixtureBurnCoalForHeat(int settlementIndex, bool winter) => BurnCoalForHeat(_settlements[settlementIndex], winter);
+
+    // ---- coke oven and navigation canal (docs/MVP/38 §5.1) --------------------------------------------
+
+    /// <summary>A coke oven coks with 1.2 L of coal where the kiln takes 1.5 (the same 1 L of coke), in half the labor. Provisional.</summary>
+    private static readonly Fix64 CokeOvenCoalFactor = Fix64.FromRatio(4, 5);
+    private static readonly Fix64 CokeOvenLaborFactor = Fix64.Half;
+
+    /// <summary>The shortest coal-camp distance a canal is worth building for (tiles).</summary>
+    private const int CanalMinDistance = 3;
+
+    /// <summary>Distance in tiles to the town's farthest coal camp, or 0 with none.</summary>
+    private int FarthestCoalCamp(SettlementState s)
+    {
+        int farthest = 0;
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == s.Id && _world.Deposit(camp.Tile).Kind == DepositKind.Coal && camp.Distance > farthest) farthest = camp.Distance;
+        return farthest;
+    }
+
+    /// <summary>
+    /// The divisor on a coal camp's haul labor: the cart's x5 (TRN-05) or none, replaced by the canal's x10 (TRN-11, "bulk haul inland x10") once the town has dug a navigation
+    /// canal. Coal only; grain and every other good keep their own haul.
+    /// </summary>
+    private Fix64 CoalHaulDivisor(SettlementState s, Fix64 divisor)
+        => IronWorksCount(s, IronStructure.NavigationCanal) > 0 && Done(s.Civilization, "TRN-11") ? Fix64.Max(divisor, Modifier(s.Civilization, "bulk_haul_inland")) : divisor;
+
+    /// <summary>Tests only: a coal camp's haul divisor for a town given a starting divisor, and the cohesion walk of a town after its road effects.</summary>
+    internal Fix64 FixtureCoalHaulDivisor(int settlementIndex, Fix64 divisor) => CoalHaulDivisor(_settlements[settlementIndex], divisor);
+
+    internal int FixtureFarthestCoalCamp(int settlementIndex) => FarthestCoalCamp(_settlements[settlementIndex]);
+
+    internal int FixtureRoadAdjustedWalk(int settlementIndex, int walk) => RoadAdjustedWalk(_settlements[settlementIndex], walk);
+
     // ---- coke smelting (docs/MVP/38 §5.1) -------------------------------------------------------------
 
     /// <summary>
@@ -169,6 +238,15 @@ public sealed partial class LivingEconomyModel
         int id = _settlements[settlementIndex].Id;
         foreach (MiningCampState camp in _camps) if (camp.Parent == id) tiles.Add(camp.Tile);
         return tiles.ToArray();
+    }
+
+    /// <summary>Tests only: the tile of the first coal camp a settlement runs, or -1.</summary>
+    internal int FixtureCoalCampTile(int settlementIndex)
+    {
+        int id = _settlements[settlementIndex].Id;
+        foreach (MiningCampState camp in _camps)
+            if (camp.Parent == id && _world.Deposit(camp.Tile).Kind == DepositKind.Coal) return camp.Tile;
+        return -1;
     }
 
     internal Fix64 FixtureOreLeft(int tile) => _ore[tile];
