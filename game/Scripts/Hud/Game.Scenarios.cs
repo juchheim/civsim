@@ -891,6 +891,9 @@ public partial class Game
                     ("figures", -0.2f, -21.6f, 2.8f, 30.0f, 0.0f), ("figures-a", -1.3f, -21.6f, 2.7f, 24.0f, 0.0f), ("figures-b", -0.1f, -21.6f, 2.7f, 24.0f, 0.0f),
                     ("figures-side", -0.9f, -21.6f, 2.7f, 24.0f, 70.0f), ("figures-back", -0.9f, -21.6f, 2.7f, 26.0f, 160.0f),
                     ("coach", 0.9f, -21.6f, 2.7f, 30.0f, 0.0f), ("coach-side", 0.9f, -21.6f, 2.7f, 26.0f, 80.0f),
+                    // bastion damage, row z -24.6 (x -2.3 whole, -1.15 cracked, 0.0 breached, 1.2 ruined; E5 walls at 2.2, 2.6, 3.0)
+                    ("breach", 0.0f, -24.6f, 4.6f, 42.0f, 0.0f), ("breach-close", 0.0f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-cracked", -1.15f, -24.6f, 2.2f, 34.0f, 270.0f),
+                    ("breach-ruin", 1.2f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-top", 0.0f, -24.6f, 3.0f, 75.0f, 0.0f), ("breach-walls", 2.6f, -24.6f, 2.6f, 30.0f, 0.0f),
                 })
                 {
                     string itemName = item;

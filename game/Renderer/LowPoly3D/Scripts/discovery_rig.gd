@@ -36,6 +36,7 @@ var beams: Array = []              # {node, pivot, rot, scale, phase}
 var columns: Array = []            # {smoke, work}
 var soot_material: ShaderMaterial  # the shared smoke shader with its colour set near-black (it ignores a particle's own colour)
 var steam_material: ShaderMaterial # and the same set white
+var dust_material: ShaderMaterial  # and a pale brown for the dust of a wall under fire
 var demo := false                  # the gallery drives the rig from the wall clock, the game from the render tick
 var signature := -1
 
@@ -45,6 +46,7 @@ func _init(builder, parent_node: Node3D, smoke_maker: Callable) -> void:
 	smoke_factory = smoke_maker
 	soot_material = _tinted(Color(0.2, 0.19, 0.19))
 	steam_material = _tinted(Color(0.97, 0.98, 1.0))
+	dust_material = _tinted(Color(0.68, 0.6, 0.48))
 
 ## A copy of the world's smoke material with its colour changed; the shared shader (smoke.gdshader) is left as it is, so no older render changes.
 func _tinted(col: Color) -> ShaderMaterial:
@@ -130,11 +132,15 @@ func sync(works: Array) -> void:
 			"factory":
 				if working:
 					_column(pos + rot * (FACTORY_CHIMNEY * scale), 0.09, 24, 6.5, false, scale)
+			"bastion_fort":
+				# a fort under fire: the dust of fresh hits over the back bastion while it is cracked or breached (a ruin has stopped being fired at)
+				if String(w.state) == "cracked" or String(w.state) == "breach":
+					_column(pos + rot * (Vector3(0.0, 0.05, -0.33) * scale), 0.03, 7, 2.4, false, scale, true, dust_material)
 			"coke_oven":
 				if working:
 					_column(pos + rot * (COKE_CHIMNEY * scale), 0.08, 18, 6.0, false, scale)
 
-func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: bool, scale: float, dark: bool = true) -> void:
+func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: bool, scale: float, dark: bool = true, material: ShaderMaterial = null) -> void:
 	if columns.size() >= MAX_COLUMNS:
 		return
 	var smoke: GPUParticles3D = smoke_factory.call()
@@ -143,7 +149,9 @@ func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: b
 		(smoke.draw_pass_1 as QuadMesh).material = steam_material
 	elif dark:
 		soot(smoke, lift * scale, amount, lifetime)
-		(smoke.draw_pass_1 as QuadMesh).material = soot_material
+		(smoke.draw_pass_1 as QuadMesh).material = material if material != null else soot_material
+		if material == dust_material:
+			(smoke.draw_pass_1 as QuadMesh).size = Vector2(0.1, 0.1)       # dust is a small cloud, not a column
 	else:
 		M7SignalRig.thicken_smoke(smoke, lift * scale, amount, lifetime)
 	smoke.position = at

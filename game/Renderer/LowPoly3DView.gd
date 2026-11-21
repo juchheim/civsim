@@ -640,9 +640,9 @@ func show_discovery_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(12.0, 32.0)
+	plane.size = Vector2(12.0, 36.0)
 	floor_mesh.mesh = plane
-	floor_mesh.position = Vector3(0.0, -0.01, -9.2)
+	floor_mesh.position = Vector3(0.0, -0.01, -11.2)
 	var floor_material := StandardMaterial3D.new()
 	floor_material.albedo_color = Color("#7a9a52")
 	floor_material.roughness = 1.0
@@ -667,6 +667,10 @@ func show_discovery_gallery() -> Vector3:
 		# P1 figures: a soldier for scale, then the engineer, miner, navigator, botanist, operative, bargeman and coachman, and the turnpike coach
 		[["person_soldier", 0.3, 2.4], ["person_engineer", 0.3, 2.4], ["person_miner", 0.3, 2.4], ["person_navigator", 0.4, 2.4], ["person_botanist", 0.35, 2.4], ["person_operative", 0.3, 2.4],
 			["person_bargeman", 0.4, 2.4], ["person_coachman", 0.4, 2.4], ["coach", 0.6, 2.0]],
+		# P1 bastion damage (docs/MVP/39 §4.5): the whole fort, then cracked, breached and ruined, each turned about Y by 90 degrees so the break faces +X (an
+		# attacker's side); beside them the E5 wall at the same bands for scale
+		[["bastion_4", 1.0, 1.0, 1.5708], ["bastion_cracked", 1.0, 1.0, 1.5708], ["bastion_breach", 1.0, 1.0, 1.5708], ["bastion_ruin", 1.1, 1.0, 1.5708],
+			["wall_seg", 0.4, 1.6], ["wall_seg_cracked", 0.4, 1.6], ["wall_seg_breach", 0.4, 1.6]],
 	]
 	var rig_works := []
 	for r in rows.size():
@@ -675,7 +679,7 @@ func show_discovery_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5
@@ -698,7 +702,15 @@ func show_discovery_gallery() -> Vector3:
 				"coke_oven": rig_kind = "coke_oven"; rig_state = "work"
 			if rig_kind != "":
 				rig_works.append({"kind": rig_kind, "pos": centre + Vector3(x, y, z), "yaw": 0.0, "scale": s, "state": rig_state, "seed": "%s%d" % [rig_kind, i]})
-			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
+			var yaw: float = float(item[3]) if item.size() > 3 else 0.0
+			var dmg_state := ""
+			match name:
+				"bastion_cracked": dmg_state = "cracked"
+				"bastion_breach": dmg_state = "breach"
+				"bastion_ruin": dmg_state = "ruin"
+			if dmg_state != "":
+				rig_works.append({"kind": "bastion_fort", "pos": centre + Vector3(x, y, z), "yaw": yaw, "scale": s, "state": dmg_state, "seed": name})
+			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
 			if name == "canal_nav_lock":
 				# a coal barge in the lock chamber, lying along the canal (the barge's bow is +Z, the canal runs along X)
 				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x, 0.0, z)), custom, false)
