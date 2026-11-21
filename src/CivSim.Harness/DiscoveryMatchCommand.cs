@@ -87,6 +87,36 @@ internal static class DiscoveryMatchCommand
         }
     }
 
+    /// <summary>Diagnostic: lists the fields (by path) that differ between two economies, comparing live objects with reflection; derived caches show up too, so read the names.</summary>
+    private static void DeepDiff(object? a, object? b, string path, int depth, List<string> found, HashSet<object> seen)
+    {
+        if (found.Count >= 4000 || depth > 6) return;
+        if (a is null || b is null) return; // a lazily built cache on one side only: not state
+        Type t = a.GetType();
+        if (t != b.GetType()) { found.Add($"{path}: type"); return; }
+        if (t.IsPrimitive || t.IsEnum || t == typeof(string) || t == typeof(decimal)) { if (!a.Equals(b)) found.Add($"{path}: {a} vs {b}"); return; }
+        if (a is Array xa)
+        {
+            var xb = (Array)b;
+            if (xa.Length != xb.Length) { found.Add($"{path}: length {xa.Length} vs {xb.Length}"); return; }
+            if (t.GetElementType()!.IsPrimitive) { for (int i = 0; i < xa.Length; i++) if (!Equals(xa.GetValue(i), xb.GetValue(i))) { found.Add($"{path}[{i}]: {xa.GetValue(i)} vs {xb.GetValue(i)}"); break; } return; }
+            for (int i = 0; i < xa.Length && found.Count < 4000; i++) DeepDiff(xa.GetValue(i), xb.GetValue(i), $"{path}[{i}]", depth + 1, found, seen);
+            return;
+        }
+        if (a is System.Collections.IList la)
+        {
+            var lb = (System.Collections.IList)b;
+            if (la.Count != lb.Count) { found.Add($"{path}: count {la.Count} vs {lb.Count}"); return; }
+            for (int i = 0; i < la.Count && found.Count < 4000; i++) DeepDiff(la[i], lb[i], $"{path}[{i}]", depth + 1, found, seen);
+            return;
+        }
+        if (t.Namespace is null || !t.Namespace.StartsWith("CivSim", StringComparison.Ordinal)) return;
+        if (!t.IsValueType && !t.Namespace.StartsWith("CivSim.Sim.Economy", StringComparison.Ordinal)) return; // peer systems hold their own state
+        if (!t.IsValueType && !seen.Add(a)) return;
+        foreach (var f in t.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic))
+            if (!f.FieldType.IsPointer && !typeof(Delegate).IsAssignableFrom(f.FieldType) && !(f.Name.Contains("ecipes") || f.Name is "_content" or "_world" or "_catalog" or "_pack" or "_coppiced" || f.Name.Contains("TileOwnership"))) DeepDiff(f.GetValue(a), f.GetValue(b), $"{path}.{f.Name}", depth + 1, found, seen);
+    }
+
     private static byte[] EconomyBytes(MatchModel m)
     {
         using var stream = new MemoryStream();
@@ -112,6 +142,8 @@ internal static class DiscoveryMatchCommand
         var runner = new SimRunner(match);
         MatchModel? twin = null;
         SimRunner? twinRunner = null;
+        MatchModel? twin2 = null;
+        SimRunner? twin2Runner = null;
         long resumeTick = resumeAt * 600L;
         bool diverged = false;
         ResearchSystem research = match.Research;
@@ -146,8 +178,9 @@ internal static class DiscoveryMatchCommand
             {
                 for (int t = 0; t < 150 && !diverged; t++)
                 {
-                    runner.Advance(1); twinRunner.Advance(1);
+                    runner.Advance(1); twinRunner.Advance(1); twin2Runner?.Advance(1);
                     if (twin!.Economy.ComputeChecksum() != match.Economy.ComputeChecksum()) { diverged = true; Console.WriteLine($"  economy diverged at tick {runner.Tick} (season offset {t})");
+                        if (twin2 is not null) Console.WriteLine($"  second restore: equals first twin {twin2.Economy.ComputeChecksum() == twin.Economy.ComputeChecksum()}, equals live {twin2.Economy.ComputeChecksum() == match.Economy.ComputeChecksum()}");
                         byte[] a = EconomyBytes(match), b = EconomyBytes(twin);
                         int first = -1, count = 0;
                         for (int k = 0; k < Math.Min(a.Length, b.Length); k++) if (a[k] != b[k]) { if (first < 0) first = k; count++; }
@@ -175,8 +208,19 @@ internal static class DiscoveryMatchCommand
                 stream.Position = 0;
                 twin = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
                 twin.Research.DiagnosticDraftProjectGrantsEnabled = grantE5 || grantE6;
-                using (var reader = new BinaryReader(stream)) twin.ReadSnapshot(reader);
+                byte[] snapshotCopy = stream.ToArray();
+                using (var reader = new BinaryReader(new MemoryStream(snapshotCopy))) twin.ReadSnapshot(reader);
+                twin2 = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+                twin2.Research.DiagnosticDraftProjectGrantsEnabled = grantE5 || grantE6;
+                using (var reader2 = new BinaryReader(new MemoryStream(snapshotCopy))) twin2.ReadSnapshot(reader2);
+                twin2Runner = new SimRunner(twin2, startTick: runner.Tick);
                 twinRunner = new SimRunner(twin, startTick: runner.Tick);
+                if (Environment.GetEnvironmentVariable("CIVSIM_DEEPDIFF") == "1")
+                {
+                    var found = new List<string>();
+                    DeepDiff(match.Economy, twin.Economy, "economy", 0, found, new HashSet<object>(ReferenceEqualityComparer.Instance));
+                    foreach (string line in found) if (!(line.Contains("Ledger") || line.Contains("Scratch") || line.Contains("Stamp") || line.Contains("Generation") || line.Contains("B28") || line.Contains("Telemetry") || line.Contains("Trace"))) Console.WriteLine("    deepdiff " + line);
+                }
                 Console.WriteLine($"  resume: snapshot at tick {runner.Tick} ({snapshotBytes:N0} bytes), checksums {match.ComputeChecksum():x16} vs {twin.ComputeChecksum():x16}");
             }
             int season = checked((int)(runner.Tick / 150L));
