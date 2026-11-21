@@ -2567,7 +2567,7 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort, BotanicalGarden,
         Count
     }
 
@@ -2643,6 +2643,8 @@ public sealed partial class LivingEconomyModel
         new("exchange_house", "TRD-11", 30, 14, 0, 6, 0, Stone: true),
         // A bastion fort (DEF-10, docs/MVP/38 §5.6): the registry's 40 block and 20 fired brick, counted as block (provisional).
         new("bastion_fort", "DEF-10", 70, 60, 0, 0, 0, Stone: true),
+        // A botanical garden (FOR-09, docs/MVP/38 §5.4): the registry's 4 wood and 6 stone (provisional); it works only with a botanist.
+        new("botanical_garden", "FOR-09", 20, 0, 6, 4, 0),
     };
 
     /// <summary>

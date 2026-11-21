@@ -48,7 +48,7 @@ public enum BuildWhy : byte
     // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
     NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
     // Discovery (appended): the atmospheric engine needs a coal supply and a use for its power.
-    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower, AlternativeBuilt,
+    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower, AlternativeBuilt, HospitalNotNeeded,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -376,6 +376,14 @@ public sealed partial class LivingEconomyModel
                 if (IronWorksCount(s, IronStructure.Harbor) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsHarbor);
                 if (!(gate = Size(ExchangeMinPopulation)).Open) return gate;
                 return CivWorksCount(civ, IronStructure.ExchangeHouse) == 0 ? BuildGate.Pass : Stop(BuildCause.Taken, BuildWhy.OnePerCivilization);
+            case IronStructure.BotanicalGarden:
+                // FOR-09 (docs/MVP/38 §5.4): one garden to a town, wanted where a staffed hospital can use its medical bonus.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "FOR-09")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "FOR-09");
+                if (includeAppetite && !HospitalStaffed(s)) return Stop(BuildCause.NotNeeded, BuildWhy.HospitalNotNeeded);
+                return BuildGate.Pass;
             case IronStructure.Factory:
                 // MEC-10 (docs/MVP/38 §5.7): a large town with a power source in its ledger raises one factory.
                 if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);

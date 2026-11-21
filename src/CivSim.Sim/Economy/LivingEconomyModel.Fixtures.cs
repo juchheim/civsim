@@ -773,7 +773,7 @@ public sealed partial class LivingEconomyModel
         byte id = role switch
         {
             "administrator" => Role.Administrator, "governor" => Role.Governor,
-            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason, "engineer" => Role.Engineer,
+            "physician" => Role.Physician, "attendant" => Role.Attendant, "master_mason" => Role.MasterMason, "engineer" => Role.Engineer, "botanist" => Role.Botanist,
             _ => throw new ArgumentException(role, nameof(role))
         };
         int n = 0;

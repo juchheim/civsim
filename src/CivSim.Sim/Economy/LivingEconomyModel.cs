@@ -4347,7 +4347,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // points of adult mortality for actual deliveries, not every adult each season.
         if (adult) injuryShare -= Fix64.Parse("0.06");
         Fix64 injury = annual * injuryShare * CauseModifier(civ, "injury", adultExposure: !child) * seasonalScale;
-        if (figure.WoundTreated) injury *= MedCare(civ, Fix64.Parse("0.7"));
+        if (figure.WoundTreated) injury *= WoundCareFactor(figure);
         // MET-04's arsenic (docs/MVP/23 §15): a per-figure risk for those who co-smelted arsenical bronze this season.
         if (figure.Task == MetalTask.SmeltArsenic) injury *= ArsenicInjury;
         if (adult && figure.Female && figure.PregnancySeasons == 1)
@@ -4356,10 +4356,10 @@ public sealed partial class LivingEconomyModel : ISimModel
             Fix64 deliveriesPerAdult = Fix64.Half * Fix64.Parse("0.13") * FertilityMultiplier(civ) * FiefCityGrowthMultiplier(_settlements[figure.SettlementId]);
             Fix64 maternal = annual * Fix64.Parse("0.06") * seasonalScale / deliveriesPerAdult;
             maternal *= CauseModifier(civ, "maternal");
-            if (figure.MidwifeAttended) maternal *= MedCare(civ, Fix64.Parse("0.6"));
+            if (figure.MidwifeAttended) maternal *= CareFor(figure, Fix64.Parse("0.6"));
             injury += maternal;
         }
-        Fix64 diseaseCare = figure.DiseaseTreated ? MedCare(civ, Fix64.Parse("0.75")) : Fix64.One;
+        Fix64 diseaseCare = figure.DiseaseTreated ? CareFor(figure, Fix64.Parse("0.75")) : Fix64.One;
         // E3: epidemics come as discrete outbreaks (docs/MVP/09 §10); the continuous budget is then zero, so they do not count twice.
         bool discrete = DiscreteEpidemics(figure);
         // GOV-04: local famine deaths −50% (docs/MVP/23 §16), half of starvation being local famine (check_e3.py).
