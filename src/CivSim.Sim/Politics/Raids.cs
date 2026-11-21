@@ -24,7 +24,7 @@ public readonly record struct Defenses(
     public static readonly Fix64 ConcentricCastleMultiplier = Fix64.FromRatio(3, 2);
 
     /// <summary>
-    /// DEF-10's bastion fort, an alternative to the concentric step (docs/MVP/38 §5.6, e6_combat_oracle.py Part 2): defenders fight at x1.5 on top of the garrisoned castle
+    /// DEF-10's bastion fort, an alternative to the concentric step for the storm multiplier (the two never stack; docs/MVP/38 §5.6, e6_combat_oracle.py Part 2): defenders fight at x1.5 on top of the garrisoned castle
     /// (1.25 x 1.5 = 1.875, below the 1.9 storm crossover). Its other job is the wall below.
     /// </summary>
     public static readonly Fix64 BastionStormMultiplier = Fix64.FromRatio(3, 2);

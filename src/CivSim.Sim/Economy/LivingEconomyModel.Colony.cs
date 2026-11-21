@@ -52,6 +52,14 @@ public sealed partial class LivingEconomyModel
         return roll.NextBelow(1000) < (uint)odds;
     }
 
+    /// <summary>How many settlements are overseas colonies of their civilization (TER-11; a harness readout).</summary>
+    public int ColonyCount()
+    {
+        int n = 0;
+        foreach (SettlementState s in _settlements) if (IsColony(s)) n++;
+        return n;
+    }
+
     internal bool FixtureIsColony(int settlement) => IsColony(_settlements[settlement]);
 
     internal bool FixtureColonyBreaksAway(int settlement, int cohesion, int season) => ColonyBreaksAway(_settlements[settlement], cohesion, season);

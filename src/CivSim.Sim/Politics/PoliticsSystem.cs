@@ -2198,7 +2198,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                               _economy.CastleGarrisoned(settlement),
             Feudal: _economy.IronChain && _p.Gov09 >= 0 && _research.IsDone(civ, _p.Gov09) && _economy.UnderFeudalContractAt(settlement),
             BastionFort: _economy.DiscoveryChain && _p.Def10 >= 0 && _research.IsDone(civ, _p.Def10) && _economy.BastionFortBuilt(settlement) &&
-                         _economy.CastleGarrisoned(settlement) && !_economy.ConcentricCastleBuilt(settlement)));
+                         _economy.CastleGarrisoned(settlement)));
     }
 
     /// <summary>

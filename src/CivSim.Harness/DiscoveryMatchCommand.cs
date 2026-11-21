@@ -22,7 +22,7 @@ internal static class DiscoveryMatchCommand
 {
     private static readonly EconomyArchetype[] Archetypes = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Warlord, EconomyArchetype.Sage };
     private static readonly string[] Structures =
-        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor" };
+        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden" };
 
     public static int Run(string[] args)
     {
@@ -111,6 +111,6 @@ internal static class DiscoveryMatchCommand
             }
             if (match.Economy.CoalLitres(s) > Fix64.Zero) coalSettlements++;
         }
-        Console.WriteLine("  built: " + string.Join(", ", Structures.Select((name, j) => $"{name}={totals[j]}")) + $"; settlements={settlements}, holding coal={coalSettlements}");
+        Console.WriteLine("  built: " + string.Join(", ", Structures.Select((name, j) => $"{name}={totals[j]}")) + $"; settlements={settlements}, holding coal={coalSettlements}, colonies={match.Economy.ColonyCount()}");
     }
 }

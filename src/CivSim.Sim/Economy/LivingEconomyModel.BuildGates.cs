@@ -359,12 +359,11 @@ public sealed partial class LivingEconomyModel
                 if (includeAppetite && !CokeSmeltingActive(s)) return Stop(BuildCause.NotNeeded, BuildWhy.CokeNotNeeded);
                 return BuildGate.Pass;
             case IronStructure.BastionFort:
-                // DEF-10 (docs/MVP/38 §5.6): a star fort on a garrisoned castle, an alternative to the concentric step, never on top of it.
+                // DEF-10 (docs/MVP/38 §5.6): a star fort on a garrisoned castle. It may follow the concentric step (natural play always raises that first): it adds its wall, and the storm multiplier does not stack.
                 if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
                 if (!(gate = Built()).Open) return gate;
                 if (!(gate = Town()).Open) return gate;
                 if (!Done(civ, "DEF-10")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "DEF-10");
-                if (IronWorksCount(s, IronStructure.ConcentricCastle) > 0) return Stop(BuildCause.Taken, BuildWhy.AlternativeBuilt);
                 if (IronWorksCount(s, IronStructure.Castle) == 0) return Stop(BuildCause.Requires, BuildWhy.NeedsCastle);
                 return CastleGarrisoned(s.Id) ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsSoldiers, CastleGarrison);
             case IronStructure.ExchangeHouse:

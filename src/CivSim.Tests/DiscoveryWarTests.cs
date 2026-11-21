@@ -56,11 +56,12 @@ public sealed class DiscoveryWarTests
         economy.FixtureSetSoldiersSupplied(0, 4);
         economy.FixtureBuildIronStructure(0, "concentric_castle");
         Defenses both = match.Politics.FixtureDefensesOf(0);
-        Assert.True(both.ConcentricCastle && !both.BastionFort, "the two never stack");
+        Assert.True(both.ConcentricCastle && both.BastionFort, "a bastion may follow the concentric step, for its wall");
+        Assert.True(both.Multiplier() == bastion.Multiplier(), "the storm multipliers never stack");
     }
 
     [Fact]
-    public void The_bastion_gate_needs_DEF10_a_garrisoned_castle_and_no_concentric_step()
+    public void The_bastion_gate_needs_DEF10_and_a_garrisoned_castle_and_may_follow_the_concentric_step()
     {
         (MatchModel match, SimRunner runner) = Start(ChapterRules.Discovery);
         LivingEconomyModel economy = match.Economy;
@@ -73,8 +74,9 @@ public sealed class DiscoveryWarTests
         Assert.False(economy.FixtureIronGateOpen(0, "bastion_fort", includeAppetite: false), "no garrison");
         economy.FixtureSetSoldiersSupplied(0, 4);
         Assert.True(economy.FixtureIronGateOpen(0, "bastion_fort", includeAppetite: false));
+        economy.FixtureBuildIronStructure(0, "concentric_castle");
+        Assert.True(economy.FixtureIronGateOpen(0, "bastion_fort", includeAppetite: false), "a concentric castle does not close the bastion");
         economy.FixtureBuildIronStructure(0, "bastion_fort");
-        Assert.False(economy.FixtureIronGateOpen(0, "concentric_castle", includeAppetite: false), "the concentric step is the alternative");
         Assert.False(economy.FixtureIronGateOpen(0, "bastion_fort", includeAppetite: false), "one to a town");
     }
 
