@@ -12,6 +12,7 @@ public sealed class GameSaveModeTests
     [Theory]
     [InlineData(ChapterMode.Iron, 1)]
     [InlineData(ChapterMode.Fief, 2)]
+    [InlineData(ChapterMode.Discovery, 3)]
     public void Non_Bronze_save_modes_round_trip_without_changing_their_appended_bytes(ChapterMode mode, byte encoded)
     {
         using var stream = new MemoryStream();
@@ -27,7 +28,7 @@ public sealed class GameSaveModeTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(3)]
+    [InlineData(4)]
     [InlineData(255)]
     public void Bronze_and_unknown_mode_bytes_are_rejected_in_a_non_Bronze_record(byte encoded)
     {
@@ -68,11 +69,22 @@ public sealed class GameSaveModeTests
     }
 
     [Fact]
+    public void Discovery_mode_has_its_own_player_facing_label()
+    {
+        Assert.Equal("Discovery mode", GameSaveMode.ChapterLabel(ChapterMode.Discovery));
+        Assert.Equal("DISCOVERY MODE · INDUSTRIAL AGE", GameSaveMode.AgeLabel(ChapterMode.Discovery, "Industrial"));
+        Assert.Equal("Discovery mode · Year 8.", GameSaveMode.LoadDetail(ChapterMode.Discovery, 8));
+        Assert.Equal("Discovery mode · 25 simulated minutes.", GameSaveMode.ReplayDetail(ChapterMode.Discovery, "25 simulated minutes."));
+        Assert.Equal(ChapterMode.Discovery, GameSaveMode.Decode((byte)ChapterMode.Discovery));
+    }
+
+    [Fact]
     public void Rival_countdown_toast_visibility_follows_chapter_rules()
     {
         Assert.True(GameSaveMode.ShowsRivalCountdown(ChapterMode.Bronze));
         Assert.True(GameSaveMode.ShowsRivalCountdown(ChapterMode.Iron));
         Assert.False(GameSaveMode.ShowsRivalCountdown(ChapterMode.Fief));
+        Assert.False(GameSaveMode.ShowsRivalCountdown(ChapterMode.Discovery));
     }
 
     [Theory]

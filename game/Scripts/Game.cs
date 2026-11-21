@@ -146,6 +146,8 @@ public partial class Game : Node3D
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty, ReadChapter());
             if (_session.Mode == CivSim.Sim.Research.ChapterMode.Fief)
                 DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · FIEF PLAYTEST · UNPROMOTED");
+            else if (_session.Mode == CivSim.Sim.Research.ChapterMode.Discovery)
+                DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · DISCOVERY PLAYTEST");
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
@@ -335,11 +337,21 @@ public partial class Game : Node3D
     {
 #if DEBUG
         if (HasArgument("--fief-playtest")) return CivSim.Sim.Research.ChapterMode.Fief;
+        if (HasArgument("--discovery-playtest")) return CivSim.Sim.Research.ChapterMode.Discovery;
 #endif
         foreach (string arg in OS.GetCmdlineUserArgs())
             if (string.Equals(arg, "--chapter=bronze", StringComparison.OrdinalIgnoreCase))
                 return CivSim.Sim.Research.ChapterMode.Bronze;
         return CivSim.Sim.Research.ChapterMode.Iron;
+    }
+
+    private static bool IsDiscoveryPlaytestLaunch()
+    {
+#if DEBUG
+        return HasArgument("--discovery-playtest");
+#else
+        return false;
+#endif
     }
 
     private static bool IsFiefPlaytestLaunch()

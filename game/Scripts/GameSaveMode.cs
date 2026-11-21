@@ -6,6 +6,9 @@ namespace CivSim.Game;
 /// <summary>Mode byte shared by quick saves and the optional game replay footer.</summary>
 internal static class GameSaveMode
 {
+    /// <summary>The chapters that name themselves in labels and details (Bronze and Iron stay unlabelled).</summary>
+    private static bool Labelled(ChapterMode mode) => mode is ChapterMode.Fief or ChapterMode.Discovery;
+
     public static bool ShowsRivalCountdown(ChapterMode mode)
         => ChapterRules.For(mode).HasRivalCountdown;
 
@@ -15,26 +18,28 @@ internal static class GameSaveMode
             ChapterMode.Bronze => "Bronze mode",
             ChapterMode.Iron => "Iron mode",
             ChapterMode.Fief => "Fief mode",
+            ChapterMode.Discovery => "Discovery mode",
             _ => throw new InvalidDataException("Invalid saved chapter mode."),
         };
 
     public static string AgeLabel(ChapterMode mode, string ageName)
     {
         string age = ageName.ToUpperInvariant() + " AGE";
-        return mode == ChapterMode.Fief ? $"{ChapterLabel(mode).ToUpperInvariant()} · {age}" : age;
+        return Labelled(mode) ? $"{ChapterLabel(mode).ToUpperInvariant()} · {age}" : age;
     }
 
     public static string LoadDetail(ChapterMode mode, int year)
-        => mode == ChapterMode.Fief ? $"{ChapterLabel(mode)} · Year {year}." : $"Year {year}.";
+        => Labelled(mode) ? $"{ChapterLabel(mode)} · Year {year}." : $"Year {year}.";
 
     public static string ReplayDetail(ChapterMode mode, string duration)
-        => mode == ChapterMode.Fief ? $"{ChapterLabel(mode)} · {duration}" : duration;
+        => Labelled(mode) ? $"{ChapterLabel(mode)} · {duration}" : duration;
 
     public static byte Encode(ChapterMode mode)
         => mode switch
         {
             ChapterMode.Iron => (byte)ChapterMode.Iron,
             ChapterMode.Fief => (byte)ChapterMode.Fief,
+            ChapterMode.Discovery => (byte)ChapterMode.Discovery,
             _ => throw new InvalidDataException("Invalid saved chapter mode."),
         };
 
@@ -43,6 +48,7 @@ internal static class GameSaveMode
         {
             (byte)ChapterMode.Iron => ChapterMode.Iron,
             (byte)ChapterMode.Fief => ChapterMode.Fief,
+            (byte)ChapterMode.Discovery => ChapterMode.Discovery,
             _ => throw new InvalidDataException("Invalid saved chapter mode."),
         };
 

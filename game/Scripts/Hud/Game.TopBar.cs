@@ -289,7 +289,9 @@ public partial class Game
         UiSkin.SetViewerEra(era);
         UiKit.SetText(_ageLabel!, _session.Mode == ChapterMode.Fief
             ? "FIEF · DRAFT"
-            : UiText.AgeName(era).ToUpperInvariant() + " AGE");
+            : _session.Mode == ChapterMode.Discovery
+                ? "DISCOVERY · " + UiText.AgeName(era).ToUpperInvariant()
+                : UiText.AgeName(era).ToUpperInvariant() + " AGE");
         _ageLabel!.TooltipText = _session.Mode == ChapterMode.Fief
             ? $"Fief playtest · unpromoted draft values. Current era: {UiText.AgeName(era)}. This build is for testing game systems before WP-E5-11 acceptance."
             : UiText.AgeName(era);
