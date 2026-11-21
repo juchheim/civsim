@@ -30,6 +30,8 @@ internal static class DiscoveryMatchCommand
         ulong first = 20261019;
         int seeds = 1, minutes = 110;
         bool grantE5 = false, grantE6 = false;
+        int resumeAt = 0;
+        ChapterRules rules = ChapterRules.Discovery;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -40,23 +42,44 @@ internal static class DiscoveryMatchCommand
                 case "--minutes": minutes = int.Parse(args[++i]); break;
                 case "--grant-e5": grantE5 = true; break;
                 case "--grant-e6": grantE6 = true; break;
+                case "--mode": rules = args[++i] == "fief" ? ChapterRules.Fief : ChapterRules.Discovery; break;
+                case "--resume-at": resumeAt = int.Parse(args[++i]); break;
                 default: Console.Error.WriteLine($"Unknown option '{args[i]}'."); return 2;
             }
         }
         if (packPath is null) { Console.Error.WriteLine("discovery-match needs --pack FILE."); return 2; }
         ContentPack pack = ContentPack.Load(File.ReadAllBytes(packPath));
-        for (int n = 0; n < seeds; n++) Play(first + (ulong)n, pack, minutes, grantE5, grantE6);
+        for (int n = 0; n < seeds; n++) Play(first + (ulong)n, pack, minutes, grantE5, grantE6, resumeAt, rules);
         return 0;
     }
 
-    private static void Play(ulong seed, ContentPack pack, int minutes, bool grantE5, bool grantE6)
+    private static byte[] EconomyBytes(MatchModel m)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) m.Economy.WriteSnapshot(writer);
+        return stream.ToArray();
+    }
+
+    private static string Parts(MatchModel m)
+    {
+        var r = new StateHasher(); m.Research.Hash(ref r);
+        var p = new StateHasher(); m.Politics.Hash(ref p);
+        var a = new StateHasher(); m.Ai?.Hash(ref a);
+        return $"[economy {m.Economy.ComputeChecksum():x8} research {r.Finish():x8} politics {p.Finish():x8} ai {a.Finish():x8}]";
+    }
+
+    private static void Play(ulong seed, ContentPack pack, int minutes, bool grantE5, bool grantE6, int resumeAt, ChapterRules rules)
     {
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
         for (int c = 0; c < controls.Length; c++) controls[c] = CivControl.Ai(Difficulty.Warlord, Archetypes[c]);
-        MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: ChapterRules.Discovery);
+        MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
         match.Research.DiagnosticDraftProjectGrantsEnabled = grantE5 || grantE6;
         var runner = new SimRunner(match);
+        MatchModel? twin = null;
+        SimRunner? twinRunner = null;
+        long resumeTick = resumeAt * 600L;
+        bool diverged = false;
         ResearchSystem research = match.Research;
         int civs = Archetypes.Length;
         int key5 = research.Catalog.IndexOf("KEY-5"), key6 = research.Catalog.IndexOf("KEY-6"), key7 = research.Catalog.IndexOf("KEY-7");
@@ -75,7 +98,7 @@ internal static class DiscoveryMatchCommand
                     if (grantedE5[c] || !research.IsDone(c, key5)) continue;
                     grantedE5[c] = true;
                     foreach (ProjectDef p in research.Catalog.Projects)
-                        if (p.Era == 5) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
+                        if (p.Era == 5) { runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0)); twinRunner?.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0)); }
                 }
             if (grantE6)
                 for (int c = 0; c < civs; c++)
@@ -83,15 +106,51 @@ internal static class DiscoveryMatchCommand
                     if (grantedE6[c] || !research.IsDone(c, key6)) continue;
                     grantedE6[c] = true;
                     foreach (ProjectDef p in research.Catalog.Projects)
-                        if (p.Era == 6 && p.Index != key7) runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0));
+                        if (p.Era == 6 && p.Index != key7) { runner.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0)); twinRunner?.Submit(new Command(runner.Tick, (byte)c, CommandKind.CompleteProject, p.Index, 0, 0)); }
                 }
-            runner.Advance(150);
+            if (twinRunner is not null && !diverged)
+            {
+                for (int t = 0; t < 150 && !diverged; t++)
+                {
+                    runner.Advance(1); twinRunner.Advance(1);
+                    if (twin!.Economy.ComputeChecksum() != match.Economy.ComputeChecksum()) { diverged = true; Console.WriteLine($"  economy diverged at tick {runner.Tick} (season offset {t})");
+                        byte[] a = EconomyBytes(match), b = EconomyBytes(twin);
+                        int first = -1, count = 0;
+                        for (int k = 0; k < Math.Min(a.Length, b.Length); k++) if (a[k] != b[k]) { if (first < 0) first = k; count++; }
+                        Console.WriteLine($"  economy snapshot: {a.Length:N0} vs {b.Length:N0} bytes, first difference at byte {first:N0}, {count:N0} bytes differ");
+                        int clusters = 0, startAt = -1, last = -1;
+                        for (int k = 0; k <= Math.Min(a.Length, b.Length) && clusters < 14; k++)
+                        {
+                            bool d = k < Math.Min(a.Length, b.Length) && a[k] != b[k];
+                            if (d && startAt < 0) startAt = k;
+                            if (d) last = k;
+                            if (startAt >= 0 && (!d && k - last > 64)) { Console.WriteLine($"    diff run {startAt:N0}..{last:N0} (~{(startAt - 100) / 128004.0:F2} arrays in)"); clusters++; startAt = -1; }
+                        } }
+                }
+                if (!diverged) continue;
+            }
+            else { runner.Advance(150); twinRunner?.Advance(150); }
+            if (twin is not null && !diverged && twin.ComputeChecksum() != match.ComputeChecksum()) { diverged = true; Console.WriteLine($"  first divergence after tick {runner.Tick}: {Parts(match)} vs {Parts(twin)}"); }
+            if (resumeAt > 0 && twin is null && runner.Tick >= resumeTick)
+            {
+                // Resume check: snapshot the live match, restore it into a fresh model and run both on with the same commands.
+                using var stream = new MemoryStream();
+                using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) match.WriteSnapshot(writer);
+                long snapshotBytes = stream.Length;
+                stream.Position = 0;
+                twin = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
+                twin.Research.DiagnosticDraftProjectGrantsEnabled = grantE5 || grantE6;
+                using (var reader = new BinaryReader(stream)) twin.ReadSnapshot(reader);
+                twinRunner = new SimRunner(twin, startTick: runner.Tick);
+                Console.WriteLine($"  resume: snapshot at tick {runner.Tick} ({snapshotBytes:N0} bytes), checksums {match.ComputeChecksum():x16} vs {twin.ComputeChecksum():x16}");
+            }
             int season = checked((int)(runner.Tick / 150L));
             for (int c = 0; c < civs; c++)
                 for (int k = 0; k < 3; k++)
                     if (seasonOf[c, k] < 0 && keys[k] >= 0 && research.IsDone(c, keys[k])) seasonOf[c, k] = season;
             end = match.EndOfMatch();
         }
+        if (twin is not null) Console.WriteLine($"  resume check: {(twin.ComputeChecksum() == match.ComputeChecksum() ? "IDENTICAL" : "DIVERGED")} at tick {runner.Tick}: {match.ComputeChecksum():x16} vs {twin.ComputeChecksum():x16}");
         Console.WriteLine($"seed={seed} ticks={runner.Tick} over={end.IsOver(runner.Tick)} reason={end.Reason} winner={end.Civ} final={match.ComputeChecksum():x16}");
         for (int c = 0; c < civs; c++)
             Console.WriteLine($"  civ{c} {Archetypes[c]}: KEY-5 s{seasonOf[c, 0]} KEY-6 s{seasonOf[c, 1]} KEY-7 s{seasonOf[c, 2]} projects={research.Catalog.Projects.Count(p => research.IsDone(c, p.Index))} era={research.Era(c)} insight/yr={research.InsightPerYear(c)} KEY-6 progress={research.Progress(c, key6)} of {research.EffectiveCost(c, key6)}");
