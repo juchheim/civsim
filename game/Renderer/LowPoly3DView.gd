@@ -7,6 +7,7 @@ const M7MeshKit = preload("res://Renderer/LowPoly3D/Scripts/mesh_kit.gd")
 const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.gd")
 const M7ZigguratRig = preload("res://Renderer/LowPoly3D/Scripts/zig_rig.gd")
 const M7WarRig = preload("res://Renderer/LowPoly3D/Scripts/war_rig.gd")
+const M7DiscoveryRig = preload("res://Renderer/LowPoly3D/Scripts/discovery_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 const M7FiefOverlay = preload("res://Renderer/LowPoly3D/Scripts/fief_overlay.gd")
 
@@ -43,6 +44,7 @@ var fief_overlay: M7FiefOverlay        # Faith & Fief pilgrim routes, quarantine
 var skirmish_rig: M7SkirmishRig
 var zig_rig: M7ZigguratRig
 var war_rig: M7WarRig
+var discovery_rig: M7DiscoveryRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -87,6 +89,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 	zig_rig.sync()
 	war_rig = M7WarRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	war_rig.sync()
+	discovery_rig = M7DiscoveryRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -168,6 +171,8 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 		zig_rig.update(tick)
 	if war_rig != null:
 		war_rig.update(tick)
+	if discovery_rig != null and not discovery_rig.demo:
+		discovery_rig.update(tick * 0.1)
 	if profile:
 		var total_usec := Time.get_ticks_usec() - profile_started
 		if total_usec > _render_tick_profile_max_usec:
@@ -663,6 +668,7 @@ func show_discovery_gallery() -> Vector3:
 		[["person_soldier", 0.3, 2.4], ["person_engineer", 0.3, 2.4], ["person_miner", 0.3, 2.4], ["person_navigator", 0.4, 2.4], ["person_botanist", 0.35, 2.4], ["person_operative", 0.3, 2.4],
 			["person_bargeman", 0.4, 2.4], ["person_coachman", 0.4, 2.4], ["coach", 0.6, 2.0]],
 	]
+	var rig_works := []
 	for r in rows.size():
 		var row: Array = rows[r]
 		var total := 0.0
@@ -682,6 +688,16 @@ func show_discovery_gallery() -> Vector3:
 				y = 0.2
 			if name.begins_with("person"):
 				custom = Color(float(i % 4) + 0.5 * 0.98, 0.0, 0.0, 0.0)
+			# works that move are drawn from their body meshes and handed to the Discovery rig (the wheel and the beam turn; the chimneys smoke)
+			var rig_kind := ""
+			var rig_state := ""
+			match name:
+				"coal_mine": rig_kind = "coal_mine"; rig_state = "work"; name = "coal_mine_body"
+				"atmospheric_engine": rig_kind = "atmospheric_engine"; rig_state = "work"; name = "atmospheric_engine_body"
+				"factory": rig_kind = "factory"; rig_state = "work"
+				"coke_oven": rig_kind = "coke_oven"; rig_state = "work"
+			if rig_kind != "":
+				rig_works.append({"kind": rig_kind, "pos": centre + Vector3(x, y, z), "yaw": 0.0, "scale": s, "state": rig_state, "seed": "%s%d" % [rig_kind, i]})
 			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
 			if name == "canal_nav_lock":
 				# a coal barge in the lock chamber, lying along the canal (the barge's bow is +Z, the canal runs along X)
@@ -690,6 +706,9 @@ func show_discovery_gallery() -> Vector3:
 				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x + 0.05, 0.0, z)), custom, false)
 			x += float(item[1]) * 0.5
 	batch.build(stage, kit, Callable(builder, "_material_for"))
+	if discovery_rig != null:
+		discovery_rig.demo = true
+		discovery_rig.sync(rig_works)
 	return centre
 
 ## Dev aid for scenarios (fief-overlays, docs/MVP/32): fills the Faith & Fief overlay tables from the live map round the human capital (pilgrimage routes,
@@ -733,6 +752,8 @@ func _process(_delta: float) -> void:
 		skirmish_rig.update(_delta, clampf(1.25 + (camera_distance - 8.0) / 24.0, 1.25, 2.6), clampf(camera_distance / 12.0, 1.0, 6.0), camera.global_position if camera != null else Vector3.ZERO)
 	if signal_rig != null:
 		signal_rig.update(Time.get_ticks_msec() / 1000.0)
+	if discovery_rig != null and discovery_rig.demo:
+		discovery_rig.update(Time.get_ticks_msec() / 1000.0)
 
 func set_season(season: int) -> void:
 	_apply_season(season)
