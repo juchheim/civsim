@@ -49,6 +49,8 @@ const COAL_DARK := Color("#17171a")
 const PLAIN := M7MeshBuilder.TAG_PLAIN
 const CIV := M7MeshBuilder.TAG_CIV
 
+const Power := preload("res://Renderer/LowPoly3D/Scripts/art_disc_power.gd")   # the shared gable-roof helper
+
 const POINTS := 5
 const RN := 0.225     # the notch radius (the re-entrant angle between two bastions)
 const RS := 0.31      # the shoulder radius
@@ -247,7 +249,7 @@ static func _stage4(b: M7MeshBuilder, h: float, garrisoned: bool, dmg: int = 0) 
 			var a := TAU * k / 4.0 + PI * 0.25
 			b.box(Vector3(cos(a) * 0.0455, 0.092, sin(a) * 0.0455), Vector3(0.006, 0.014, 0.006), COAL_DARK)
 		b.box(Vector3(-0.02, 0.0475, -0.075), Vector3(0.2, 0.07, 0.07), BRICK, BRICK_LIGHT)
-		_gable_x(b, Vector3(-0.02, 0.0825, -0.075), 0.2, 0.07, 0.04, TILE, TILE_DARK, BRICK_DARK)
+		Power._gable(b, Vector3(-0.02, 0.0825, -0.075), 0.2, 0.07, 0.04, TILE, TILE_DARK, BRICK_DARK)
 		for k in 5:
 			b.box(Vector3(-0.1 + 0.04 * k, 0.05, -0.0395), Vector3(0.012, 0.02, 0.003), COAL_DARK)
 		# the banner on the keep: raised when garrisoned, lowered to half the pole when not
@@ -298,18 +300,6 @@ static func _stage4(b: M7MeshBuilder, h: float, garrisoned: bool, dmg: int = 0) 
 		b.box(gp + Vector3(-0.012 + 0.0048 * k, 0.003, 0.07), Vector3(0.0042, 0.004, 0.11), TIMBER_LIGHT if k % 2 == 0 else TIMBER)
 	b.pole(gp + Vector3(-0.016, 0.07, 0.02), gp + Vector3(-0.016, 0.01, 0.12), 0.0014, ROPE, 3)
 	b.pole(gp + Vector3(0.016, 0.07, 0.02), gp + Vector3(0.016, 0.01, 0.12), 0.0014, ROPE, 3)
-
-## A gable roof with the ridge along X (as art_disc_power's, kept local so each family file stands alone).
-static func _gable_x(b: M7MeshBuilder, c: Vector3, w: float, d: float, h: float, col: Color, col_back: Color, col_end: Color) -> void:
-	var x0 := c.x - w * 0.5 - 0.005
-	var x1 := c.x + w * 0.5 + 0.005
-	var zf := c.z + d * 0.5 + 0.006
-	var zb := c.z - d * 0.5 - 0.006
-	var below := Vector3(c.x, c.y - 0.5, c.z)
-	b.quad(Vector3(x0, c.y, zf), Vector3(x1, c.y, zf), Vector3(x1, c.y + h, c.z), Vector3(x0, c.y + h, c.z), col, below)
-	b.quad(Vector3(x0, c.y, zb), Vector3(x1, c.y, zb), Vector3(x1, c.y + h, c.z), Vector3(x0, c.y + h, c.z), col_back, below)
-	b.tri(Vector3(x0 + 0.005, c.y, zf - 0.006), Vector3(x0 + 0.005, c.y, zb + 0.006), Vector3(x0 + 0.005, c.y + h, c.z), col_end, Vector3(c.x, c.y + h * 0.4, c.z))
-	b.tri(Vector3(x1 - 0.005, c.y, zf - 0.006), Vector3(x1 - 0.005, c.y, zb + 0.006), Vector3(x1 - 0.005, c.y + h, c.z), col_end, Vector3(c.x, c.y + h * 0.4, c.z))
 
 ## The damage itself, on top of the slumped rampart: cracks and fallen bricks for a cracked fort; a ramp of rubble running down into the ditch and a gun thrown
 ## down for a breach; rubble across the ditch at every broken bastion for a ruin. The back bastion (angle 270 degrees) is the one the besieger hits first.

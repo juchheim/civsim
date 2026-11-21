@@ -102,9 +102,6 @@ static func _column(b: M7MeshBuilder, p: Vector3, h: float, r: float, col: Color
 	b.prism(p + Vector3(0, 0.006, 0), r, r * 0.88, h - 0.012, 8, col, col.lightened(0.1))
 	b.box(p + Vector3(0, h - 0.003, 0), Vector3(r * 2.8, 0.006, r * 2.8), col.lightened(0.06))
 
-static func _gable_x(b: M7MeshBuilder, c: Vector3, w: float, d: float, h: float, col: Color, col_back: Color, col_end: Color) -> void:
-	Power._gable(b, c, w, d, h, col, col_back, col_end)
-
 static func _hip(b: M7MeshBuilder, c: Vector3, w: float, d: float, h: float, col: Color, col_dark: Color) -> void:
 	# a four-sided hipped roof: a frustum to a short ridge along X
 	var x := w * 0.5 + 0.006
@@ -189,7 +186,7 @@ static func _garden(kit, staffed: bool) -> ArrayMesh:
 			b.blob(gh + Vector3(-0.07 + 0.035 * k, 0.018, 0.0), Vector3(0.011, 0.014, 0.011), 4, 2, HEDGE_LIGHT, 0.1)
 	# the potting shed in the right corner
 	b.box(Vector3(0.135, 0.02, -0.075), Vector3(0.05, 0.04, 0.04), WOOD, WOOD_LIGHT)
-	_gable_x(b, Vector3(0.135, 0.04, -0.075), 0.05, 0.04, 0.02, TILE, TILE_DARK, WOOD_DARK)
+	Power._gable(b, Vector3(0.135, 0.04, -0.075), 0.05, 0.04, 0.02, TILE, TILE_DARK, WOOD_DARK)
 	b.box(Vector3(0.135, 0.016, -0.0545), Vector3(0.014, 0.028, 0.003), DOOR)
 	# the fountain in the middle of the cross: a stone basin, a column and a jet (dry when unstaffed)
 	b.prism(Vector3(0, 0.004, 0.0), 0.034, 0.03, 0.014, 10, STONE_LIGHT, STONE)

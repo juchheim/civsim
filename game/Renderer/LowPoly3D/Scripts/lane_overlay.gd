@@ -113,13 +113,7 @@ func _multimesh(mesh_name: String, count: int) -> MultiMeshInstance3D:
 ## Rebuilds the overlay for the given lists. `lane_list` entries: {from: Vector2, to: Vector2, civ: int, volume: 0..1, age: 0..2, bulge: float}; `token_list`:
 ## {lane: int, phase: 0..1, dir: 1 or -1, kind: "caravel" or "galleon"}; `wreck_list`: {pos: Vector2, seed: int}. `water_y` is the sea's surface (0 on the real map).
 func sync(lane_list: Array, token_list: Array, wreck_list: Array, water_y: float = 0.0) -> void:
-	var sig := 23 + int(water_y * 1000.0)
-	for l in lane_list:
-		sig = sig * 31 + int(float((l.from as Vector2).x) * 100.0) + int(float((l.to as Vector2).y) * 77.0) + int(l.age) * 5 + int(float(l.volume) * 10.0)
-	for t in token_list:
-		sig = sig * 31 + int(t.lane) * 7 + String(t.kind).hash()
-	for wr in wreck_list:
-		sig = sig * 31 + int(float((wr.pos as Vector2).x) * 100.0)
+	var sig := hash([lane_list, token_list, wreck_list, water_y])   # every field of every entry, so any change rebuilds
 	if sig == signature:
 		return
 	signature = sig

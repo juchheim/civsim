@@ -153,12 +153,8 @@ static func _circle(c: Vector2, r: float) -> PackedVector2Array:
 ## Rebuilds the overlay. `colonies` entries: {pos: Vector2, capital: Vector2 (or the same as pos for none), civ: int, state: 1..4, ship: Vector2 (optional, a galleon on station)};
 ## `foundings`: {pos: Vector2, yaw: float, civ: int} (the frame lists the ones still young). `ground_y` is a fixed height for the demo stage (NAN on the real map).
 func sync(colonies: Array, foundings: Array, ground_y: float = NAN) -> void:
-	var sig := 29
-	for c in colonies:
-		sig = sig * 31 + int(float((c.pos as Vector2).x) * 100.0) + int(float((c.pos as Vector2).y) * 77.0) + int(c.state) * 11
-	for f in foundings:
-		sig = sig * 31 + int(float((f.pos as Vector2).x) * 100.0) + 3
-	if sig == signature and (is_nan(ground_y) == is_nan(flat_y)):
+	var sig := hash([colonies, foundings, ground_y])   # every field of every entry, so any change rebuilds
+	if sig == signature:
 		return
 	signature = sig
 	flat_y = ground_y

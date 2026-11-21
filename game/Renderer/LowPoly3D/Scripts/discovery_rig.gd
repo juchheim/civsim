@@ -18,14 +18,7 @@ const MAX_COLUMNS := 24
 const WHEEL_SPEED := 1.4           # radians per second of the winding wheel
 const BEAM_PERIOD := 4.0           # seconds per rock of the engine's beam
 const BEAM_SWING := 0.15           # radians either side of level
-# where each thing sits in its mesh's own frame (art_disc_power.gd), before the site's scale and yaw
-const WHEEL_HUB := Vector3(-0.03, 0.335, 0.0)
-const BEAM_PIVOT := Vector3(0.062, 0.215, 0.0)
-const MINE_CHIMNEY := Vector3(-0.25, 0.115, -0.04)
-const ENGINE_CHIMNEY := Vector3(-0.115, 0.31, 0.04)
-const ENGINE_VALVE := Vector3(-0.01, 0.09, 0.09)
-const FACTORY_CHIMNEY := Vector3(0.15, 0.335, -0.1)
-const COKE_CHIMNEY := Vector3(0.0, 0.195, -0.085)
+const Power := preload("res://Renderer/LowPoly3D/Scripts/art_disc_power.gd")   # where each thing sits in its mesh's own frame is defined there, once
 
 var b                              # the M7WorldBuilder
 var parent: Node3D
@@ -97,9 +90,7 @@ func _clear() -> void:
 
 ## Rebuilds the moving parts for a list of works. `works` entries: {kind, pos: Vector3, yaw: float, scale: float, state: String}.
 func sync(works: Array) -> void:
-	var sig := 19
-	for w in works:
-		sig = sig * 31 + int(float((w.pos as Vector3).x) * 1000.0) + int(float((w.pos as Vector3).z) * 777.0) + String(w.kind).hash() + String(w.state).hash()
+	var sig := hash(works)             # every field of every work, so any change rebuilds
 	if sig == signature:
 		return
 	signature = sig
@@ -119,8 +110,8 @@ func sync(works: Array) -> void:
 					wheel.material_override = b.mats.prop
 					wheel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 					holder.add_child(wheel)
-					wheels.append({"node": wheel, "pos": pos, "rot": rot, "scale": scale, "hub": WHEEL_HUB, "spin": 1.0})
-					_column(pos + rot * (MINE_CHIMNEY * scale), 0.05, 6, 4.0, false, scale, false)
+					wheels.append({"node": wheel, "pos": pos, "rot": rot, "scale": scale, "hub": Power.WHEEL_HUB, "spin": 1.0})
+					_column(pos + rot * (Power.MINE_SMOKE * scale), 0.05, 6, 4.0, false, scale, false)
 			"atmospheric_engine":
 				if working:
 					var beam := MeshInstance3D.new()
@@ -128,19 +119,19 @@ func sync(works: Array) -> void:
 					beam.material_override = b.mats.prop
 					beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 					holder.add_child(beam)
-					beams.append({"node": beam, "pos": pos, "rot": rot, "scale": scale, "pivot": BEAM_PIVOT, "phase": float(absi(String(w.get("seed", 0)).hash()) % 100) / 100.0})
-					_column(pos + rot * (ENGINE_CHIMNEY * scale), 0.07, 14, 5.0, false, scale)
-					_column(pos + rot * (ENGINE_VALVE * scale), 0.05, 8, 3.0, true, scale)
+					beams.append({"node": beam, "pos": pos, "rot": rot, "scale": scale, "pivot": Power.BEAM_PIVOT, "phase": float(absi(String(w.get("seed", 0)).hash()) % 100) / 100.0})
+					_column(pos + rot * (Power.ENGINE_SMOKE * scale), 0.07, 14, 5.0, false, scale)
+					_column(pos + rot * (Power.ENGINE_VALVE * scale), 0.05, 8, 3.0, true, scale)
 			"factory":
 				if working:
-					_column(pos + rot * (FACTORY_CHIMNEY * scale), 0.09, 24, 6.5, false, scale)
+					_column(pos + rot * (Power.FACTORY_SMOKE * scale), 0.09, 24, 6.5, false, scale)
 			"bastion_fort":
 				# a fort under fire: the dust of fresh hits over the back bastion while it is cracked or breached (a ruin has stopped being fired at)
 				if String(w.state) == "cracked" or String(w.state) == "breach":
 					_column(pos + rot * (Vector3(0.0, 0.05, -0.33) * scale), 0.03, 7, 2.4, false, scale, true, dust_material)
 			"coke_oven":
 				if working:
-					_column(pos + rot * (COKE_CHIMNEY * scale), 0.08, 18, 6.0, false, scale)
+					_column(pos + rot * (Power.COKE_SMOKE * scale), 0.08, 18, 6.0, false, scale)
 
 func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: bool, scale: float, dark: bool = true, material: ShaderMaterial = null) -> void:
 	if columns.size() >= MAX_COLUMNS:

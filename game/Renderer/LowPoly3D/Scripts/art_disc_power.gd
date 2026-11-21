@@ -62,6 +62,12 @@ const SHAFT := Vector3(-0.03, 0.0, -0.02)
 const WHEEL_HUB := Vector3(-0.03, 0.335, 0.0)
 const WHEEL_R := 0.034
 const BEAM_PIVOT := Vector3(0.062, 0.215, 0.0)
+# where each works' smoke leaves it, in the mesh's own frame: the single source the Discovery rig (discovery_rig.gd) reads, and the mesh code below builds its chimneys from
+const MINE_SMOKE := Vector3(-0.25, 0.115, -0.04)       # the winding house's stovepipe top
+const ENGINE_SMOKE := Vector3(-0.115, 0.31, 0.04)      # the engine's chimney top
+const ENGINE_VALVE := Vector3(-0.01, 0.088, 0.09)      # the boiler's safety valve (steam)
+const FACTORY_SMOKE := Vector3(0.15, 0.335, -0.1)      # the factory's chimney top
+const COKE_SMOKE := Vector3(0.0, 0.195, -0.085)        # the coke ovens' stack top
 
 static func build(kit) -> void:
 	kit.meshes["coal_mine_body"] = _mine(kit, "work", false)
@@ -201,7 +207,7 @@ static func _mine(kit, state: String, wheel: bool) -> ArrayMesh:
 	_gable(b, wh + Vector3(0, 0.06, 0), 0.1, 0.08, 0.034, SLATE, SLATE_LIGHT, BRICK_DARK)
 	b.box(wh + Vector3(0, 0.026, 0.0415), Vector3(0.026, 0.044, 0.004), COAL_DARK)
 	_cyl(b, wh + Vector3(0.05, 0.046, -0.026), wh + Vector3(0.05, 0.046, 0.026), 0.012, 8, TIMBER_LIGHT, TIMBER_DARK)
-	b.prism(wh + Vector3(-0.03, 0.06, -0.02), 0.01, 0.008, 0.05, 4, BRICK_DARK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(MINE_SMOKE.x, 0.06, MINE_SMOKE.z), 0.01, 0.008, MINE_SMOKE.y - 0.06, 4, BRICK_DARK, BRICK_DARK, PI / 4.0)
 	# the rail from the shaft to the spoil heap, with a tub on it
 	b.pole(c + Vector3(-0.01, 0.002, 0.06), c + Vector3(0.14, 0.002, 0.12), 0.0022, CAST)
 	b.pole(c + Vector3(0.018, 0.002, 0.052), c + Vector3(0.17, 0.002, 0.112), 0.0022, CAST)
@@ -259,34 +265,7 @@ static func _mine_site(kit) -> ArrayMesh:
 static func _beam(kit) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(1711)
 	b.tag = PLAIN
-	# the beam: a deep, slightly arched timber-and-iron girder along X, its inner end (-X) inside the house and its outer end (+X) over the pump
-	var inner := -0.07
-	var outer := 0.16
-	for i in 8:
-		var u0 := float(i) / 8.0
-		var u1 := float(i + 1) / 8.0
-		var x0 := lerpf(inner, outer, u0)
-		var x1 := lerpf(inner, outer, u1)
-		var h0 := 0.0065 + 0.0075 * sin(PI * u0)
-		var h1 := 0.0065 + 0.0075 * sin(PI * u1)
-		for sz in [-0.011, 0.011]:
-			var z: float = sz
-			b.quad(Vector3(x0, -h0, z), Vector3(x1, -h1, z), Vector3(x1, h1, z), Vector3(x0, h0, z), TIMBER if i % 2 == 0 else TIMBER_DARK, Vector3(x0, 0, z * 5.0))
-		b.quad(Vector3(x0, h0, -0.011), Vector3(x1, h1, -0.011), Vector3(x1, h1, 0.011), Vector3(x0, h0, 0.011), TIMBER_LIGHT, Vector3(x0, 1.0, 0.0))
-		b.quad(Vector3(x0, -h0, -0.011), Vector3(x1, -h1, -0.011), Vector3(x1, -h1, 0.011), Vector3(x0, -h0, 0.011), TIMBER_DARK, Vector3(x0, -1.0, 0.0))
-	# iron straps and the gudgeon at the pivot
-	for u in [0.18, 0.5, 0.8]:
-		var x: float = lerpf(inner, outer, u)
-		b.box(Vector3(x, 0.0, 0.0), Vector3(0.004, 0.044, 0.026), CAST)
-	b.pole(Vector3(0.0, 0.0, -0.022), Vector3(0.0, 0.0, 0.022), 0.0042, CAST, 6)
-	# the arch head at each end: an iron block the chain runs over
-	for end in [inner, outer]:
-		var ex: float = end
-		var sgn := 1.0 if ex > 0.0 else -1.0
-		b.box(Vector3(ex - sgn * 0.002, -0.026, 0.0), Vector3(0.028, 0.02, 0.02), CAST_LIGHT, CAST)
-	# the pump rod hung from the outer end by its chain, down to the pump head
-	b.pole(Vector3(outer, -0.03, 0.0), Vector3(outer, -0.13, 0.0), 0.0035, CAST_LIGHT, 4)
-	b.pole(Vector3(outer, -0.03, 0.0), Vector3(outer, -0.045, 0.0), 0.0016, ROPE, 3)
+	_beam_into(b, Vector3.ZERO)
 	return b.commit()
 
 static func _engine(kit, hot: bool, beam: bool) -> ArrayMesh:
@@ -325,11 +304,11 @@ static func _engine(kit, hot: bool, beam: bool) -> ArrayMesh:
 	else:
 		b.box(bo + Vector3(0.0, -0.014, 0.0585), Vector3(0.022, 0.016, 0.002), COAL_DARK)
 	b.pole(bo + Vector3(0.03, 0.03, -0.01), bo + Vector3(0.03, 0.05, -0.01), 0.004, CAST, 4)
-	b.blob(bo + Vector3(0.03, 0.054, -0.01), Vector3(0.008, 0.006, 0.008), 4, 2, BRASS, 0.0)
+	b.blob(ENGINE_VALVE, Vector3(0.008, 0.006, 0.008), 4, 2, BRASS, 0.0)
 	# the chimney: a tall square brick stack with a lighter band and a capped top, behind the boiler's left end
-	b.prism(Vector3(-0.115, 0.01, 0.04), 0.03, 0.024, 0.085, 4, BRICK, BRICK_DARK, PI / 4.0)
-	b.prism(Vector3(-0.115, 0.095, 0.04), 0.024, 0.016, 0.2, 4, BRICK, BRICK_DARK, PI / 4.0)
-	b.prism(Vector3(-0.115, 0.295, 0.04), 0.021, 0.018, 0.008, 4, STONE_LIGHT, STONE, PI / 4.0)
+	b.prism(Vector3(ENGINE_SMOKE.x, 0.01, ENGINE_SMOKE.z), 0.03, 0.024, 0.085, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(ENGINE_SMOKE.x, 0.095, ENGINE_SMOKE.z), 0.024, 0.016, 0.2, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(ENGINE_SMOKE.x, 0.295, ENGINE_SMOKE.z), 0.021, 0.018, 0.008, 4, STONE_LIGHT, STONE, PI / 4.0)
 	# the water tank on four posts, round the back right, and a pipe from it
 	for sx in [-1.0, 1.0]:
 		var tx: float = sx
@@ -352,6 +331,7 @@ static func _engine(kit, hot: bool, beam: bool) -> ArrayMesh:
 	return b.commit()
 
 ## The beam fixed level, drawn straight into the body's builder (the same parts as the separate beam mesh).
+## The great beam (the one definition: the separate rocking mesh and the beam fixed level on the engine both come from here), about its pivot at `at`.
 static func _beam_into(b: M7MeshBuilder, at: Vector3) -> void:
 	var inner := -0.07
 	var outer := 0.16
@@ -373,7 +353,9 @@ static func _beam_into(b: M7MeshBuilder, at: Vector3) -> void:
 	b.pole(at + Vector3(0.0, 0.0, -0.022), at + Vector3(0.0, 0.0, 0.022), 0.0042, CAST, 6)
 	b.box(at + Vector3(outer - 0.002, -0.026, 0.0), Vector3(0.028, 0.02, 0.02), CAST_LIGHT, CAST)
 	b.box(at + Vector3(inner + 0.002, -0.026, 0.0), Vector3(0.028, 0.02, 0.02), CAST_LIGHT, CAST)
+	# the pump rod hung from the outer end by its chain, down to the pump head
 	b.pole(at + Vector3(outer, -0.03, 0.0), at + Vector3(outer, -0.13, 0.0), 0.0035, CAST_LIGHT, 4)
+	b.pole(at + Vector3(outer, -0.03, 0.0), at + Vector3(outer, -0.045, 0.0), 0.0016, ROPE, 3)
 
 # ------------------------------------------------------------------ factory
 
@@ -436,8 +418,8 @@ static func _factory(kit, lit: bool) -> ArrayMesh:
 			b.box(Vector3(ex * (FL * 0.5 + 0.002), 0.01 + FW * 0.55, z), Vector3(0.003, 0.044, 0.034), gl)
 			b.tag = PLAIN
 	# the tall square chimney at the back right: a stone foot, then a tapering shaft in bands, a corbelled cap
-	var cx := 0.15
-	var cz := -0.1
+	var cx := FACTORY_SMOKE.x
+	var cz := FACTORY_SMOKE.z
 	b.prism(Vector3(cx, 0.0125 + FW, cz), 0.04, 0.034, 0.03, 4, BRICK_DARK, BRICK_DARK, PI / 4.0)
 	b.prism(Vector3(cx, 0.0425 + FW, cz), 0.034, 0.025, 0.2, 4, BRICK, BRICK_DARK, PI / 4.0)
 	for k in 3:
@@ -539,9 +521,9 @@ static func _coke_oven(kit, hot: bool) -> ArrayMesh:
 		else:
 			b.box(Vector3(cx, 0.027, 0.0402), Vector3(0.014, 0.014, 0.002), COAL_DARK)
 	# the chimney stack behind: a tall square shaft with a stone cap
-	b.prism(Vector3(0.0, 0.01, -0.085), 0.026, 0.02, 0.1, 4, BRICK, BRICK_DARK, PI / 4.0)
-	b.prism(Vector3(0.0, 0.11, -0.085), 0.02, 0.017, 0.07, 4, BRICK, BRICK_DARK, PI / 4.0)
-	b.prism(Vector3(0.0, 0.18, -0.085), 0.019, 0.021, 0.008, 4, STONE_LIGHT, STONE, PI / 4.0)
+	b.prism(Vector3(COKE_SMOKE.x, 0.01, COKE_SMOKE.z), 0.026, 0.02, 0.1, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(COKE_SMOKE.x, 0.11, COKE_SMOKE.z), 0.02, 0.017, 0.07, 4, BRICK, BRICK_DARK, PI / 4.0)
+	b.prism(Vector3(COKE_SMOKE.x, 0.18, COKE_SMOKE.z), 0.019, 0.021, 0.008, 4, STONE_LIGHT, STONE, PI / 4.0)
 	# the heaps either side: raw coal left, finished coke right; and a plank apron in front
 	b.box(Vector3(0, 0.012, 0.075), Vector3(0.26, 0.004, 0.05), TIMBER_LIGHT, TIMBER_LIGHT.lightened(0.05))
 	_coal_heap(b, Vector3(-0.18, 0.006, 0.05), Vector3(0.045, 0.035 if hot else 0.018, 0.035), 4)
