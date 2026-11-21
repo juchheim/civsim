@@ -432,7 +432,7 @@ public sealed partial class ResearchSystem : IResearchView
                 // same command from its caller, so it is not forwarded again.
                 if ((uint)command.A < (uint)_catalog.Count && !civ.Done[command.A] &&
                     (_catalog.Projects[command.A].Numeric || DiagnosticDraftProjectGrantsEnabled && Rules.IsFief &&
-                        _catalog.Projects[command.A].Era == Rules.LastResearchEra))
+                        (_catalog.Projects[command.A].Era == Rules.LastResearchEra || Rules.IsDiscovery && _catalog.Projects[command.A].Era == 5)))
                 {
                     ProjectDef project = _catalog.Projects[command.A];
                     bool beforeOwnKey5 = Rules.IsFief && project.Era == Rules.LastResearchEra &&

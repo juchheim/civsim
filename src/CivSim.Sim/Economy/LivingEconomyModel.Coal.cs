@@ -35,6 +35,9 @@ public sealed partial class LivingEconomyModel
     internal Fix64 CoalStock(int settlementIndex)
         => DiscoveryChain && (uint)settlementIndex < (uint)_settlements.Count ? DiscoveryStock(_settlements[settlementIndex], DiscoveryGood.Coal) : Fix64.Zero;
 
+    /// <summary>Litres of coal held by a settlement, for diagnostics outside the simulation assembly (zero outside Discovery).</summary>
+    public Fix64 CoalLitres(int settlementIndex) => CoalStock(settlementIndex);
+
     /// <summary>Litres of coke held by a settlement (zero outside a Discovery match).</summary>
     internal Fix64 CokeStock(int settlementIndex)
         => DiscoveryChain && (uint)settlementIndex < (uint)_settlements.Count ? DiscoveryStock(_settlements[settlementIndex], DiscoveryGood.Coke) : Fix64.Zero;

@@ -57,6 +57,7 @@ public static class Program
                 "e6-audit" => E6GeographyAudit.Run(args[1..]),
                 "iron-match" => IronMatchCommand.Run(args[1..]),
                 "fief-match" => IronMatchCommand.RunFief(args[1..]),
+                "discovery-match" => DiscoveryMatchCommand.Run(args[1..]),
                 "fief-perf" => FiefPerformanceCommand.Run(args[1..]),
                 "build-census" => BuildCensusCommand.Run(args[1..]),
                 "iron-fuel" => IronFuelCheck.Run(args[1..]),
@@ -84,6 +85,7 @@ public static class Program
         Console.Error.WriteLine("       civsim-harness iron-live --pack FILE [--seed N] [--seeds N] [--minutes N]");
         Console.Error.WriteLine("       civsim-harness iron-match --pack FILE [--seed N] [--seeds N] [--minutes N]");
         Console.Error.WriteLine("       civsim-harness fief-match --pack FILE [--seed N | --seeds N | --seeds-file FILE] [--minutes N] [--grant-e5] [--record-dir NEW_DIR] [--checkpoint-continuation NEW_DIR]");
+        Console.Error.WriteLine("       civsim-harness discovery-match --pack FILE [--seed N | --seeds N] [--minutes N] [--grant-e5] [--grant-e6]");
         Console.Error.WriteLine("       civsim-harness fief-perf --pack FILE --seeds-file FILE --output-prefix PATH [--minutes N] [--warmup-minutes N] [--grant-e5]");
         Console.Error.WriteLine("       civsim-harness build-census --pack FILE [--seed N] [--seeds N] [--minutes N] [--mode iron|bronze]");
         Console.Error.WriteLine("       civsim-harness core-audit --pack FILE [--seeds N] [--first-seed N] [--minutes a,b,c] [--pack-seeds N] [--static-only | --live-only] [--outer]");
