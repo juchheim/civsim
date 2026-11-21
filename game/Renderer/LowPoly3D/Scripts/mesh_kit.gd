@@ -88,6 +88,7 @@ const ART_PASSES := [
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_land.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_civic.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_people.gd"),
+	preload("res://Renderer/LowPoly3D/Scripts/art_disc_p2.gd"),
 	preload("res://Renderer/LowPoly3D/Scripts/art_disc_marks.gd"),
 ]
 

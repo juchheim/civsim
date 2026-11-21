@@ -906,6 +906,11 @@ public partial class Game
                     ("colony", 0.0f, -42.4f, 4.4f, 46.0f, 0.0f), ("colony-content", -3.8f, -42.0f, 1.9f, 34.0f, 0.0f), ("colony-strained", -1.3f, -42.6f, 1.9f, 34.0f, 0.0f),
                     ("colony-blockaded", 1.6f, -41.8f, 2.2f, 34.0f, 0.0f), ("colony-free", 3.8f, -42.6f, 1.9f, 34.0f, 0.0f), ("colony-founding", -0.4f, -45.0f, 1.6f, 28.0f, 30.0f),
                     ("colony-region", 0.0f, -43.0f, 9.0f, 52.0f, 0.0f),
+                    // P2 row z 5.4 (nearer the stage's warm middle: a prop far from the map's middle latitude gets snow): embassy flag (-2.05), observatory (-1.6), greenhouse (-1.0),
+                    // news board (-0.4), harbor (0.3) and galleon (1.2), crops (1.75 .. 2.15); row z 8.2: a soldier (-1.05), merchant (-0.75), master mason (-0.45), then the extra cargo (-0.2 .. 0.8)
+                    ("p2", 0.0f, 5.4f, 3.6f, 38.0f, 0.0f), ("p2-embassy", -2.05f, 5.4f, 1.5f, 28.0f, 20.0f), ("p2-observatory", -1.6f, 5.4f, 1.6f, 26.0f, 20.0f),
+                    ("p2-greenhouse", -1.0f, 5.4f, 1.8f, 32.0f, 15.0f), ("p2-board", -0.4f, 5.4f, 1.5f, 26.0f, 20.0f), ("p2-harbor", 0.75f, 5.4f, 2.4f, 30.0f, 20.0f),
+                    ("p2-crops", 1.95f, 5.4f, 1.1f, 26.0f, 0.0f), ("p2-figures", -0.75f, 8.2f, 1.8f, 24.0f, 0.0f), ("p2-cargo", 0.3f, 8.2f, 1.4f, 30.0f, 15.0f),
                 })
                 {
                     string itemName = item;
@@ -923,6 +928,23 @@ public partial class Game
                         UpdateCamera();
                     }, 3.0f);
                     Shot($"disc-{itemName}");
+                }
+                // the chart grain (docs/MVP/39 §5): switched on for one wide shot of the lanes and colonies, then off again
+                string? discChart = ArgumentValue("--discovery-only=");
+                if (discChart is null || Array.Exists(discChart.Split(','), o => "chart".StartsWith(o)))
+                {
+                    Step(() =>
+                    {
+                        _visualRenderer!.Call("set_chart_grain", 1.0f);
+                        _moveAnimating = false;
+                        _target = new Vector3(discOrigin.X, discOrigin.Y, discOrigin.Z - 38.0f);
+                        _pitch = Mathf.DegToRad(50.0f);
+                        _yaw = _yawTarget = 0.0f;
+                        ZoomTo(9.0f);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot("disc-chart");
+                    Step(() => _visualRenderer!.Call("set_chart_grain", 0.0f), 0.5f);
                 }
                 break;
             case "fief-overlays":

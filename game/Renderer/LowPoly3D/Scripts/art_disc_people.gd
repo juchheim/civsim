@@ -15,6 +15,10 @@
 ##   person_operative  a cap, a shirt with rolled sleeves, a blue-grey work apron, a bobbin of thread in one hand: the factory's twelve
 ##   person_bargeman   a broad-brimmed hat, a brown jerkin and rolled trousers, a long barge pole in the hands and a coil of tow rope on the shoulder
 ##   person_coachman   a tall hat, a long greatcoat with two capes, a scarf and a long whip held up
+##   person_merchant   P2 (SOC-12 middle class, the exchange house): a long burgundy coat with gold buttons, a white cravat, a tricorn with a feather, a ledger under the arm,
+##                     a purse at the belt and a cane
+##   person_master_mason  P2 (the Wonders' masons, docs/MVP/32 §6 and 39 §6): dust-grey work clothes, a leather apron, a flat cap, a mallet in one hand and a set square
+##                     in the other, stone dust on the shoulders
 ##   coach             a turnpike stage coach, +Z forward: a boxy body in the owner's colour on four spoked wheels with a roof of luggage, a coach box with the
 ##                     coachman and a whip, a passenger's head at each window, lamps, and a pair of horses in harness
 extends RefCounted
@@ -73,6 +77,8 @@ static func build(kit) -> void:
 	kit.meshes["person_bargeman"] = _bargeman(kit)
 	kit.meshes["person_coachman"] = _coachman(kit)
 	kit.meshes["coach"] = _coach(kit)
+	kit.meshes["person_merchant"] = _merchant(kit)
+	kit.meshes["person_master_mason"] = _mason(kit)
 
 # ------------------------------------------------------------------ shared pieces
 
@@ -387,4 +393,66 @@ static func _coach(kit) -> ArrayMesh:
 		var x4: float = sx
 		b.pole(Vector3(x4 * 1.4, 0.034, 0.05), Vector3(x4, 0.052, 0.17), 0.0012, LEATHER_DARK, 3)
 		_horse(b, Vector3(x4, 0.0, 0.2), HORSE if x4 < 0.0 else HORSE_PALE)
+	return b.commit()
+
+# ------------------------------------------------------------------ merchant and master mason
+
+const BURGUNDY := Color("#7a2f3a")
+const BURGUNDY_DARK := Color("#5a2229")
+const DUST := Color("#b9b4a6")
+const DUST_COAT := Color("#8f8a80")
+
+static func _merchant(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2410)
+	_legs(b, Color("#e0dac8"), BOOT)
+	# a long coat to the knee in burgundy with a belt, a cravat and gold buttons down the front
+	b.tag = PLAIN
+	b.prism(Vector3(0, 0.004, 0), 0.0215, 0.0155, 0.054, 7, BURGUNDY, BURGUNDY)
+	b.prism(Vector3(0, 0.003, 0), 0.0222, 0.0215, 0.004, 7, BURGUNDY_DARK, BURGUNDY_DARK)
+	b.prism(Vector3(0, 0.024, 0), 0.0188, 0.0188, 0.003, 7, BOOT, BOOT)
+	for k in 4:
+		b.blob(Vector3(0, 0.012 + 0.012 * k, 0.0178 - 0.0003 * k), Vector3(0.0022, 0.0022, 0.0012), 4, 2, BRASS_LIGHT, 0.0)
+	b.tag = CIV
+	b.prism(Vector3(0, 0.044, 0), 0.0205, 0.009, 0.014, 7, Color.WHITE, Color.WHITE)
+	b.tag = PLAIN
+	b.pole(Vector3(-0.02, 0.05, 0), Vector3(-0.026, 0.034, 0.012), 0.0047, BURGUNDY)
+	b.pole(Vector3(0.02, 0.05, 0), Vector3(0.026, 0.03, 0.01), 0.0047, BURGUNDY)
+	_hand(b, Vector3(0.0265, 0.0295, 0.0105))
+	_head(b, SKIN, Color("#8a8a90"))
+	b.box(Vector3(0, 0.058, 0.012), Vector3(0.016, 0.005, 0.005), CRAVAT)
+	# a tricorn: a black crown with the brim turned up on three sides and a feather on the left
+	b.blob(Vector3(0, 0.0805, 0.0), Vector3(0.0125, 0.0055, 0.0125), 7, 3, BLACK, 0.0)
+	b.box(Vector3(0, 0.0765, 0.014), Vector3(0.021, 0.0075, 0.005), BLACK)
+	b.box(Vector3(-0.0135, 0.0765, -0.004), Vector3(0.006, 0.0075, 0.019), BLACK)
+	b.box(Vector3(0.0135, 0.0765, -0.004), Vector3(0.006, 0.0075, 0.019), BLACK)
+	b.pole(Vector3(-0.012, 0.0825, 0.0), Vector3(-0.02, 0.1, -0.012), 0.0019, Color("#e6e0d0"), 3)
+	# a ledger under the left arm, a purse hanging from the belt, a cane in the right hand
+	b.box(Vector3(-0.0265, 0.034, 0.014), Vector3(0.012, 0.0165, 0.018), LEATHER_DARK)
+	b.box(Vector3(-0.0205, 0.034, 0.0145), Vector3(0.0012, 0.0145, 0.0165), Color("#efe6d0"))
+	b.blob(Vector3(0.014, 0.0245, 0.0178), Vector3(0.0045, 0.0055, 0.003), 5, 2, LEATHER, 0.0)
+	b.pole(Vector3(0.0265, 0.0295, 0.0105), Vector3(0.0275, -0.0135, 0.0145), 0.0019, WOOD_LIGHT, 4)
+	b.blob(Vector3(0.0265, 0.0305, 0.0105), Vector3(0.0045, 0.0045, 0.0045), 4, 2, BRASS, 0.0)
+	return b.commit()
+
+static func _mason(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2411)
+	_legs(b, DUST, Color("#3a342e"))
+	_torso(b, DUST_COAT, DUST_COAT, Color("#3a342e"))
+	# the leather apron over the front, stone dust on the shoulders and across the chest
+	b.box(Vector3(0, 0.026, 0.0165), Vector3(0.027, 0.04, 0.004), LEATHER, LEATHER.lightened(0.05))
+	b.box(Vector3(0, 0.05, 0.0155), Vector3(0.014, 0.012, 0.004), LEATHER_DARK)
+	b.blob(Vector3(-0.012, 0.052, 0.0), Vector3(0.0075, 0.0035, 0.009), 5, 2, Color("#d8d3c4"), 0.0)
+	b.blob(Vector3(0.012, 0.052, 0.0), Vector3(0.0075, 0.0035, 0.009), 5, 2, Color("#d8d3c4"), 0.0)
+	_hand(b, Vector3(-0.0245, 0.028, 0.0065))
+	_hand(b, Vector3(0.0265, 0.03, 0.0115))
+	_head(b, SKIN, Color("#6a5a48"))
+	b.blob(Vector3(0, 0.0775, -0.001), Vector3(0.0138, 0.0072, 0.0138), 7, 3, Color("#8a8478"), 0.0)
+	b.box(Vector3(0, 0.0725, 0.0128), Vector3(0.016, 0.003, 0.005), Color("#8a8478"))
+	# a wooden mallet in the right hand and a steel set square in the left
+	var hand := Vector3(0.0265, 0.03, 0.0115)
+	b.pole(hand + Vector3(0, -0.004, 0.0), hand + Vector3(0.004, 0.04, 0.016), 0.0026, WOOD_LIGHT, 4)
+	b.box(hand + Vector3(0.0045, 0.042, 0.0165), Vector3(0.014, 0.01, 0.01), WOOD)
+	var lh := Vector3(-0.0245, 0.028, 0.0065)
+	b.pole(lh, lh + Vector3(-0.004, -0.02, 0.012), 0.0016, STEEL, 4)
+	b.pole(lh + Vector3(-0.004, -0.02, 0.012), lh + Vector3(-0.016, -0.02, 0.012), 0.0016, STEEL, 4)
 	return b.commit()

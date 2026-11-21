@@ -70,6 +70,7 @@ func setup_frame(frame_data: Dictionary) -> void:
 	_make_environment()
 	_make_camera()
 	_make_grade_overlay()
+	_make_chart_grain()
 	RenderingServer.global_shader_parameter_set("map_lat", Vector2(world.height * M7WorldData.S * 0.5, world.height * M7WorldData.S * 0.5))
 	builder = M7WorldBuilder.new(world, kit, mats)
 	world_root = builder.build()
@@ -650,7 +651,7 @@ func show_discovery_gallery() -> Vector3:
 	world_root.add_child(stage)
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(12.0, 56.0)
+	plane.size = Vector2(12.0, 72.0)
 	floor_mesh.mesh = plane
 	floor_mesh.position = Vector3(0.0, -0.01, -21.2)
 	var floor_material := StandardMaterial3D.new()
@@ -685,6 +686,12 @@ func show_discovery_gallery() -> Vector3:
 		[["lugger", 0.5, 1.8], ["lugger_netting", 0.7, 1.8], ["fishing_bank", 0.7, 1.5], ["field_cane", 1.1, 1.0], ["field_cane_cut", 1.1, 1.0]],
 		# P1 cargo for the flows layer: coal, coke, sugar loaves and salt cod
 		[["cargo_coal", 0.2, 3.0], ["cargo_coke", 0.2, 3.0], ["cargo_sugar", 0.2, 3.0], ["cargo_cod", 0.2, 3.0]],
+		# P2 buildings and props: embassy flag, observatory, greenhouse, news board, the E4 harbor beside a galleon (the scale audit), the three exchange crops
+		[["embassy_flag", 0.4, 2.0], ["observatory", 0.5, 2.0], ["greenhouse", 0.7, 1.7], ["news_board", 0.5, 2.0], ["harbor", 0.9, 1.3], ["galleon", 0.9, 1.3],
+			["crop_maize", 0.2, 3.5], ["crop_potato", 0.2, 3.5], ["crop_tobacco", 0.2, 3.5]],
+		# P2 figures (a soldier for scale) and the extra cargo: plate glass, parts, acid, alkali, pamphlets, instruments
+		[["person_soldier", 0.3, 2.4], ["person_merchant", 0.3, 2.4], ["person_master_mason", 0.3, 2.4], ["cargo_glass", 0.2, 3.0], ["cargo_parts", 0.2, 3.0],
+			["cargo_acid", 0.2, 3.0], ["cargo_alkali", 0.2, 3.0], ["cargo_pamphlets", 0.2, 3.0], ["cargo_instruments", 0.2, 3.0]],
 	]
 	var rig_works := []
 	for r in rows.size():
@@ -693,7 +700,7 @@ func show_discovery_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6, -27.4, -29.8][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6, -27.4, -29.8, 5.4, 8.2][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5
@@ -1124,6 +1131,25 @@ func _make_camera() -> void:
 	camera.attributes = camera_attributes
 	add_child(camera)
 	camera.make_current()
+
+## Discovery chart grain (docs/MVP/39 §5): a screen overlay under the HUD, off (amount 0) until the HUD turns it up at Z3 to Z4 in a Discovery match.
+var chart_grain_material: ShaderMaterial
+
+func _make_chart_grain() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 0
+	var rect := ColorRect.new()
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chart_grain_material = ShaderMaterial.new()
+	chart_grain_material.shader = load("res://Renderer/LowPoly3D/Shaders/chart_grain.gdshader")
+	rect.material = chart_grain_material
+	layer.add_child(rect)
+	add_child(layer)
+
+func set_chart_grain(amount: float) -> void:
+	if chart_grain_material != null:
+		chart_grain_material.set_shader_parameter("amount", clampf(amount, 0.0, 1.0))
 
 func _make_grade_overlay() -> void:
 	var layer := CanvasLayer.new()
