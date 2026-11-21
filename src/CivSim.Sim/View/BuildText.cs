@@ -135,6 +135,7 @@ public static class BuildText
             BuildWhy.ArsenalPreferredElsewhere => "The planner prefers another forge town for the Arsenal; you can still order it here.",
             BuildWhy.ArsenalStoneSupply => "There is not enough unclaimed stone in this Arsenal's connected settlement network to finish its blocks and cut stone.",
             BuildWhy.NeedsCoal => "It needs coal in store or a coal seam within reach.",
+            BuildWhy.NeedsPower => "It needs a water mill, a windmill or a fired engine to drive it.",
             BuildWhy.NeedsCoalCamp => $"It needs a coal camp at least {g.Arg} tiles from the town.",
             BuildWhy.CokeNotNeeded => "No furnace here is smelting on coke yet; you can still order one.",
             BuildWhy.EngineNotNeeded => "No flooded seam or power shortage here needs an engine yet; you can still order one.",

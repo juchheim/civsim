@@ -48,7 +48,7 @@ public enum BuildWhy : byte
     // Arsenal (appended): no saltpeter or sulfur source within its supply reach.
     NeedsOreSupply, ArsenalInProgressElsewhere, ArsenalPreferredElsewhere, ArsenalStoneSupply,
     // Discovery (appended): the atmospheric engine needs a coal supply and a use for its power.
-    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded,
+    NeedsCoal, EngineNotNeeded, NeedsCoalCamp, CokeNotNeeded, NeedsPower,
 }
 
 /// <summary>The first rule that stops a structure, with its number (people needed, tiles, routes) and the project that would lift it.</summary>
@@ -357,6 +357,14 @@ public sealed partial class LivingEconomyModel
                 if (!CoalObtainable(s)) return Stop(BuildCause.Requires, BuildWhy.NeedsCoal);
                 if (includeAppetite && !CokeSmeltingActive(s)) return Stop(BuildCause.NotNeeded, BuildWhy.CokeNotNeeded);
                 return BuildGate.Pass;
+            case IronStructure.Factory:
+                // MEC-10 (docs/MVP/38 §5.7): a large town with a power source in its ledger raises one factory.
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "MEC-10")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "MEC-10");
+                if (!(gate = Size(FactoryMinPopulation)).Open) return gate;
+                return MillPower(s).Available > Fix64.Zero ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsPower);
             case IronStructure.Galleon:
                 // SEA-13 (docs/MVP/38 §5.2): a harbor town with a crew of six fed soldiers lays down a galleon.
                 if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);

@@ -1041,6 +1041,7 @@ public sealed partial class LivingEconomyModel
             else if (MillLaborFactor(s) is var millFactor && millFactor != Fix64.One)
                 labor *= millFactor;
         }
+        if (DiscoveryChain) labor *= FactoryLaborFactor(s);
         return FiefRecipeLabor(s, r, labor);
     }
 

@@ -2563,7 +2563,7 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal, Galleon,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory,
         Count
     }
 
@@ -2633,6 +2633,8 @@ public sealed partial class LivingEconomyModel
         new("navigation_canal", "TRN-11", 24, 0, 0, 12, 0, Infrastructure: true),
         // A galleon (SEA-13, docs/MVP/38 §5.2): the Discovery war and convoy ship, laid down at a harbor (timber and iron; provisional).
         new("galleon", "SEA-13", 30, 0, 0, 20, 4),
+        // A factory (MEC-10, docs/MVP/38 §5.7): block, timber and cast iron (the registry's 4 cast, counted as iron; provisional).
+        new("factory", "MEC-10", 50, 20, 0, 10, 4, Stone: true),
     };
 
     /// <summary>

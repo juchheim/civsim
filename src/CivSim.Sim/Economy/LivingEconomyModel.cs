@@ -1378,6 +1378,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 _herdFoodStock[tile] = Fix64.Min(_herdFoodStock[tile] + herdGrowth / 4,
                     input.InitialHerdFood + herdGrowth);
             }
+            if (DiscoveryChain) DecaySoot(tile);
             Fix64 woodBeforeRegrowth = _woodStock[tile];
             _woodStock[tile] = Fix64.Min(_woodStock[tile] + WoodRegrowth(tile, input.WoodGrowthPerYear / 4), input.InitialWood);
             RecordB13WoodRegrowth(tile, _woodStock[tile] - woodBeforeRegrowth);
@@ -1910,7 +1911,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         totalWork -= careWork;
         Fix64 staffWork = settlement.Civic is not null ? StaffRoles(settlement) : Fix64.Zero;
         totalWork -= staffWork;
-        if (DiscoveryChain) BurnEngines(settlement);
+        if (DiscoveryChain) { BurnEngines(settlement); EmitSoot(settlement); }
         Fix64 openingFoodStores = Fix64.Zero, openingFoodNeed = Fix64.Zero;
         bool openingFoodShort = false;
         bool skipScoutsWhenFoodShort = SkipScoutsWhenFoodShortForCivsForDiagnostics is { } skipForCiv &&
@@ -4364,7 +4365,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // GOV-04: local famine deaths −50% (docs/MVP/23 §16), half of starvation being local famine (check_e3.py).
         Fix64 famine = discrete && HasProject(civ, "GOV-04") ? Fix64.FromRatio(3, 4) : Fix64.One;
         HazardBreakdown hazards = new(
-            annual * CauseShare(child, "endemic", era) * CauseModifier(civ, "endemic") * ExchangeFeverFactor(civ) * seasonalScale * diseaseCare,
+            annual * CauseShare(child, "endemic", era) * CauseModifier(civ, "endemic") * ExchangeFeverFactor(civ) * SootFeverFactor(figure.SettlementId) * seasonalScale * diseaseCare,
             discrete ? Fix64.Zero : annual * CauseShare(child, "epidemic", era) * CauseModifier(civ, "epidemic") * seasonalScale * diseaseCare,
             annual * CauseShare(child, "starvation", era) * CauseModifier(civ, "starvation") * seasonalScale * famine,
             Fix64.Zero,
@@ -7124,6 +7125,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         HashFiefGoods(ref hash);
         HashDiscoveryGoods(ref hash);
         HashSteam(ref hash);
+        HashSoot(ref hash);
         HashDecrees(ref hash);
         HashBuildFocus(ref hash);
         return hash.Finish();
@@ -7222,6 +7224,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteFiefGoods(writer);
         WriteDiscoveryGoods(writer);
         WriteSteam(writer);
+        WriteSoot(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7386,6 +7389,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadFiefGoods(reader);
         ReadDiscoveryGoods(reader);
         ReadSteam(reader);
+        ReadSoot(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7573,6 +7577,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     private void CopySnapshotStateFrom(LivingEconomyModel source)
     {
         InvalidateForageSettlementOwners();
+        _soot = source._soot is null ? null : (Fix64[])source._soot.Clone();
         FiefSnapshotVersionForRestore = source.FiefSnapshotVersionForRestore;
         _tick = source._tick;
         _seasonsCompleted = source._seasonsCompleted;

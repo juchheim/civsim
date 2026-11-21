@@ -132,6 +132,7 @@ projects:
       - {kind: unlock_action, action: factory_work}
       - {kind: mod, stat: craft_output_per_worker, op: mult, value: 2.0, note: "in a staffed factory, scaled by the power it actually receives from the shared ledger (P)"}
       - {kind: rule, text: "A factory draws workers from the countryside (urban migration) and soots adjacent tiles; the pollution is a local state until KEY-7. KEY-7 prerequisite."}
+      - {kind: rule, text: "In the sim: a town of 120 or more with a water mill, windmill or fired engine raises one factory; twelve operatives leave other work to staff it; each recipe the town runs costs 1/(1+c) of its labor, where c is the share of the crew in post times the share of their power hours the ledger has left (so x2 output per worker at full power). A working factory adds soot to its tile and the ring around it (up to 10 a tile, fading a tenth each season); each point of soot on a town's own tile adds a fiftieth to its endemic deaths, up to a fifth (P, docs/MVP/38 §5.7)."}
     practice: [{action: factory_work, share: 100}]
     flavor: "Many hands, one engine, one roof."
     moment: "A hundred looms clatter under a single drive shaft."
