@@ -902,6 +902,10 @@ public partial class Game
                     // the ocean lanes, z -31.6 .. -37: three lanes (bold, medium with a galleon escort and a wreck, faded), ships along them
                     ("lanes", 0.0f, -34.4f, 4.4f, 50.0f, 0.0f), ("lanes-region", 0.0f, -34.4f, 9.0f, 55.0f, 0.0f), ("lanes-close", -1.6f, -34.0f, 2.6f, 36.0f, 20.0f),
                     ("lanes-wreck", 0.6f, -34.3f, 1.6f, 32.0f, 10.0f), ("lanes-low", 1.5f, -34.0f, 2.2f, 22.0f, 0.0f),
+                    // colonies, z -42 .. -45: content (-3.8), strained (-1.3), blockaded (1.3, galleon at 2.5), independent (3.8); a founding at (-0.4, -45.2)
+                    ("colony", 0.0f, -42.4f, 4.4f, 46.0f, 0.0f), ("colony-content", -3.8f, -42.0f, 1.9f, 34.0f, 0.0f), ("colony-strained", -1.3f, -42.6f, 1.9f, 34.0f, 0.0f),
+                    ("colony-blockaded", 1.6f, -41.8f, 2.2f, 34.0f, 0.0f), ("colony-free", 3.8f, -42.6f, 1.9f, 34.0f, 0.0f), ("colony-founding", -0.4f, -45.0f, 1.6f, 28.0f, 30.0f),
+                    ("colony-region", 0.0f, -43.0f, 9.0f, 52.0f, 0.0f),
                 })
                 {
                     string itemName = item;
