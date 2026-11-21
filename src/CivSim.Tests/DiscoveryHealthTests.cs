@@ -85,4 +85,22 @@ public class DiscoveryHealthTests
         fief.RunSeasons(1);
         Assert.True(baseline == fief.Economy.FixtureWoundCareFactor(0), "anatomy does nothing in Fief");
     }
+
+    [Fact]
+    public void Stall_fed_herds_raise_field_yield_five_percent_only_where_herds_and_fields_share_a_town_in_Discovery()
+    {
+        string[] hus = { "KEY-5", "HUS-11" };
+        BronzeFixture f = Town(hus);
+        Assert.Equal(Fix64.One, f.Economy.FixtureStallManure(0)); // no herds
+        f.Economy.FixtureFood(0, fields: 4, Fix64.One, pastures: 2, cattle: Fix64.FromInt(2), sheep: Fix64.Zero, carts: 0);
+        Assert.Equal(Fix64.FromRatio(105, 100), f.Economy.FixtureStallManure(0));
+
+        BronzeFixture noProject = Town("KEY-5");
+        noProject.Economy.FixtureFood(0, fields: 4, Fix64.One, pastures: 2, cattle: Fix64.FromInt(2), sheep: Fix64.Zero, carts: 0);
+        Assert.Equal(Fix64.One, noProject.Economy.FixtureStallManure(0));
+
+        BronzeFixture fief = BronzeFixture.CreateFiefWithCoalDeposit(TestPack.Pack, Seed, 150, hus);
+        fief.Economy.FixtureFood(0, fields: 4, Fix64.One, pastures: 2, cattle: Fix64.FromInt(2), sheep: Fix64.Zero, carts: 0);
+        Assert.Equal(Fix64.One, fief.Economy.FixtureStallManure(0));
+    }
 }

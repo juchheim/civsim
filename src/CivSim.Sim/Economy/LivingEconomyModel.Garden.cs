@@ -43,6 +43,16 @@ public sealed partial class LivingEconomyModel
         return m;
     }
 
+    /// <summary>
+    /// HUS-11 (docs/MVP/38 §5.4, decision D14 option b): manure from stall-fed herds raises field yield (the row's field_fertility, x1.05)
+    /// where herds and fields share a settlement. The row's winter-loss cut has nothing to act on (domestic herds have no winter loss).
+    /// </summary>
+    private Fix64 StallManure(SettlementState s)
+        => DiscoveryChain && Done(s.Civilization, "HUS-11") && s.DomesticCattle + s.DomesticSmallStock > Fix64.Zero
+            ? Modifier(s.Civilization, "field_fertility") : Fix64.One;
+
+    internal Fix64 FixtureStallManure(int settlementIndex) => StallManure(_settlements[settlementIndex]);
+
     internal bool FixtureGardenStaffed(int settlementIndex) => GardenStaffed(_settlements[settlementIndex]);
     internal Fix64 FixtureWoundCareFactor(int figureIndex) => WoundCareFactor(_figures[figureIndex]);
     internal Fix64 FixtureCareFor(int figureIndex, Fix64 multiplier) => CareFor(_figures[figureIndex], multiplier);

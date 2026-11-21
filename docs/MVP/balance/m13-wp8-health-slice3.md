@@ -1,4 +1,4 @@
-# M13 WP-E6-8 slice 3: FOR-09 botanical gardens and MED-09 anatomy (2026-11-21)
+# M13 WP-E6-8 slice 3: FOR-09 botanical gardens, MED-09 anatomy and HUS-11 manure (2026-11-21)
 
 **Status:** built and tested on `codex/e6-discovery`, uncommitted. Third slice of WP-E6-8 ([38 §5.4](../38-discovery-age.md)). Everything is inert outside a Discovery match (the garden gate, the botanist role and both bonuses test `DiscoveryChain`); Bronze, Iron and Fief bytes, hashes and snapshots are unchanged and nothing new is stored: the bonuses read the garden structure and the roles that already exist. The content did not change, so the content-pack golden is untouched. All numbers are the rows' typed values (provisional).
 
@@ -10,6 +10,8 @@
 | **Botanist** | New role byte 15, one per garden, taken from the town's adults by the same role pass as the broker (the town keeps four other working adults). **An empty garden has no effect**: the bonus reads a botanist actually at work. |
 | **Medical effects x1.15** (FOR-09) | In a settlement with a staffed garden every care multiplier m becomes 1 - (1 - m) x 1.15, the same form as MED-05's. It reaches remedies for illness (0.75), the epidemic hazard's MED-01 term (0.9), midwives (0.6) and wound care (0.7). |
 | **Surgery x1.3** (MED-09) | Wound care in a settlement with a **staffed hospital** (physician and two attendants) becomes 1 - (1 - m) x 1.3 after the garden's term: 0.70 becomes 0.61 alone and about 0.56 with a staffed garden. |
+
+| **Stall-fed manure** (HUS-11) | Decision D14 taken as option (b), the recommendation, under standing design autonomy: a Discovery town with HUS-11 and any cattle or sheep gets its field yield x1.05 (the row's `field_fertility`). The winter-loss cut stays prose because domestic herds have no winter loss. 1 test. |
 
 ## Design choices worth knowing
 
@@ -25,11 +27,11 @@ The garden gate needs FOR-09, is wanted only with a staffed hospital, is one to 
 
 ## Not done
 
-1. **HUS-11 stall-feeding:** the sim has no winter loss of domestic herds to cut (herds grow 25% a year, capped by pastures), so the row's "winter loss x0.2" has nothing to act on. It needs a decision (below).
+1. **HUS-11 winter loss:** none exists to cut (see D14 below, taken as option b).
 2. **Crop trials in the garden** and the **training-speed x2** (see 2 and 4 above).
 3. **Views:** no card shows the garden or the botanist (WP-E6-11).
 4. **Natural-play measurement:** whether the stock AI raises gardens and what they save is a WP-E6-12 measurement.
 
-## Decision needed for HUS-11 (D14, recommended: skip the loss, keep the manure)
+## D14 (HUS-11), decided: skip the loss, keep the manure
 
-Domestic herds have no winter loss today, so a x0.2 cut is meaningless until one exists. Options: (a) **add a Discovery-only winter loss** of a fifth of each herd for towns without HUS-11, cut to a twentieth with it, paid in fodder from grain stores; this makes HUS-11 matter but makes E6 harsher for a civilization that has not researched it. (b) **Keep only the manure half** (field_fertility x1.05 where herds and fields share a town) and treat the winter row as prose: no new loss, no fodder good, tiny effect. Recommendation: (b), because the E6 age is already long on new systems and a new loss rule would touch every herding town for one era-six project. Say the word and (a) is a small follow-up.
+Domestic herds have no winter loss today, so a x0.2 cut is meaningless until one exists. Options: (a) **add a Discovery-only winter loss** of a fifth of each herd for towns without HUS-11, cut to a twentieth with it, paid in fodder from grain stores; this makes HUS-11 matter but makes E6 harsher for a civilization that has not researched it. (b) **Keep only the manure half** (field_fertility x1.05 where herds and fields share a town) and treat the winter row as prose: no new loss, no fodder good, tiny effect. Recommendation: (b), because the E6 age is already long on new systems and a new loss rule would touch every herding town for one era-six project. Reversible: (a) is a small follow-up if you want it.
