@@ -49,7 +49,7 @@ public sealed partial class LivingEconomyModel
     private static class Role
     {
         public const byte None = 0, Priest = 1, Scribe = 2, Administrator = 3, Governor = 4, Soldier = 5, Missionary = 6, Scholar = 7, Monk = 8,
-            Physician = 9, Attendant = 10, MasterMason = 11, Engineer = 12, Operative = 13;
+            Physician = 9, Attendant = 10, MasterMason = 11, Engineer = 12, Operative = 13, Broker = 14;
     }
 
     private sealed class CivicState
@@ -169,9 +169,17 @@ public sealed partial class LivingEconomyModel
     }
 
     /// <summary>An E3 project's `cohesion` effect as a term of the target (docs/MVP/23 §1.2).</summary>
-    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder, bool Iron = false, bool Fief = false);
+    private readonly record struct CohesionTerm(int Project, int Value, string Scope, int Radius, CivicBuild Structure, bool Wonder, bool Iron = false, bool Fief = false, bool Discovery = false);
 
     private CivicConstants _civic;
+    /// <summary>GOV-12 nation-state (docs/MVP/38 §5.4): Overreach counts no farther than this many tiles past the free radius ("uniform across the realm"), and what is left is cut 40% (the row's x0.6). Needs a living capital; both are provisional.</summary>
+    private const int NationStateReach = 6;
+    private static readonly Fix64 NationStateOverreach = Fix64.FromRatio(6, 10);
+
+    /// <summary>INQ-07's "challenging dogma" Cohesion cost is cancelled by BEL-12 (the row's text); no other Discovery term is conditional.</summary>
+    private bool DiscoveryTermCancelled(int civ, int project)
+        => _content.Projects[project].Id == "INQ-07" && Done(civ, "BEL-12");
+
     private CohesionTerm[] _cohesionTerms = Array.Empty<CohesionTerm>();
     private int _townRadius = 5, _cityRadius = 6;
     private Fix64 _capitalClaimMult = Fix64.FromRatio(5, 4);
@@ -196,7 +204,7 @@ public sealed partial class LivingEconomyModel
         var terms = new List<CohesionTerm>();
         foreach (EconomyProject p in _content.Projects)
         {
-            if (p.Era is not (3 or 4 or 5)) continue; // E4/E5 terms are read only when the matching Iron/Fief chapter is active
+            if (p.Era is not (3 or 4 or 5 or 6)) continue; // E4/E5/E6 terms are read only when the matching Iron/Fief/Discovery chapter is active
             CivicBuild structure = CivicBuild.None;
             bool wonder = false;
             for (int i = p.EffectStart; i < p.EffectStart + p.EffectCount; i++)
@@ -212,7 +220,7 @@ public sealed partial class LivingEconomyModel
             {
                 EconomyEffect e = _content.Effects[i];
                 if (e.Kind == "cohesion" && e.Value is { } v)
-                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder, Iron: p.Era == 4, Fief: p.Era == 5));
+                    terms.Add(new CohesionTerm(p.Index, v.RoundToInt(), e.Scope ?? "all", e.Radius ?? 0, structure, wonder, Iron: p.Era == 4, Fief: p.Era == 5, Discovery: p.Era == 6));
                 if (e.Kind == "tier")
                 {
                     if (e.Tier == "town" && e.Radius is { } tr) _townRadius = tr;
@@ -421,8 +429,9 @@ public sealed partial class LivingEconomyModel
         int masterMasons = FiefChain && Done(civ, "STN-13") && WantsMasterMason(s) ? 1 : 0;
         int engineers = EngineersWanted(s);
         int operatives = OperativesWanted(s);
+        int brokers = BrokersWanted(s);
         int havePriests = 0, haveScribes = 0, haveAdministrators = 0, haveGovernors = 0, haveSoldiers = 0, haveMissionaries = 0,
-            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0, haveMasterMasons = 0, haveEngineers = 0, haveOperatives = 0;
+            haveScholars = 0, haveMonks = 0, havePhysicians = 0, haveAttendants = 0, haveMasterMasons = 0, haveEngineers = 0, haveOperatives = 0, haveBrokers = 0;
         List<FigureState> residents = Residents(s.Id);
         for (int i = residents.Count - 1; i >= 0; i--)
         {
@@ -442,14 +451,15 @@ public sealed partial class LivingEconomyModel
             if (keep && f.Role == Role.MasterMason && haveMasterMasons < masterMasons) { haveMasterMasons++; continue; }
             if (keep && f.Role == Role.Engineer && haveEngineers < engineers) { haveEngineers++; continue; }
             if (keep && f.Role == Role.Operative && haveOperatives < operatives) { haveOperatives++; continue; }
+            if (keep && f.Role == Role.Broker && haveBrokers < brokers) { haveBrokers++; continue; }
             f.Role = Role.None;
         }
         int adults = 0;
         foreach (FigureState f in residents) if (f.Age is >= 14 and < 60 && f.Camp < 0) adults++;
-        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants || haveMasterMasons < masterMasons || haveEngineers < engineers || haveOperatives < operatives); i++)
+        for (int i = 0; i < residents.Count && (havePriests < priests || haveScribes < scribes || haveAdministrators < administrators || haveGovernors < governors || haveSoldiers < soldiers || haveMissionaries < missionaries || haveScholars < scholars || haveMonks < monks || havePhysicians < physicians || haveAttendants < attendants || haveMasterMasons < masterMasons || haveEngineers < engineers || haveOperatives < operatives || haveBrokers < brokers); i++)
         {
             // Keep at least four other working adults at home.
-            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + haveMasterMasons + haveEngineers + haveOperatives + 4 >= adults) break;
+            if (havePriests + haveScribes + haveAdministrators + haveGovernors + haveSoldiers + haveMissionaries + haveScholars + haveMonks + havePhysicians + haveAttendants + haveMasterMasons + haveEngineers + haveOperatives + haveBrokers + 4 >= adults) break;
             FigureState f = residents[i];
             if (f.Role != Role.None || f.Age is < 14 or >= 60 || f.Camp >= 0 || f.Id == s.FireKeeperId) continue;
             if (havePriests < priests) { f.Role = Role.Priest; havePriests++; }
@@ -464,7 +474,8 @@ public sealed partial class LivingEconomyModel
             else if (haveAttendants < attendants) { f.Role = Role.Attendant; haveAttendants++; }
             else if (haveMasterMasons < masterMasons) { f.Role = Role.MasterMason; haveMasterMasons++; }
             else if (haveEngineers < engineers) { f.Role = Role.Engineer; haveEngineers++; }
-            else { f.Role = Role.Operative; haveOperatives++; }
+            else if (haveOperatives < operatives) { f.Role = Role.Operative; haveOperatives++; }
+            else { f.Role = Role.Broker; haveBrokers++; }
         }
         Fix64 spent = Fix64.Zero;
         Fix64 administrationWork = Fix64.Zero;
@@ -474,7 +485,7 @@ public sealed partial class LivingEconomyModel
             Fix64 amount = WorkCapacity(f) - f.CareWorkThisSeason - f.FireWorkThisSeason;
             if (amount <= Fix64.Zero) continue;
             Assign(f, EconomyJob.Craft, amount);
-            f.Task = f.Role is Role.Priest or Role.Monk ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : f.Role is Role.Engineer or Role.Operative ? MetalTask.Craft : MetalTask.Records; // scholars, like scribes, work at records
+            f.Task = f.Role is Role.Priest or Role.Monk ? MetalTask.Ritual : f.Role is Role.Administrator or Role.Governor ? MetalTask.Administer : f.Role == Role.Soldier ? MetalTask.Drill : f.Role == Role.Missionary ? MetalTask.Preach : f.Role is Role.Engineer or Role.Operative or Role.Broker ? MetalTask.Craft : MetalTask.Records; // scholars, like scribes, work at records
             spent += amount;
             if (f.Role is Role.Administrator or Role.Governor) administrationWork += amount;
         }
@@ -1264,6 +1275,7 @@ public sealed partial class LivingEconomyModel
         {
             if (!_completedProjects[civ][term.Project]) continue;
             if (term.Iron && !IronChain) continue;
+            if (term.Discovery && (!DiscoveryChain || DiscoveryTermCancelled(civ, term.Project))) continue;
             if (term.Fief && (!FiefChain || IronWorksCount(s, IronStructure.GothicCathedral) == 0)) continue;
             if (term.Wonder && !term.Fief && !CivHasZiggurat(civ)) continue;
             Fix64 value = Fix64.FromInt(term.Value) * (term.Wonder && term.Scope == "radius" ? wonderMult : Fix64.One);
@@ -1304,7 +1316,9 @@ public sealed partial class LivingEconomyModel
         if (cap is not null && capital != s.Id)
         {
             int walk = RoadAdjustedWalk(s, WalkingTiles(cap.SiteTile, s.SiteTile));
+            if (DiscoveryChain && Done(civ, "GOV-12")) walk = Math.Min(walk, _civic.OverreachFree + NationStateReach); // GOV-12: strain stops growing with distance
             Fix64 over = Fix64.FromInt(Math.Max(0, walk - _civic.OverreachFree)) / _civic.OverreachDivisor * (Fix64.One - AdminReductionAt(s));
+            if (DiscoveryChain && Done(civ, "GOV-12")) over *= NationStateOverreach;
             if (Done(civ, "HUS-08") && MostlyOpenGround(s)) over *= Fix64.Half;
             over *= DistanceStrainFactor(s);
             t -= over;

@@ -75,6 +75,7 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
     private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _statWritingRoleOutput, _statDiffusionDiscount, _wonderLibrary;
+    private readonly int _statProjectCost, _statInqProjectCost, _statInsightTotal; // INQ-08, NUM-11 (Discovery)
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statAdminCapacity;
     private long _tick;
 
@@ -114,6 +115,9 @@ public sealed partial class ResearchSystem : IResearchView
         _statScholar = catalog.StatIndex("scholar_insight");            // INQ-04, BEL-08, LRN-06 (Iron chapter)
         _statScribeLearning = catalog.StatIndex("scribe_learning_output"); // COM-07
         _statMecNrgCost = catalog.StatIndex("mec_nrg_project_cost");     // INQ-05
+        _statProjectCost = catalog.StatIndex("project_cost");            // INQ-08 (Discovery)
+        _statInqProjectCost = catalog.StatIndex("inq_project_cost");     // NUM-11 (Discovery)
+        _statInsightTotal = catalog.StatIndex("insight_total");          // INQ-08 (Discovery)
         _statWritingRoleOutput = catalog.StatIndex("writing_role_output"); // COM-09
         _statDiffusionDiscount = catalog.StatIndex("diffusion_discount"); // COM-10
         _wonderLibrary = catalog.IndexOf("LRN-06");
@@ -271,7 +275,16 @@ public sealed partial class ResearchSystem : IResearchView
         Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
         if (Rules.IsFief && _com10 >= 0 && c.Done[_com10] && _statDiffusionDiscount >= 0)
             step *= c.ModMult[_statDiffusionDiscount];
-        if (knowers > 0) cost = cost * Fix64.Max(_diffusionFloor, Fix64.One - step * knowers);
+        Fix64 discount = knowers > 0 ? Fix64.Max(_diffusionFloor, Fix64.One - step * knowers) : Fix64.One;
+        if (Rules.IsDiscovery)
+        {
+            // INQ-08 (every project) and NUM-11 (INQ projects) are research-side cost modifiers: they share the diffusion discount's floor, so no stack reaches zero.
+            Fix64 extra = Fix64.One;
+            if (_statProjectCost >= 0) extra *= c.ModMult[_statProjectCost];
+            if (_statInqProjectCost >= 0 && def.Id.StartsWith("INQ-", StringComparison.Ordinal)) extra *= c.ModMult[_statInqProjectCost];
+            if (extra != Fix64.One) discount = Fix64.Max(_diffusionFloor, discount * extra);
+        }
+        if (knowers > 0 || discount != Fix64.One) cost = cost * discount;
         int lag = c.Era - def.Era;
         if (lag > 0) cost = cost * FixMath.PowInt(_eraLag, lag);
         foreach (Gate g in def.Gates)
@@ -783,7 +796,10 @@ public sealed partial class ResearchSystem : IResearchView
         }
         // InsightCalibration re-fits the whole formula to the live demography (docs/MVP/07c §7).
         Fix64 scale = inputs.InsightScale * _calibration * civ.EraBoonInsight;
-        Fix64 year = (commons + roles * inputs.RolesScale + inputs.StructureOutput) * scale;
+        // INQ-08 (Discovery): the scientific method lifts the staffed Insight sources (roles and institutions), not the Commons.
+        Fix64 staffed = roles * inputs.RolesScale + inputs.StructureOutput;
+        if (Rules.IsDiscovery && _statInsightTotal >= 0) staffed *= civ.ModMult[_statInsightTotal];
+        Fix64 year = (commons + staffed) * scale;
         civ.CommonsPerYear = commons * scale;
         civ.InsightPerYear = year;
         civ.InsightDirty = false;

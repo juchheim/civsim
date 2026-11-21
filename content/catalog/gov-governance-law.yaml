@@ -165,7 +165,7 @@ projects:
     effects:
       - {kind: admin, span: 1, note: "national offices staff provinces"}
       - {kind: mod, stat: overreach, op: mult, value: 0.6, note: "overreach -40% (P)"}
-      - {kind: rule, text: "Cohesion is uniform across the realm instead of falling with distance from the capital; benefits stop when the capital is lost."}
+      - {kind: rule, text: "Cohesion is uniform across the realm instead of falling with distance from the capital; benefits stop when the capital is lost. In the sim: a town's Overreach counts no farther than 6 tiles past the free radius and what remains is cut 40% (P, docs/MVP/38 §5.4)."}
     practice: [{action: council, share: 100}]
     flavor: "One name for the whole realm."
     moment: "A king's decree is read in a dozen towns the same morning."

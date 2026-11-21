@@ -46,6 +46,8 @@ public sealed partial class PoliticsSystem
     private int _sea12 = -1;
     private int _way10 = -1;
     private int _ter11 = -1;
+    private int _inq07 = -1;
+    private int _trd10 = -1;
     private int _way08 = -1;
     private int _way09 = -1;
     private int _sea11 = -1;
@@ -58,6 +60,8 @@ public sealed partial class PoliticsSystem
         _sea12 = _research.Catalog.IndexOf("SEA-12");
         _way10 = _research.Catalog.IndexOf("WAY-10");
         _ter11 = _research.Catalog.IndexOf("TER-11");
+        _inq07 = _research.Catalog.IndexOf("INQ-07");
+        _trd10 = _research.Catalog.IndexOf("TRD-10");
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
         _landmass = new int[n];
@@ -121,6 +125,8 @@ public sealed partial class PoliticsSystem
             long distanceNumerator = 1, distanceDenominator = 1;
             if (_way09 >= 0 && _research.IsDone(civ, _way09)) { distanceNumerator *= 10; distanceDenominator *= 13; }
             if (_sea11 >= 0 && _research.IsDone(civ, _sea11)) { distanceNumerator *= 10; distanceDenominator *= 14; }
+            // TRD-10 (Discovery): a joint-stock venture, with several harbor towns pooling their goods into one voyage ledger, sails x1.5 faster (the row's venture_speed).
+            if (_economy.DiscoveryChain && _trd10 >= 0 && _economy.JointStockOpen(civ)) { distanceNumerator *= 2; distanceDenominator *= 3; }
             if (distanceNumerator != distanceDenominator)
                 sailingTiles = Math.Max(1, (int)(((long)sailingTiles * distanceNumerator + distanceDenominator - 1) / distanceDenominator));
         }
@@ -192,6 +198,11 @@ public sealed partial class PoliticsSystem
         // staffing are WP-E6-7's instruments; for now the project itself carries the benefit (flagged in m13-wp6-ocean-slice1.md).
         if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _way10 >= 0 && _research.IsDone(civ, _way10))
             risk = risk * ChronometerRiskTenths / 10;
+        // INQ-07 (Discovery): the telescope makes sea routes 5% more reliable (the row's sea_route_reliability x1.05), taken off the loss.
+        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _inq07 >= 0 && _research.IsDone(civ, _inq07))
+            risk = risk * 100 / 105;
+        // TRD-11 (Discovery): insurance spreads a loss across the realm's harbor towns, so a staffed exchange house halves it (voyage_loss x0.5; mints nothing).
+        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _economy.InsuranceOpen(civ)) risk /= 2;
         return risk;
     }
 

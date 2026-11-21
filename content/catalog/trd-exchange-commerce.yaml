@@ -133,7 +133,7 @@ projects:
     requires: [TRD-09, SEA-12]
     effects:
       - {kind: mod, stat: venture_speed, op: mult, value: 1.5, note: "overseas ventures, colonies and big works funded from pooled goods (P)"}
-      - {kind: rule, text: "Joint-stock pools existing goods into one voyage ledger; it creates no money. In-kind rules wait on the credit decision shared with TRD-08 (docs/MVP/38 D12). KEY-7 prerequisite."}
+      - {kind: rule, text: "Joint-stock pools existing goods into one voyage ledger; it creates no money and no debt (decision D12: pooled goods only). In the sim it needs at least two harbor towns to pool, and then sea ventures sail x1.5 faster. KEY-7 prerequisite."}
     practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
     flavor: "Many purses, one ship."
     moment: "Investors sign a charter and a hull is laid down."
@@ -148,7 +148,7 @@ projects:
     effects:
       - {kind: build, structure: exchange_house}
       - {kind: mod, stat: voyage_loss, op: mult, value: 0.5, note: "wreck and disaster losses spread across settlements with an exchange house (P)"}
-      - {kind: rule, text: "Insurance spreads a loss in goods; it mints nothing. Needs a harbor settlement and traders; an unstaffed exchange has no effect."}
+      - {kind: rule, text: "Insurance spreads a loss in goods; it mints nothing. Needs a harbor settlement and traders; an unstaffed exchange has no effect. In the sim one exchange house to a civilization, staffed by two brokers and with at least two harbor towns, halves voyage loss."}
     practice: [{action: trade, share: 50}, {action: count_stores, share: 50}]
     flavor: "One lost ship ruins no one."
     moment: "Brokers shout prices in a crowded hall."
