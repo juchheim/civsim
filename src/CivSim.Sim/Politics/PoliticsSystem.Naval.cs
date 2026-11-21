@@ -84,7 +84,7 @@ public sealed partial class PoliticsSystem
         for (int s = 0; s < _sCount && origin < 0; s++)
         {
             if (_sCiv[s] != civ || _free[s] || !_economy.CrewedGalley(s) || BlockadingFrom(s)) continue;
-            int cost = SailFrom(_sTile[s])[_sTile[harbor]];
+            int cost = SailFrom(civ, _sTile[s])[_sTile[harbor]];
             if (cost != int.MaxValue && (cost + 9) / 10 <= BlockadeSailReach) origin = s;
         }
         return origin < 0 ? "no galley in reach" : null;
@@ -186,7 +186,7 @@ public sealed partial class PoliticsSystem
     /// <summary>Marks a tile as known to a civilization (a scout or voyage has seen it), for fixtures.</summary>
     internal void FixtureReveal(int civ, int tile) => (_revealed[civ] ??= new bool[_tileArray.Length])[tile] = true;
 
-    internal int FixtureSailTiles(int from, int to) { int c = SailFrom(_sTile[from])[_sTile[to]]; return c == int.MaxValue ? -1 : (c + 9) / 10; }
+    internal int FixtureSailTiles(int from, int to) { int c = SailFrom(_sCiv[from], _sTile[from])[_sTile[to]]; return c == int.MaxValue ? -1 : (c + 9) / 10; }
 
     internal bool FixtureBlockadeCutsRoute(int from, int to) => BlockadeCutsRoute(from, to);
 }

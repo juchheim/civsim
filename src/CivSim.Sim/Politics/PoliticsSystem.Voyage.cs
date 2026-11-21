@@ -15,6 +15,15 @@ public sealed partial class PoliticsSystem
 {
     /// <summary>A water tile is open to boats while it is at most this many tiles from land (any land: islands are stepping stones, so the 33-tile gap between the continents is crossed in two or three legs).</summary>
     public const int OpenSeaReach = 11;
+    /// <summary>
+    /// SEA-12 caravels and ocean voyages (docs/MVP/38 §5.2, Discovery only): a water tile is open to a ship while it is at most this many tiles from land, so one leg
+    /// crosses the channel (it needs 15 to 19; 20 works in every world). The same travel and loss machinery carries it. Provisional.
+    /// </summary>
+    public const int OceanSeaReach = 24;
+    /// <summary>Extra shipwreck risk in permille for each deep-ocean tile on a route (one farther from land than <see cref="OpenSeaReach"/>, which only SEA-12 ships can cross; provisional).</summary>
+    public const int OceanDeepRiskPerTile = 12;
+    /// <summary>WAY-10 (marine chronometer) leaves this many parts in ten of the shipwreck risk, after WAY-08 (provisional).</summary>
+    public const int ChronometerRiskTenths = 3;
     /// <summary>Shipwreck risk in permille: base plus a step per open-sea tile on the route, capped.</summary>
     public const int VoyageBaseRiskPermille = 30, VoyageRiskPerSeaTile = 8, VoyageMaxRiskPermille = 400;
     /// <summary>Hex distance a daughter band may settle from its parent: on foot, and by boat.</summary>
@@ -29,6 +38,9 @@ public sealed partial class PoliticsSystem
     private int[] _landmassSize = Array.Empty<int>();
     private int[]?[] _walkFrom = Array.Empty<int[]?>();
     private int[]?[] _sailFrom = Array.Empty<int[]?>();
+    private int[]?[] _oceanFrom = Array.Empty<int[]?>();
+    private int _sea12 = -1;
+    private int _way10 = -1;
     private int _way08 = -1;
     private int _way09 = -1;
     private int _sea11 = -1;
@@ -38,6 +50,8 @@ public sealed partial class PoliticsSystem
         _way08 = _research.Catalog.IndexOf("WAY-08");
         _way09 = _research.Catalog.IndexOf("WAY-09");
         _sea11 = _research.Catalog.IndexOf("SEA-11");
+        _sea12 = _research.Catalog.IndexOf("SEA-12");
+        _way10 = _research.Catalog.IndexOf("WAY-10");
         int n = _tileArray.Length;
         _landDistance = HexGrid.LandDistances(_tileArray, _width, _height);
         _landmass = new int[n];
@@ -61,6 +75,7 @@ public sealed partial class PoliticsSystem
         _landmassSize = sizes.ToArray();
         _walkFrom = new int[]?[n];
         _sailFrom = new int[]?[n];
+        _oceanFrom = new int[]?[n];
     }
 
     /// <summary>Whether this civilization's people know the outrigger (SEA-04) and so can cross open water.</summary>
@@ -76,12 +91,21 @@ public sealed partial class PoliticsSystem
 
     private int[] SailFrom(int tile) => _sailFrom[tile] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, tile, int.MaxValue, _landDistance, OpenSeaReach);
 
+    private int[] OceanFrom(int tile) => _oceanFrom[tile] ??= HexGrid.WalkingCostsFrom(_tileArray, _width, _height, tile, int.MaxValue, _landDistance, OceanSeaReach);
+
+    /// <summary>Whether this civilization's ships cross the deep ocean in one leg: SEA-12, in the Discovery chapter only.</summary>
+    public bool HasOceanReach(int civ)
+        => _economy.DiscoveryChain && _sea12 >= 0 && (uint)civ < (uint)_civs && _research.IsDone(civ, _sea12);
+
+    /// <summary>The sea graph this civilization sails on: the outrigger's coast-hugging reach, or SEA-12's open-ocean reach.</summary>
+    private int[] SailFrom(int civ, int tile) => HasOceanReach(civ) ? OceanFrom(tile) : SailFrom(tile);
+
     /// <summary>Tiles from one tile to another for this civilization: on foot, else by sea if it can sail; int.MaxValue when there is no way.</summary>
     private int Travel(int civ, int from, int to)
     {
         int walk = WalkFrom(from)[to];
         if (walk != int.MaxValue || !CanSail(civ)) return walk;
-        int cost = SailFrom(from)[to];
+        int cost = SailFrom(civ, from)[to];
         if (cost == int.MaxValue) return int.MaxValue;
         int sailingTiles = (cost + 9) / 10;
         // Modifiers apply only when this route actually crosses water. Combine the
@@ -108,17 +132,31 @@ public sealed partial class PoliticsSystem
     }
 
     /// <summary>Open-sea tiles on the trip (0 when it can be walked, -1 when there is no way).</summary>
-    public int SeaTilesOnRoute(int civ, int fromTile, int toTile)
+    public int SeaTilesOnRoute(int civ, int fromTile, int toTile) => SeaRoute(civ, fromTile, toTile, out _);
+
+    /// <summary>Deep-ocean tiles on the trip: open-sea tiles farther from land than the outrigger's reach, which only a SEA-12 ship can cross (0 on foot or when none).</summary>
+    public int DeepSeaTilesOnRoute(int civ, int fromTile, int toTile)
     {
+        SeaRoute(civ, fromTile, toTile, out int deep);
+        return deep;
+    }
+
+    private int SeaRoute(int civ, int fromTile, int toTile, out int deep)
+    {
+        deep = 0;
         if (WalkFrom(fromTile)[toTile] != int.MaxValue) return 0;
         if (!CanSail(civ)) return -1;
-        int[] cost = SailFrom(fromTile);
+        int[] cost = SailFrom(civ, fromTile);
         if (cost[toTile] == int.MaxValue) return -1;
         Span<int> neighbors = stackalloc int[6];
         int at = toTile, sea = 0;
         for (int guard = 0; guard < 4096; guard++)
         {
-            if (!_tileArray[at].IsLand && !_passable[at]) sea++;
+            if (!_tileArray[at].IsLand && !_passable[at])
+            {
+                sea++;
+                if (_landDistance[at] > OpenSeaReach) deep++;
+            }
             if (at == fromTile) break;
             int count = HexGrid.Neighbors(at, _width, _height, neighbors);
             int next = -1, best = cost[at];
@@ -133,17 +171,21 @@ public sealed partial class PoliticsSystem
     /// <summary>Shipwreck risk of a trip in permille: 0 on foot, else base plus a step per open-sea tile.</summary>
     public int VoyageRiskPermille(int civ, int fromTile, int toTile)
     {
-        int sea = SeaTilesOnRoute(civ, fromTile, toTile);
-        return VoyageRiskForSeaTiles(civ, sea);
+        int sea = SeaRoute(civ, fromTile, toTile, out int deep);
+        return VoyageRiskForSeaTiles(civ, sea, deep);
     }
 
     /// <summary>Base open-sea risk, with Fief's WAY-08 navigation reducing ship-loss risk by half.</summary>
-    private int VoyageRiskForSeaTiles(int civ, int sea)
+    private int VoyageRiskForSeaTiles(int civ, int sea, int deep = 0)
     {
         if (sea <= 0) return 0;
-        int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea);
+        int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea + OceanDeepRiskPerTile * deep);
         if (_economy.FiefChain && (uint)civ < (uint)_civs && _way08 >= 0 && _research.IsDone(civ, _way08))
             risk /= 2;
+        // WAY-10 (Discovery): a chronometer and a navigator solve longitude and cut the loss to three parts in ten. The good and the navigator's
+        // staffing are WP-E6-7's instruments; for now the project itself carries the benefit (flagged in m13-wp6-ocean-slice1.md).
+        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _way10 >= 0 && _research.IsDone(civ, _way10))
+            risk = risk * ChronometerRiskTenths / 10;
         return risk;
     }
 
@@ -166,9 +208,9 @@ public sealed partial class PoliticsSystem
         if (e.Kind == ExpeditionKind.Barter && e.Leg == 1) return false;
         if (e.FromSettlement < 0 || e.ToSettlement < 0 || e.FromSettlement >= _sCount || e.ToSettlement >= _sCount) return false;
         int from = _sTile[e.FromSettlement], to = _sTile[e.ToSettlement];
-        int sea = SeaTilesOnRoute(e.Civ, from, to);
+        int sea = SeaRoute(e.Civ, from, to, out int deep);
         if (sea <= 0) return false;
-        int risk = VoyageRiskForSeaTiles(e.Civ, sea);
+        int risk = VoyageRiskForSeaTiles(e.Civ, sea, deep);
         ulong entity = (ulong)(e.FromSettlement * 4099L + e.ToSettlement * 7L + (int)e.Kind);
         bool turnedBack = RollVoyageLost(risk, entity, _season, e.Civ);
         if (e.Kind == ExpeditionKind.Caravan)
@@ -193,7 +235,7 @@ public sealed partial class PoliticsSystem
         for (int s = 0; s < _sCount; s++)
         {
             if (_sCiv[s] != a || _free[s]) continue;
-            int[] cost = HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[s], limit * 10, _landDistance, OpenSeaReach);
+            int[] cost = HexGrid.WalkingCostsFrom(_tileArray, _width, _height, _sTile[s], limit * 10, _landDistance, HasOceanReach(a) ? OceanSeaReach : OpenSeaReach);
             foreach (int tile in targets)
                 if (cost[tile] != int.MaxValue) best = Math.Min(best, (cost[tile] + 9) / 10);
         }
@@ -209,9 +251,9 @@ public sealed partial class PoliticsSystem
     /// <summary>A daughter band's voyage rolls once as it sets out; if it is lost the band stays (and may try again next season).</summary>
     public bool VoyageLost(int civ, int fromTile, int toTile, int season)
     {
-        int sea = SeaTilesOnRoute(civ, fromTile, toTile);
+        int sea = SeaRoute(civ, fromTile, toTile, out int deep);
         if (sea <= 0) return false;
-        int risk = VoyageRiskForSeaTiles(civ, sea);
+        int risk = VoyageRiskForSeaTiles(civ, sea, deep);
         ulong entity = (ulong)(fromTile * 8191L + toTile) * 31UL + 4UL;
         if (!RollVoyageLost(risk, entity, season, civ)) return false;
         _events.Add(new PoliticsEvent(_economy.Tick, (byte)civ, PoliticsEventKind.VoyageLost, -1, sea, 4));
