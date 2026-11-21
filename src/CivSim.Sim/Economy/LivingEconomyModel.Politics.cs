@@ -26,6 +26,8 @@ public interface IFissionSiteAdvisor
     bool VoyageLost(int civ, int fromTile, int toTile, int season);
     /// <summary>Whether a blockade has shut this settlement's harbor to the sea (an overseas colony so cut off is strained and may break away).</summary>
     bool CutOffBySea(int settlement);
+    /// <summary>Whether this civilization has met another across an ocean (their home landmasses differ): the Columbian Exchange (FOR-10) needs it.</summary>
+    bool OverseasExchange(int civ);
 }
 
 public enum BeaconSiteBlockReason : byte

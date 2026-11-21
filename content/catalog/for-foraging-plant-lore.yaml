@@ -145,7 +145,7 @@ projects:
     requires: [FOR-09, SEA-12]
     effects:
       - {kind: mod, stat: food_yield, op: mult, value: 1.2, note: "only in a settlement that can grow the imported staple on its biome (P)"}
-      - {kind: rule, text: "The exchange needs contact with a civilization across an ocean (SEA-12); no contact, no new crops. Old-world diseases cross with the ships."}
+      - {kind: rule, text: "The exchange needs contact with a civilization whose home lies on another landmass (SEA-12); no contact, no new crops. Maize grows on the warm and temperate lowlands and the potato on the cool uplands; desert, ice, wetland and peaks take neither. Old-world diseases cross with the ships: endemic deaths x1.15 while the exchange lasts (P, docs/MVP/38 §5.2)."}
     practice: [{action: trade, share: 50}, {action: farm, share: 50}]
     flavor: "Maize and potatoes cross the water, and so do the fevers."
     moment: "A sack of unknown tubers is unloaded at a quay."

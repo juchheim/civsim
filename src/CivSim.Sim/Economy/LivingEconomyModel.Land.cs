@@ -33,7 +33,7 @@ public sealed partial class LivingEconomyModel
     }
 
     private Fix64 FiefFieldYield(SettlementState s)
-        => FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-11") ? LegumeRotationYield : Fix64.One;
+        => (FiefFieldPolicy(s) && HasProject(s.Civilization, "AGR-11") ? LegumeRotationYield : Fix64.One) * ExchangeCropYield(s);
 
     private bool FiefHorseCollar(SettlementState s)
         => FiefFieldPolicy(s) && HasProject(s.Civilization, "NRG-04") && s.Civic is { Horses: > 0 };

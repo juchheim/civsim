@@ -4364,7 +4364,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         // GOV-04: local famine deaths −50% (docs/MVP/23 §16), half of starvation being local famine (check_e3.py).
         Fix64 famine = discrete && HasProject(civ, "GOV-04") ? Fix64.FromRatio(3, 4) : Fix64.One;
         HazardBreakdown hazards = new(
-            annual * CauseShare(child, "endemic", era) * CauseModifier(civ, "endemic") * seasonalScale * diseaseCare,
+            annual * CauseShare(child, "endemic", era) * CauseModifier(civ, "endemic") * ExchangeFeverFactor(civ) * seasonalScale * diseaseCare,
             discrete ? Fix64.Zero : annual * CauseShare(child, "epidemic", era) * CauseModifier(civ, "epidemic") * seasonalScale * diseaseCare,
             annual * CauseShare(child, "starvation", era) * CauseModifier(civ, "starvation") * seasonalScale * famine,
             Fix64.Zero,

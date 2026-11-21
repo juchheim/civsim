@@ -259,6 +259,34 @@ public sealed partial class PoliticsSystem
 
     public int SettleReach(int civ) => CanSail(civ) ? HasColonyReach(civ) ? ColonySettleReach : SailSettleReach : LandSettleReach;
 
+    private bool[] _overseas = Array.Empty<bool>();
+    private int _overseasSeason = -1;
+
+    /// <summary>
+    /// Whether this civilization has met a civilization whose home landmass (its oldest live settlement's) is a different one: the contact across an ocean the
+    /// Columbian Exchange needs (FOR-10). Worked out once a season for every civilization; it follows contact, never knowledge of the map.
+    /// </summary>
+    public bool OverseasExchange(int civ)
+    {
+        if (!_economy.DiscoveryChain || (uint)civ >= (uint)_civs) return false;
+        if (_overseasSeason != _season || _overseas.Length != _civs)
+        {
+            _overseas = new bool[_civs];
+            var home = new int[_civs];
+            Array.Fill(home, -1);
+            for (int s = 0; s < _sCount; s++)
+            {
+                int c = _sCiv[s];
+                if ((uint)c < (uint)_civs && !_free[s] && _sPop[s] > 0 && home[c] < 0) home[c] = _landmass[_sTile[s]];
+            }
+            for (int a = 0; a < _civs; a++)
+                for (int b = 0; b < _civs && !_overseas[a]; b++)
+                    if (a != b && home[a] >= 0 && home[b] >= 0 && home[a] != home[b] && _dip.Contacted(a, b)) _overseas[a] = true;
+            _overseasSeason = _season;
+        }
+        return _overseas[civ];
+    }
+
     /// <summary>Whether a blockade holds this settlement's harbor (the colony-cutoff hook of the economy).</summary>
     public bool CutOffBySea(int settlement) => IsBlockaded(settlement);
 
