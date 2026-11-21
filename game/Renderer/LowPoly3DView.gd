@@ -659,6 +659,9 @@ func show_discovery_gallery() -> Vector3:
 		[["botanical_garden", 0.6, 1.4], ["botanical_garden_idle", 0.6, 1.4], ["learned_society", 0.35, 1.8], ["learned_society_idle", 0.35, 1.8], ["exchange_house", 0.45, 1.6], ["exchange_house_idle", 0.45, 1.6]],
 		# P1: the Renaissance Palace, its plot and its four stages
 		[["renaissance_palace_site", 1.1, 0.9], ["renaissance_palace_1", 1.1, 0.9], ["renaissance_palace_2", 1.1, 0.9], ["renaissance_palace_3", 1.1, 0.9], ["renaissance_palace_4", 1.1, 0.9]],
+		# P1 figures: a soldier for scale, then the engineer, miner, navigator, botanist, operative, bargeman and coachman, and the turnpike coach
+		[["person_soldier", 0.3, 2.4], ["person_engineer", 0.3, 2.4], ["person_miner", 0.3, 2.4], ["person_navigator", 0.4, 2.4], ["person_botanist", 0.35, 2.4], ["person_operative", 0.3, 2.4],
+			["person_bargeman", 0.4, 2.4], ["person_coachman", 0.4, 2.4], ["coach", 0.6, 2.0]],
 	]
 	for r in rows.size():
 		var row: Array = rows[r]
@@ -666,7 +669,7 @@ func show_discovery_gallery() -> Vector3:
 		for item in row:
 			total += float(item[1])
 		var x := -total * 0.5
-		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4][r]
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6][r]
 		for i in row.size():
 			var item: Array = row[i]
 			x += float(item[1]) * 0.5
@@ -677,6 +680,8 @@ func show_discovery_gallery() -> Vector3:
 			var y := 0.0
 			if name.begins_with("mark_"):
 				y = 0.2
+			if name.begins_with("person"):
+				custom = Color(float(i % 4) + 0.5 * 0.98, 0.0, 0.0, 0.0)
 			batch.add(name, Transform3D(Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
 			if name == "canal_nav_lock":
 				# a coal barge in the lock chamber, lying along the canal (the barge's bow is +Z, the canal runs along X)

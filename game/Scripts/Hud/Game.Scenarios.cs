@@ -887,6 +887,10 @@ public partial class Game
                     ("civic", 0.0f, -15.2f, 3.6f, 38.0f, 0.0f),
                     ("palace", 0.0f, -18.4f, 4.6f, 42.0f, 0.0f), ("palace-done", 2.2f, -18.4f, 2.6f, 28.0f, 0.0f), ("palace-done-side", 2.2f, -18.4f, 2.6f, 30.0f, 60.0f),
                     ("palace-stages", -0.6f, -18.4f, 3.4f, 34.0f, 20.0f), ("palace-top", 2.2f, -18.4f, 3.0f, 70.0f, 0.0f),
+                    // P1 figures, row z -21.6 (a soldier at x -2.1, then engineer -1.75, miner -1.45, navigator -1.1, botanist -0.7, operative -0.35, bargeman 0.0, coachman 0.4, coach 0.9)
+                    ("figures", -0.2f, -21.6f, 2.8f, 30.0f, 0.0f), ("figures-a", -1.3f, -21.6f, 2.7f, 24.0f, 0.0f), ("figures-b", -0.1f, -21.6f, 2.7f, 24.0f, 0.0f),
+                    ("figures-side", -0.9f, -21.6f, 2.7f, 24.0f, 70.0f), ("figures-back", -0.9f, -21.6f, 2.7f, 26.0f, 160.0f),
+                    ("coach", 0.9f, -21.6f, 2.7f, 30.0f, 0.0f), ("coach-side", 0.9f, -21.6f, 2.7f, 26.0f, 80.0f),
                 })
                 {
                     string itemName = item;
