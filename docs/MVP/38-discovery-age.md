@@ -136,7 +136,7 @@ FIB-12 raises weave and spin throughput through a **power-ledger share** (shuttl
 | Discovery, after own KEY-7 | E7 Hidden | E6 economy continues, no E7 systems | as above |
 
 - **Ending (D11, carried from E5):** a rival's KEY-7 starts no clock; the chapter ends only when the human completes KEY-7. Headless and AI-only runs are bounded by their own `--minutes` horizon.
-- **Length (D8, recommended, not yet confirmed):** **25 minutes from own KEY-6 to own KEY-7**, the same target as Iron and Fief. The era base is 32,000 in `eras.yaml`; it is **left as typed until a live E6 run can fit it**, as E5's was.
+- **Length (D8, recommended, not yet confirmed):** **25 minutes from own KEY-6 to own KEY-7**, the same target as Iron and Fief. The era base was typed at 32,000 and **fitted to 12,000 on 2026-11-21** from live runs ([report](balance/m13-wp12-pacing-slice3.md)): at 32,000 the stock AI took 45 to 56 minutes from KEY-6 to KEY-7; at 12,000 (and the eight D9 overrides scaled with it) the mean is 24.6 minutes over twelve civilizations in three worlds (range 20.0 to 27.8).
 - **Late projects (D9, recommended):** the [28 §7 and §16](28-production-gap.md) rule (non-keystone projects with at least three projects in their own era's prerequisite chain cost twice the derived cost) applies. **Eight of the 41** qualify by the repo's depth definition (the longest same-era chain has three projects, `late()` in the oracles): CHM-08, FIB-12, FIR-11, FIR-12, INQ-09, MEC-10, MET-13 and TRD-11. (An earlier draft said seven, counting all ancestors instead of chain depth; CHM-08 sits at the end of INQ-07, INQ-08, CHM-08.) Only FIB-12 and MEC-10 are on the KEY-7 path, so the doubling is a small lever and the era base is the real one.
 - **Legacy (D10):** main's current Legacy rules unchanged (Firsts pay nothing, Mastery `2 × (era + 1)`, Wonder built `25 × (era + 1)`, Thriving score). No E6-specific rescale.
 - **Dominion victory** is unchanged and reported separately from KEY-7 endings.
@@ -212,7 +212,7 @@ E5 balance is numbers only, so nothing in E6 needs E5 to finish. Rows below chan
 | D3 | Raise the economy ceiling through the existing flag-plus-`ProjectCeiling` shim and a per-chapter economy profile, not another mechanism | Yes | No |
 | D5 | Keep the simulation at 1:1; use 1:25 only to draw if the figure budget breaks | Yes | No |
 | D6 | Own worktree and branch; content-pack golden refreshed only at merge | Yes | No |
-| D8 | How long should E6 be? | About 25 minutes, as Iron and Fief | Please confirm or change |
+| D8 | How long should E6 be? | About 25 minutes, as Iron and Fief | **Applied as recommended 2026-11-21** (user: "Commit, continue" after the pacing question); era base fitted to 12,000, mean 24.6 minutes in the stock-AI runs. Say so to change it. |
 | D9 | Do E6 late projects cost double? | Yes (8 of 41) | Please confirm |
 | D10 | Use the Thriving Legacy score? | Yes | No (carried from E5) |
 | D11 | A countdown after the first rival's KEY-7? | None; only the human's KEY-7 ends Discovery | No (carried from E5) |
