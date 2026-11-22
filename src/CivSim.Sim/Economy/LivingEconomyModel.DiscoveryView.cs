@@ -23,4 +23,12 @@ public sealed partial class LivingEconomyModel
             IsColony(s), GardenStaffed(s), IronWorksCount(s, IronStructure.LearnedSociety) > 0, BastionFortBuilt(settlementIndex),
             CrewedGalleon(settlementIndex), IronWorksCount(s, IronStructure.ExchangeHouse) > 0);
     }
+
+    /// <summary>The site tile of a civilization's capital (where its colonies' tethers lead), or -1 with none; Discovery only.</summary>
+    public int CapitalTile(int civ)
+    {
+        if (!DiscoveryChain || civ < 0) return -1;
+        int capital = CapitalOf(civ);
+        return capital < 0 ? -1 : _settlements[capital].SiteTile;
+    }
 }

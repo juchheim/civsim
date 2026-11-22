@@ -54,6 +54,25 @@ public sealed class DiscoveryColonyTests
     }
 
     [Fact]
+    public void The_frame_shows_an_own_colony_as_content_with_the_capital_to_tether_to_and_nothing_for_a_rival()
+    {
+        (MatchModel match, SimRunner runner, int colony) = Start(ChapterRules.Discovery);
+        Grant(runner, match, 0, "KEY-5", "SEA-04", "KEY-6", "TER-11");
+        int capital = Enumerable.Range(0, match.Economy.SettlementCount).First(s => match.Economy.SettlementLite(s).Civilization == 0 && s != colony);
+
+        var own = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 0).Build(match, own);
+        int row = Enumerable.Range(0, own.SettlementCount).First(w => own.SettlementIndex[w] == colony);
+        Assert.Equal(1, own.Discovery.Colony[row]); // content: not strained, not blockaded
+        Assert.Equal(match.Economy.SettlementLite(capital).SiteTile, own.Discovery.CapitalTile);
+
+        var rival = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 1).Build(match, rival);
+        for (int w = 0; w < rival.SettlementCount; w++)
+            if (rival.SettlementIndex[w] == colony) Assert.Equal(0, rival.Discovery.Colony[w]); // another civilization's colony is not the viewer's to read
+    }
+
+    [Fact]
     public void TER11_does_nothing_in_Fief()
     {
         (MatchModel match, SimRunner runner, int colony) = Start(ChapterRules.Fief);

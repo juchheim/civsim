@@ -711,6 +711,7 @@ public partial class Game : Node3D
             }
             if (frame.Discovery.Active)
             {
+                settlement["discColony"] = i < frame.Discovery.Colony.Length ? (int)frame.Discovery.Colony[i] : 0;
                 settlement["discCoal"] = i < frame.Discovery.CoalLitres.Length ? frame.Discovery.CoalLitres[i] : 0L;
                 settlement["discEngines"] = i < frame.Discovery.Engines.Length ? (int)frame.Discovery.Engines[i] : 0;
                 settlement["discOvens"] = i < frame.Discovery.Ovens.Length ? (int)frame.Discovery.Ovens[i] : 0;
@@ -753,6 +754,7 @@ public partial class Game : Node3D
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;
                     settlement["discFactoryCoverage"] = 1L << 32;
+                    settlement["discColony"] = HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
                 }
                 if (forcedWorks || forcedSite > 0)
                 {
@@ -1056,6 +1058,7 @@ public partial class Game : Node3D
             ["fiefActive"] = frame.Fief.Active,
             ["discoveryActive"] = frame.Discovery.Active,
             ["discLanes"] = DiscoveryLanes(frame, world),
+            ["discCapitalTile"] = frame.Discovery.CapitalTile,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,

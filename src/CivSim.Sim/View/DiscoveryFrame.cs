@@ -12,7 +12,7 @@ public sealed class DiscoveryFrame
     public bool Active;
     public long[] CoalLitres = Array.Empty<long>(), FactoryCoverage = Array.Empty<long>(), Soot = Array.Empty<long>();
     public byte[] Engines = Array.Empty<byte>(), Ovens = Array.Empty<byte>(), Operatives = Array.Empty<byte>();
-    /// <summary>1 where the thing stands or works: canal, factory, colony, staffed garden, learned society, bastion fort, crewed galleon, exchange house.</summary>
+    /// <summary>1 where the thing stands or works: canal, factory, colony (Colony is a state instead: 0 none, 1 content, 2 strained, 3 blockaded), staffed garden, learned society, bastion fort, crewed galleon, exchange house.</summary>
     public byte[] Canal = Array.Empty<byte>(), Factory = Array.Empty<byte>(), Colony = Array.Empty<byte>(), GardenStaffed = Array.Empty<byte>(),
         Society = Array.Empty<byte>(), Bastion = Array.Empty<byte>(), GalleonCrewed = Array.Empty<byte>(), ExchangeHouse = Array.Empty<byte>();
 
@@ -25,6 +25,8 @@ public sealed class DiscoveryFrame
     public int LaneCount;
     public int[] LaneFromTile = Array.Empty<int>(), LaneToTile = Array.Empty<int>(), LaneVolume = Array.Empty<int>();
     public sbyte[] LaneCiv = Array.Empty<sbyte>();
+    /// <summary>The viewer's capital's tile (where a colony's tether leads), -1 with none.</summary>
+    public int CapitalTile = -1;
     public int Colonies;
     public short Key7Permille;
 

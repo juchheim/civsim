@@ -22,6 +22,7 @@ public sealed partial class FrameBuilder
         d.OceanReach = d.ExchangeStaffed = d.JointStockOpen = d.InsuranceOpen = d.SocietyStaffed = false;
         d.Colonies = 0; d.Key7Permille = 0;
         d.LaneCount = 0;
+        d.CapitalTile = -1;
         if (!d.Active) return;
 
         // ocean lanes: the routes already in the frame that cross deep ocean (a spectator sees all of them, a player the routes it is party to)
@@ -58,10 +59,19 @@ public sealed partial class FrameBuilder
             DiscoveryTownReadout t = eco.DiscoveryTown(settlement);
             d.CoalLitres[w] = t.CoalLitres; d.FactoryCoverage[w] = t.FactoryCoverage; d.Soot[w] = t.Soot;
             d.Engines[w] = (byte)Math.Min(255, t.Engines); d.Ovens[w] = (byte)Math.Min(255, t.Ovens); d.Operatives[w] = (byte)Math.Min(255, t.Operatives);
-            d.Canal[w] = (byte)(t.Canal ? 1 : 0); d.Factory[w] = (byte)(t.Factory ? 1 : 0); d.Colony[w] = (byte)(t.Colony ? 1 : 0);
+            d.Canal[w] = (byte)(t.Canal ? 1 : 0); d.Factory[w] = (byte)(t.Factory ? 1 : 0); d.Colony[w] = ColonyState(match, target, w, settlement, t.Colony);
             d.GardenStaffed[w] = (byte)(t.GardenStaffed ? 1 : 0); d.Society[w] = (byte)(t.SocietyHere ? 1 : 0);
             d.Bastion[w] = (byte)(t.Bastion ? 1 : 0); d.GalleonCrewed[w] = (byte)(t.GalleonCrewed ? 1 : 0); d.ExchangeHouse[w] = (byte)(t.ExchangeHere ? 1 : 0);
             if (t.Colony) d.Colonies++;
         }
+        d.CapitalTile = eco.CapitalTile(_viewer);
+    }
+
+    /// <summary>A colony's state for the view (docs/MVP/39 §7.3): 0 not a colony, 1 content, 2 strained (its Cohesion is strained or fraying), 3 blockaded (its harbor is cut off by sea).</summary>
+    private static byte ColonyState(MatchModel match, MatchFrame target, int row, int settlement, bool colony)
+    {
+        if (!colony) return 0;
+        if (match.Politics.IsBlockaded(settlement)) return 3;
+        return target.SettlementCohesion[row] >= (byte)CohesionBand.Strained ? (byte)2 : (byte)1;
     }
 }

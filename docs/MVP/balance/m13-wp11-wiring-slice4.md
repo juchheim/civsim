@@ -29,6 +29,10 @@ A dug coal seam (`DepositKind.Coal`, overlay kind 13, with the worked bit) is dr
 
 **Finding:** in natural play (seeds 20261019 and 20261020, 130 minutes) the stock AI has three or four trade routes and **none crosses deep ocean**, so the lane overlay is empty in most matches. That matches the earlier ocean finding (contact never needed the deep ocean): the lanes will show when ships carry colonies, expeditions or a human's routes, not from AI trade. Ship tokens are decoration on a lane (a clock-driven caravel), not sim voyages; wrecks are not wired (no event in the frame).
 
+## Colonies (added after the fourth commit)
+
+`DiscoveryFrame.Colony` is now a state per own town (0 not a colony, 1 content, 2 strained when its Cohesion band is strained or fraying, 3 blockaded when its harbor is cut off by sea) and `CapitalTile` is where the tether leads (`LivingEconomyModel.CapitalTile`). `Game.cs` sends `discColony` per town and `discCapitalTile`; `LowPoly3DView._sync_colonies` gives the art branch's `colony_overlay` one entry per own colony (never a rival's, never a remembered town): the pennant and tether always, the dashed yellow ring when strained, the solid red ring when blockaded. A colony that breaks away is an ordinary Free Folk town and stops being listed, so the "independent" state and foundings are not wired. `DiscoveryColonyTests` checks a content own colony, the capital tile and that a rival reads none. Seen in the playtest with `--dev-disc-works --dev-colony=1|2|3` (Debug), which marks the capital town as a colony in that state; the strained and blockaded rings render as designed. The galleon on station at a blockaded harbor is not wired.
+
 ## A real bug the gallery found
 
 `FillDiscovery` threw an `OverflowException` when the viewer is -1 (spectator, `--viewer=-1`): `HasOceanReach` casts the civ to `uint`, which overflows under the Sim's checked arithmetic. The frame now returns before the realm block and the town loop for a spectator. `DiscoveryFrameTests` has a spectator test that fails without the fix. Any Discovery match with a spectator or a replay viewer would have crashed at startup.

@@ -101,6 +101,20 @@ func setup_frame(frame_data: Dictionary) -> void:
 	_sync_hearth_fx()
 	print("M7a low-poly world built: ", builder.stats)
 
+## The viewer's overseas colonies (docs/MVP/39 §7.3): a pennant, a state ring when strained or blockaded, and a tether to the capital. The sim's colony state
+## (0 none, 1 content, 2 strained, 3 blockaded) says which; a colony that has broken away is an ordinary Free Folk town and is not listed. Foundings are not wired.
+func _sync_colonies() -> void:
+	var colonies: Array = []
+	if world.discovery_active:
+		var capital := world.tile_center(world.disc_capital_tile) if world.disc_capital_tile >= 0 else Vector2.ZERO
+		for s in world.settlements:
+			var state := int(world.discovery_settlement(s).get("colony", 0))
+			if state <= 0 or bool(s.get("remembered", false)):
+				continue
+			var pos := world.tile_center(int(s.tile))
+			colonies.append({"pos": pos, "capital": capital if world.disc_capital_tile >= 0 else pos, "civ": int(s.civ), "state": state})
+	colony_overlay.sync(colonies, [])
+
 ## Ocean lanes from the Discovery frame (docs/MVP/39 §7.2): a dashed arc between the two harbors of each deep-ocean trade route, a caravel on it (two on a busy one).
 ## Only what the frame lists is drawn; nothing is invented.
 func _sync_ocean_lanes() -> void:
@@ -143,6 +157,8 @@ func update_frame(frame_data: Dictionary) -> void:
 		discovery_rig.sync(builder.disc_works + builder.disc_mines)
 	if lane_overlay != null and not lane_overlay.demo:
 		_sync_ocean_lanes()
+	if colony_overlay != null and not colony_overlay.demo:
+		_sync_colonies()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
