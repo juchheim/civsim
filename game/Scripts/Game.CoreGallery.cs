@@ -89,6 +89,13 @@ public partial class Game
         foreach (var (kind, count) in stage.Structures) if (kind < structures.Length) structures[kind] = count;
         var works = new int[IronWorkKindCount()];
         foreach (string id in stage.Works) if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
+        if (stage.Name == "iron" && settlement.ContainsKey("discCoal"))
+        {
+            // a Discovery match: the Iron city also holds the E6 industry and a bastion fort behind its castle (doc 39), coal in store and power on
+            foreach (string id in new[] { "bastion_fort", "atmospheric_engine", "coke_oven", "factory" }) if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
+            settlement["discCoal"] = 40L << 32;
+            settlement["discFactoryCoverage"] = 1L << 32;
+        }
         settlement["structures"] = structures;
         settlement["population"] = stage.Population;
         settlement["halls"] = stage.Halls;

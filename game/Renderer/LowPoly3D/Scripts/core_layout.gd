@@ -668,10 +668,34 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 				castle_mesh = "concentric_4" if int(s.get("soldiers", 0)) > 0 else "concentric_4_idle"
 			elif build_pm > 0 and build_id == "concentric_castle" and cstage == 4:
 				castle_mesh = "concentric_%d" % (1 + mini(2, build_pm * 3 / 1000))
-		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", castle_mesh, 1.25)
+		# DEF-10 (docs/MVP/39 §4.5): a bastion fort takes the Citadel slot after the castle, with its own stages, a garrison cue (the banner lowered when
+		# nobody is in post) and breach pieces on the siege's integrity track (the fort's own 6.75 wall, so it shows fewer stages than an E5 wall).
+		var bastion_state := ""
+		if w.discovery_active and cstage == 4:
+			wb.kit.ensure_discovery()
+			if w.iron_works(s, "bastion_fort") > 0:
+				var siege := w.siege_of(int(s.get("index", -1)))
+				var integrity := int(siege[3]) if not siege.is_empty() else 1000
+				if integrity < 150:
+					castle_mesh = "bastion_ruin"
+					bastion_state = "ruin"
+				elif integrity < 400:
+					castle_mesh = "bastion_breach"
+					bastion_state = "breach"
+				elif integrity < 700:
+					castle_mesh = "bastion_cracked"
+					bastion_state = "cracked"
+				else:
+					castle_mesh = "bastion_4" if int(s.get("soldiers", 0)) > 0 else "bastion_4_idle"
+					bastion_state = "whole"
+			elif build_pm > 0 and build_id == "bastion_fort":
+				castle_mesh = "bastion_%d" % (1 + mini(2, build_pm * 3 / 1000))
+		var r = _whole([Q.CITADEL, Q.WATCH, Q.HOMES_B, Q.FRONT, Q.SACRED], "castle", castle_mesh, 1.1 if bastion_state != "" else 1.25)
 		if r != null:
 			var cp: Vector2 = r[1]
 			var cyaw := _face(cp)
+			if bastion_state == "cracked" or bastion_state == "breach":
+				wb.disc_works.append({"kind": "bastion_fort", "pos": Vector3(cp.x, w.height_at(cp), cp.y), "yaw": cyaw, "scale": float(r[2]), "state": bastion_state, "seed": "bastion%d" % si})
 			wb.castle_sites.append({"p": cp, "y": w.height_at(cp), "yaw": cyaw, "stage": cstage, "civ": _civ, "tile": _t})
 			var guards := mini(int(s.get("soldiers", 0)), 6) if cstage == 4 else 0
 			for gi in guards:

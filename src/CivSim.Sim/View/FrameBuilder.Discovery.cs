@@ -23,6 +23,7 @@ public sealed partial class FrameBuilder
         d.Colonies = 0; d.Key7Permille = 0;
         if (!d.Active) return;
 
+        if (_viewer < 0) return; // a spectator (viewer -1) owns no civilization, so there is no realm block and no own town to read
         d.OceanReach = match.Politics.HasOceanReach(_viewer);
         d.ExchangeStaffed = eco.ExchangeStaffed(_viewer);
         d.JointStockOpen = eco.JointStockOpen(_viewer);

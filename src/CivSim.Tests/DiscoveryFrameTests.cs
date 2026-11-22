@@ -36,6 +36,18 @@ public sealed class DiscoveryFrameTests
     }
 
     [Fact]
+    public void A_spectator_frame_builds_in_Discovery_with_no_realm_block_and_no_towns()
+    {
+        MatchModel match = Match(ChapterRules.Discovery);
+        new SimRunner(match).Advance(5);
+        MatchFrame frame = Frame(match, -1); // viewer -1: observing, owning nothing (it once threw an overflow in HasOceanReach)
+        Assert.True(frame.Discovery.Active);
+        Assert.False(frame.Discovery.OceanReach);
+        Assert.Equal(0, frame.Discovery.Colonies);
+        Assert.All(frame.Discovery.Engines, e => Assert.Equal(0, e));
+    }
+
+    [Fact]
     public void The_frame_is_inactive_outside_Discovery_and_shows_what_stands_in_the_viewers_own_towns_only()
     {
         MatchModel fief = Match(ChapterRules.Fief);

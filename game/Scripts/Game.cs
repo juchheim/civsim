@@ -748,7 +748,7 @@ public partial class Game : Node3D
                 {
                     var discWorks = new int[IronWorkKindCount()];
                     if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(discWorks, 0);
-                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory" })
+                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort" })
                         if (IronKindIndex(id) is >= 0 and int discAt) discWorks[discAt] = 1;
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;

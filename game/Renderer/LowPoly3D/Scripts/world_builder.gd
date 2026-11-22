@@ -568,7 +568,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 			h = h * 31 + (1 if int(fief.get("sawing_used_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(fief.get("craft_used_raw", 0)) > 0 else 0)
 		if w.discovery_active:
-			for wid in ["atmospheric_engine", "coke_oven", "factory"]:
+			for wid in ["atmospheric_engine", "coke_oven", "factory", "bastion_fort"]:
 				h = h * 31 + w.iron_works(s, wid)
 			var disc := w.discovery_settlement(s)
 			h = h * 31 + (1 if int(disc.get("coal_raw", 0)) > 0 else 0)
