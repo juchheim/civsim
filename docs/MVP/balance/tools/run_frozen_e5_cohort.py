@@ -268,7 +268,8 @@ def _validate_seed_artifacts(seed_root: Path, prefix_name: str, seed: int,
         if key in provenance:
             raise ValueError(f"duplicate Harness provenance key: {key}")
         provenance[key] = value
-    expected = {"cohort": role,
+    expected_cohort = "e5-granted" if role == "grant-e5" else role
+    expected = {"cohort": expected_cohort,
                 "minutes": "130", "warmup_minutes": "5",
                 "seeds_sha256": sha256(seed_manifest),
                 "pack_sha256": sha256(pack),
