@@ -22,7 +22,7 @@ internal static class DiscoveryMatchCommand
 {
     private static readonly EconomyArchetype[] Archetypes = { EconomyArchetype.Builder, EconomyArchetype.Grower, EconomyArchetype.Warlord, EconomyArchetype.Sage };
     private static readonly string[] Structures =
-        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden", "learned_society", "academy", "university" };
+        { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden", "learned_society", "renaissance_palace", "academy", "university" };
 
     public static int Run(string[] args)
     {
@@ -273,10 +273,20 @@ internal static class DiscoveryMatchCommand
                     for (int r = 0; r < recipes.Length; r++) if ((bool)avail.Invoke(match.Economy, new object[] { s, recipes[r] })!) can[r]++;
                     for (int g = 0; g < inputs.Length; g++) if (match.Economy.DiscoveryGoodStock(s, inputs[g]) > Fix64.Zero || match.Economy.FiefStockPublic(s, inputs[g]) > Fix64.Zero) have[g]++;
                 }
+                int pb = match.Economy.WonderUnderConstruction(c);
+                if (pb >= 0)
+                    Console.WriteLine($"    palace town {pb}: can-run " + string.Join(" ", recipes.Select(n => $"{n}={(bool)avail.Invoke(match.Economy, new object[] { pb, n })!}")) + " | stock " +
+                        string.Join(" ", inputs.Select(n => $"{n}={(match.Economy.DiscoveryGoodStock(pb, n) + match.Economy.FiefStockPublic(pb, n)).ToDoubleForDisplay():F1}")) + $" pop={match.Economy.Population(pb)}");
                 Console.WriteLine($"  chain civ{c}: towns={towns} can-run " + string.Join(" ", recipes.Select((n, r) => $"{n}={can[r]}")) + " | towns holding " + string.Join(" ", inputs.Select((n, g) => $"{n}={have[g]}")));
             }
         }
         Console.WriteLine("  instruments held at a harbor: " + string.Join(", ", Enumerable.Range(0, civs).Select(c => $"civ{c} chronometer={match.Economy.ChronometerHeld(c)} telescope={match.Economy.TelescopeHeld(c)}")));
+        Console.WriteLine("  palace: " + string.Join(", ", Enumerable.Range(0, civs).Select(c =>
+        {
+            if (match.Economy.HoldsWonder(c, "renaissance_palace")) return $"civ{c} HELD";
+            int builder = match.Economy.WonderUnderConstruction(c);
+            return builder < 0 ? $"civ{c} not started" : $"civ{c} building {LivingEconomyModel.IronWorkId(match.Economy.IronBuildAt(builder).Kind)} [{match.Economy.IronBuildShortages(builder)}]";
+        })));
         Console.WriteLine("  built: " + string.Join(", ", Structures.Select((name, j) => $"{name}={totals[j]}")) + $"; settlements={settlements}, holding coal={coalSettlements}, colonies={match.Economy.ColonyCount()}");
     }
 }

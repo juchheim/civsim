@@ -1799,12 +1799,12 @@ public sealed partial class LivingEconomyModel
 
     // ---- Wonders and leagues (LRN-06, SEA-08, BLD-11, DIP-07) -------------------------------------------
 
-    private static bool IsWonder(IronStructure kind) => kind is IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral;
+    private static bool IsWonder(IronStructure kind) => kind is IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral or IronStructure.RenaissancePalace;
 
     /// <summary>The research project a Wonder completes, which earns its Legacy.</summary>
     private static string WonderProject(IronStructure kind) => kind switch
     {
-        IronStructure.GreatLibrary => "LRN-06", IronStructure.GreatLighthouse => "SEA-08", IronStructure.GothicCathedral => "BLD-12", _ => "BLD-11",
+        IronStructure.GreatLibrary => "LRN-06", IronStructure.GreatLighthouse => "SEA-08", IronStructure.GothicCathedral => "BLD-12", IronStructure.RenaissancePalace => "BLD-13", _ => "BLD-11",
     };
 
     /// <summary>The civilization that holds a Wonder, or -1: there is one of each in the world, and it belongs to whoever holds the town it stands in.</summary>
@@ -1842,7 +1842,8 @@ public sealed partial class LivingEconomyModel
     private bool WantsMasterMason(SettlementState s)
         => FiefChain && Done(s.Civilization, "STN-13") &&
            (s.Metal is { IronBuildKind: >= 0 } m && IronSpecs[m.IronBuildKind] is { Large: true, Stone: true } ||
-            Done(s.Civilization, "BLD-12") && WonderWanted(s, IronStructure.GothicCathedral));
+            Done(s.Civilization, "BLD-12") && WonderWanted(s, IronStructure.GothicCathedral) ||
+            DiscoveryChain && Done(s.Civilization, "BLD-13") && WonderWanted(s, IronStructure.RenaissancePalace));
 
     private int MasterMasonHeads(int settlementIndex)
     {
@@ -1952,6 +1953,7 @@ public sealed partial class LivingEconomyModel
         Check("wheel", m.Goods[(int)MetalGood.Wheel], spec.Wheel);
         Check("plank", IronStock(s, IronGood.Plank), spec.Plank);
         Check("glass", m.Goods[(int)MetalGood.Glass], spec.Glass);
+        Check("plate glass", RealmPlateGlass(s.Civilization), spec.PlateGlass);
         return string.Join(" ", parts);
     }
 
@@ -2567,13 +2569,13 @@ public sealed partial class LivingEconomyModel
         // The Arsenal (docs/MVP/37-arsenal.md) retires PowderMill: that entry keeps its number so saved games and hashes stay valid, but nothing builds it.
         Arsenal,
         // The Discovery chapter (docs/MVP/38 §5.1): built and counted only in a Discovery match, written to snapshots only there (SnapshotIronStructureCount).
-        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort, BotanicalGarden, LearnedSociety,
+        AtmosphericEngine, CokeOven, NavigationCanal, Galleon, Factory, ExchangeHouse, BastionFort, BotanicalGarden, LearnedSociety, RenaissancePalace,
         Count
     }
 
     /// <summary>What a structure needs: its unlocking project, labor in work-seasons, and materials paid at completion (docs/MVP/26 §3.2; all provisional).</summary>
     private readonly record struct IronSpec(string Name, string Unlock, int Labor, int Block, int Ashlar, int Wood, int Bloom,
-        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0, int Plank = 0, int Glass = 0);
+        bool Large = false, bool Stone = false, bool Infrastructure = false, int Wheel = 0, int Plank = 0, int Glass = 0, int PlateGlass = 0);
 
     // Large: a treadwheel crane halves the labor (MEC-06). Stone: STN-12 shortens stone work. Infrastructure: surveying (NUM-07) shortens fields, roads and aqueducts.
     private static readonly IronSpec[] IronSpecs =
@@ -2647,6 +2649,8 @@ public sealed partial class LivingEconomyModel
         new("botanical_garden", "FOR-09", 20, 0, 6, 4, 0),
         // A learned society (LRN-09, docs/MVP/38 §5.3): the registry's 10 block, 4 wood and 4 planks (provisional); it works only with scholars in it.
         new("learned_society", "LRN-09", 24, 10, 0, 4, 0, Stone: true, Plank: 4),
+        // The Renaissance Palace (BLD-13, docs/MVP/38 §5.7): the registry's 50 ashlar, 20 wood and 6 plate glass, 150 work-seasons; one in the world, a staffed master mason (provisional).
+        new("renaissance_palace", "BLD-13", 150, 0, 50, 20, 0, Large: true, Stone: true, PlateGlass: 6),
     };
 
     /// <summary>
@@ -2713,7 +2717,7 @@ public sealed partial class LivingEconomyModel
             IronStructure.Gatehouse => IronWorksCount(s, kind) == 0 && HasStoneWalls(s),
             IronStructure.FrontierWall => IronWorksCount(s, kind) < 2 && NextFrontierFacing(s) >= 0,
             IronStructure.Arsenal => IronWorksCount(s, kind) == 0 && ArsenalConstructionStoneCanFinish(s),
-            IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
+            IronStructure.GreatLibrary or IronStructure.GreatLighthouse or IronStructure.GreatDome or IronStructure.GothicCathedral or IronStructure.RenaissancePalace => IronWorksCount(s, kind) == 0 && WonderOwnerCiv(kind) < 0,
             _ => IronWorksCount(s, kind) == 0,
         };
 
@@ -2809,6 +2813,7 @@ public sealed partial class LivingEconomyModel
             plan.Terminal[slot] = Fix64.Max(plan.Terminal[slot], Fix64.Max(IronStock(s, IronGood.Plank), Fix64.FromInt(spec.Plank)));
         }
         if (spec.Glass > 0) SetMetalMaterial(MetalGood.Glass, spec.Glass);
+        // Plate glass is drawn from the whole realm's stores (see RealmPlateGlass), so it is wanted by DiscoveryInstrumentWants, where it can be made, not here.
 
         void SetMetalMaterial(MetalGood good, int amount)
         {
@@ -2908,7 +2913,8 @@ public sealed partial class LivingEconomyModel
         => m.Goods[(int)MetalGood.Block] >= Fix64.FromInt(spec.Block) && m.Goods[(int)MetalGood.Ashlar] >= Fix64.FromInt(spec.Ashlar) &&
            m.Goods[(int)MetalGood.Iron] >= Fix64.FromInt(spec.Bloom) && s.Stores[(int)Good.Wood] >= Fix64.FromInt(spec.Wood) &&
            m.Goods[(int)MetalGood.Wheel] >= Fix64.FromInt(spec.Wheel) && IronStock(s, IronGood.Plank) >= Fix64.FromInt(spec.Plank) &&
-           m.Goods[(int)MetalGood.Glass] >= Fix64.FromInt(spec.Glass);
+           m.Goods[(int)MetalGood.Glass] >= Fix64.FromInt(spec.Glass) &&
+           (spec.PlateGlass == 0 || RealmPlateGlass(s.Civilization) >= Fix64.FromInt(spec.PlateGlass));
 
     /// <summary>Work-seasons per litre of stone dressed from a block into ashlar (the E3 recipe: 0.5 with a T8+ kit).</summary>
     private static readonly Fix64 DressLabor = Fix64.Half;
@@ -3012,7 +3018,8 @@ public sealed partial class LivingEconomyModel
         if (m.Goods[(int)MetalGood.Block] < Fix64.FromInt(spec.Block) || m.Goods[(int)MetalGood.Ashlar] < Fix64.FromInt(spec.Ashlar) ||
             m.Goods[(int)MetalGood.Iron] < Fix64.FromInt(spec.Bloom) || s.Stores[(int)Good.Wood] < Fix64.FromInt(spec.Wood) ||
             m.Goods[(int)MetalGood.Wheel] < Fix64.FromInt(spec.Wheel) || IronStock(s, IronGood.Plank) < Fix64.FromInt(spec.Plank) ||
-            m.Goods[(int)MetalGood.Glass] < Fix64.FromInt(spec.Glass)) return false;
+            m.Goods[(int)MetalGood.Glass] < Fix64.FromInt(spec.Glass) ||
+            spec.PlateGlass > 0 && RealmPlateGlass(s.Civilization) < Fix64.FromInt(spec.PlateGlass)) return false;
         if (m.IronBuildKind == (int)IronStructure.Terrace && NextTerraceTile(s) < 0) return false;
         if (m.IronBuildKind == (int)IronStructure.FrontierWall && NextFrontierFacing(s) < 0) return false;
         if (IsWonder((IronStructure)m.IronBuildKind) && WonderOwnerCiv((IronStructure)m.IronBuildKind) >= 0) return false; // someone else finished it first: there is one of each
@@ -3023,6 +3030,7 @@ public sealed partial class LivingEconomyModel
         AddStock(s, (int)Good.Wood, -Fix64.FromInt(spec.Wood));
         AddStock(s, IronSlot(IronGood.Plank), -Fix64.FromInt(spec.Plank));
         AddStock(s, MetalSlot(MetalGood.Glass), -Fix64.FromInt(spec.Glass));
+        if (spec.PlateGlass > 0) PayRealmPlateGlass(s, spec.PlateGlass);
         return true;
     }
 

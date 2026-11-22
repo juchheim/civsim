@@ -38,6 +38,39 @@ public sealed partial class LivingEconomyModel
         return m > Fix64.One ? m : Fix64.One;
     }
 
+    /// <summary>Plate glass standing in the stores of all the civilization's towns: the Palace's glass is carried to it by the realm's roads and ships.</summary>
+    private Fix64 RealmPlateGlass(int civ)
+    {
+        if (!DiscoveryChain) return Fix64.Zero;
+        int slot = DiscoverySlot(DiscoveryGood.PlateGlass);
+        Fix64 total = Fix64.Zero;
+        foreach (SettlementState o in _settlements) if (IsMember(o, civ)) total += Stock(o, slot);
+        return total;
+    }
+
+    /// <summary>Takes plate glass for a Wonder: the building town's own first, then the realm's other towns in ascending id.</summary>
+    private void PayRealmPlateGlass(SettlementState builder, int amount)
+    {
+        int slot = DiscoverySlot(DiscoveryGood.PlateGlass);
+        Fix64 owed = Fix64.FromInt(amount);
+        Fix64 own = Fix64.Min(owed, Stock(builder, slot));
+        if (own > Fix64.Zero) { AddStock(builder, slot, -own); owed -= own; }
+        foreach (SettlementState o in _settlements)
+        {
+            if (owed <= Fix64.Zero) break;
+            if (o.Id == builder.Id || !IsMember(o, builder.Civilization)) continue;
+            Fix64 take = Fix64.Min(owed, Stock(o, slot));
+            if (take > Fix64.Zero) { AddStock(o, slot, -take); owed -= take; }
+        }
+    }
+
+    private bool PalaceUnderConstruction(int civ)
+    {
+        foreach (SettlementState o in _settlements)
+            if (o.Civilization == civ && o.Metal is { IronBuildKind: (int)IronStructure.RenaissancePalace }) return true;
+        return false;
+    }
+
     private void WantDiscoveryGood(MetalPlan plan, SettlementState s, DiscoveryGood good, Fix64 target)
     {
         int slot = DiscoverySlot(good);
@@ -55,6 +88,9 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "CHM-08") && Population(s.Id) >= 50) WantDiscoveryGood(plan, s, DiscoveryGood.Alkali, Fix64.FromInt(2));
         // Alkali needs salt and only some towns hold any, so the instruments are wanted in every town of size until the realm holds one: the towns that can make
         // one do, and the rest find the plan infeasible and spend nothing.
+        // The Renaissance Palace (BLD-13) draws its plate glass from the realm's stores: while one is being built, towns of size make it until the realm holds enough.
+        if (Population(s.Id) >= 50 && PalaceUnderConstruction(civ) && RealmPlateGlass(civ) < Fix64.FromInt(IronSpecs[(int)IronStructure.RenaissancePalace].PlateGlass))
+            WantDiscoveryGood(plan, s, DiscoveryGood.PlateGlass, Fix64.FromInt(IronSpecs[(int)IronStructure.RenaissancePalace].PlateGlass));
         if (!Done(civ, "MEC-09") || Population(s.Id) < 50) return;
         if (Done(civ, "WAY-10") && !ChronometerHeld(civ)) WantDiscoveryGood(plan, s, DiscoveryGood.Chronometer, Fix64.One);
         if (Done(civ, "INQ-07") && Done(civ, "CER-11") && !TelescopeHeld(civ)) WantDiscoveryGood(plan, s, DiscoveryGood.Telescope, Fix64.One);

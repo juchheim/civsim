@@ -286,6 +286,15 @@ public sealed partial class LivingEconomyModel
                 if (WonderOwnerCiv(kind) >= 0) return Stop(BuildCause.Taken, BuildWhy.WonderHeldElsewhere);
                 if (!WonderWanted(s, kind)) return Stop(BuildCause.Taken, BuildWhy.NotLargestTown);
                 return MasterMasonHeads(s.Id) > 0 ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsMasterMason);
+            case IronStructure.RenaissancePalace:
+                if (!DiscoveryChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
+                if (!(gate = Built()).Open) return gate;
+                if (!(gate = Town()).Open) return gate;
+                if (!Done(civ, "BLD-13")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "BLD-13");
+                if (!Done(civ, "STN-13")) return Stop(BuildCause.Requires, BuildWhy.NeedsProject, 0, "STN-13");
+                if (WonderOwnerCiv(kind) >= 0) return Stop(BuildCause.Taken, BuildWhy.WonderHeldElsewhere);
+                if (!WonderWanted(s, kind)) return Stop(BuildCause.Taken, BuildWhy.NotLargestTown);
+                return MasterMasonHeads(s.Id) > 0 ? BuildGate.Pass : Stop(BuildCause.Requires, BuildWhy.NeedsMasterMason);
             case IronStructure.CathedralSchool:
                 if (!FiefChain) return Stop(BuildCause.Requires, BuildWhy.NoSuchStructure);
                 if (!(gate = Built()).Open) return gate;
