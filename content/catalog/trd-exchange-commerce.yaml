@@ -142,8 +142,8 @@ projects:
     era: 6
     type: I
     status: numeric
-    cost: 36000
-    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 12000 x I 1.5."
+    cost: 84000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 28000 x I 1.5."
     requires: [TRD-10, COM-11]
     effects:
       - {kind: build, structure: exchange_house}

@@ -147,8 +147,8 @@ projects:
     era: 6
     type: M
     status: numeric
-    cost: 24000
-    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 12000 x M 1.0."
+    cost: 56000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 28000 x M 1.0."
     requires: [FIR-10, MIN-09, TRN-11]
     effects:
       - {kind: mod, stat: heat_wood_demand, op: mult, value: 0.5, note: "wood burned for heat and kilns, only in a settlement that holds coal (P)"}
@@ -161,8 +161,8 @@ projects:
     era: 6
     type: M
     status: numeric
-    cost: 24000
-    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 12000 x M 1.0."
+    cost: 56000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 28000 x M 1.0."
     requires: [FIR-11, CHM-06]
     effects:
       - {kind: build, structure: coke_oven}
