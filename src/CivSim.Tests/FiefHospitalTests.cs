@@ -120,7 +120,7 @@ public sealed class FiefHospitalTests
         Restore(currentRoundTrip.Economy, Snapshot(live.Economy));
         Assert.Equal(Fix64.Parse("2.25"), currentRoundTrip.Economy.GoodStock(0, "G-PAPER"));
         live.Economy.FixtureLegacyIronStructureCount = live.Economy.FixtureIronKindCount - 1; // pre-Arsenal layout
-        byte[] legacySnapshot = AsVersion45Snapshot(Snapshot(live.Economy));
+        byte[] legacySnapshot = AsVersion45Snapshot(Snapshot(live.Economy), live.Economy.FigureCount);
 
         BronzeFixture resumed = Fief("KEY-5", "CHM-06");
         Restore(resumed.Economy, legacySnapshot);
@@ -132,9 +132,9 @@ public sealed class FiefHospitalTests
         Assert.Equal(live.Economy.ComputeChecksum(), resumed.Economy.ComputeChecksum());
     }
 
-    private static byte[] AsVersion45Snapshot(byte[] current)
+    private static byte[] AsVersion45Snapshot(byte[] current, int figureCount)
     {
-        current = WithoutFiefFissionScaleTail(current);
+        current = WithoutFiefExtensionTail(current, figureCount);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -171,7 +171,7 @@ public sealed class FiefHospitalTests
         live.Economy.FixtureSetGoodStock(0, "G-BOOK", Fix64.Parse("3.75"));
         live.Economy.FixtureSetGoodStock(0, "G-SPIRITS", Fix64.Parse("1.5"));
         live.Economy.FixtureLegacyIronStructureCount = live.Economy.FixtureIronKindCount - 1; // pre-Arsenal layout
-        byte[] legacySnapshot = AsVersion46Snapshot(Snapshot(live.Economy));
+        byte[] legacySnapshot = AsVersion46Snapshot(Snapshot(live.Economy), live.Economy.FigureCount);
 
         BronzeFixture resumed = Fief("KEY-5", "CHM-06");
         Restore(resumed.Economy, legacySnapshot);
@@ -184,9 +184,9 @@ public sealed class FiefHospitalTests
         Assert.Equal(Fix64.Zero, resumed.Economy.GoodStock(0, "G-ARMS5"));
     }
 
-    private static byte[] AsVersion46Snapshot(byte[] current)
+    private static byte[] AsVersion46Snapshot(byte[] current, int figureCount)
     {
-        current = WithoutFiefFissionScaleTail(current);
+        current = WithoutFiefExtensionTail(current, figureCount);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -213,13 +213,17 @@ public sealed class FiefHospitalTests
         return legacy;
     }
 
-    private static byte[] WithoutFiefFissionScaleTail(byte[] current)
+    private static byte[] WithoutFiefExtensionTail(byte[] current, int figureCount)
     {
-        const int tailBytes = sizeof(int) + sizeof(int) + 8 * sizeof(long);
+        int version = BitConverter.ToInt32(current, sizeof(int));
+        int tailBytes = sizeof(int) + sizeof(int) + 8 * sizeof(long);
+        if (version >= 50) tailBytes += sizeof(int) + figureCount;
         int offset = current.Length - tailBytes;
         if (offset < 0 || BitConverter.ToInt32(current, offset) != 0x53495346 ||
             BitConverter.ToInt32(current, offset + sizeof(int)) != 8)
-            throw new InvalidDataException("Could not locate the Fief fission-scale snapshot tail.");
+            throw new InvalidDataException("Could not locate the Fief extension snapshot tail.");
+        if (version >= 50 && BitConverter.ToInt32(current, offset + sizeof(int) * 2 + 8 * sizeof(long)) != figureCount)
+            throw new InvalidDataException("Fief extension snapshot tail has an unexpected figure count.");
         return current[..offset];
     }
 

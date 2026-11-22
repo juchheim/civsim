@@ -185,7 +185,7 @@ public class FiefChapterTests
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
         Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(49, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(50, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }
@@ -199,6 +199,7 @@ public class FiefChapterTests
         foreach (MatchModel m in new[] { bronze, iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         fief.Economy.SetFissionThresholdScale(0, Fix64.FromRatio(83, 100));
+        fief.Economy.FixtureSetWorkedWithToolLastSeason(0, true);
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
         Assert.True(fiefBytes.Length > ironBytes.Length); // Fief adds its goods and structure slots to the Iron economy payload.
         Assert.NotEqual(ironBytes, fiefBytes);

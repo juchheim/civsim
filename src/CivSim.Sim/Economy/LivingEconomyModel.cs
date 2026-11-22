@@ -216,7 +216,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 49;
+    private const int FiefSnapshotVersion = 50;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
     private bool _fiefBowGoodsNeedRead;
@@ -7102,6 +7102,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             hash.Add(f.CareWorkThisSeason); hash.Add(f.FireWorkThisSeason);
             hash.Add(f.SkillLevels.Length); foreach (byte level in f.SkillLevels) hash.Add(level);
             hash.Add(f.SkillPractice.Length); foreach (Fix64 practice in f.SkillPractice) hash.Add(practice);
+            if (FiefChain && f.WorkedWithToolLastSeason)
+            { hash.Add(0x574F524B544F4F4CUL); hash.Add(f.Id); }
         }
         bool nonDefaultFissionScale = false;
         foreach (Fix64 scale in _fissionThresholdScale)
@@ -7222,6 +7224,8 @@ public sealed partial class LivingEconomyModel : ISimModel
             writer.Write(0x53495346); // FISS
             writer.Write(_fissionThresholdScale.Length);
             foreach (Fix64 scale in _fissionThresholdScale) writer.Write(scale.Raw);
+            writer.Write(_figures.Count);
+            foreach (FigureState figure in _figures) writer.Write(figure.WorkedWithToolLastSeason);
         }
     }
 
@@ -7237,7 +7241,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 49 && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
         _fiefKnowHowNeedsMigration = FiefChain && version == 40;
@@ -7394,6 +7398,11 @@ public sealed partial class LivingEconomyModel : ISimModel
                 Fix64 scale = Fix64.FromRaw(reader.ReadInt64());
                 if (scale <= Fix64.Zero) throw new InvalidDataException("Fief snapshot contains an invalid fission scale.");
                 _fissionThresholdScale[civ] = scale;
+            }
+            if (FiefSnapshotVersionForRestore >= 50)
+            {
+                if (reader.ReadInt32() != _figures.Count) throw new InvalidDataException("Fief snapshot figure count differs in its recent-tool-work tail.");
+                for (int i = 0; i < _figures.Count; i++) _figures[i].WorkedWithToolLastSeason = reader.ReadBoolean();
             }
         }
         RefreshBronzeActive();
@@ -7643,7 +7652,8 @@ public sealed partial class LivingEconomyModel : ISimModel
     private static FigureState CloneFigure(FigureState source) => new()
     {
         Id = source.Id, Civilization = source.Civilization, SettlementId = source.SettlementId,
-        Age = source.Age, Female = source.Female, Health = source.Health, Hunger = source.Hunger,
+        Age = source.Age, Female = source.Female, WorkedWithToolLastSeason = source.WorkedWithToolLastSeason,
+        Health = source.Health, Hunger = source.Hunger,
         Warmth = source.Warmth, Rest = source.Rest, Belonging = source.Belonging,
         PregnancySeasons = source.PregnancySeasons, Job = source.Job, WorkThisSeason = source.WorkThisSeason,
         HuntWorkThisSeason = source.HuntWorkThisSeason, HuntingInjuryHazard = source.HuntingInjuryHazard,
