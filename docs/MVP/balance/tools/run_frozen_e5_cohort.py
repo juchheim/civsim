@@ -268,13 +268,16 @@ def _validate_seed_artifacts(seed_root: Path, prefix_name: str, seed: int,
         if key in provenance:
             raise ValueError(f"duplicate Harness provenance key: {key}")
         provenance[key] = value
-    expected = {"cohort": role, "grant_e5": "true" if role == "grant-e5" else "false",
+    expected = {"cohort": role,
                 "minutes": "130", "warmup_minutes": "5", "seeds_file": str(seed_manifest.resolve()),
                 "seeds_sha256": sha256(seed_manifest), "pack_file": str(pack.resolve()),
                 "pack_sha256": sha256(pack), "executable": str(harness.resolve()),
                 "executable_sha256": expected_harness_sha256.lower()}
     if any(provenance.get(key) != value for key, value in expected.items()):
         raise ValueError("Harness provenance does not match the pinned seed, pack, binary, or cohort")
+    expected_grant = role == "grant-e5"
+    if provenance.get("grant_e5", "").strip().lower() != str(expected_grant).lower():
+        raise ValueError("Harness provenance E5 grant flag does not match the cohort")
     for key in ("runtime", "os", "architecture", "process_id"):
         if not provenance.get(key):
             raise ValueError(f"Harness provenance is missing {key}")

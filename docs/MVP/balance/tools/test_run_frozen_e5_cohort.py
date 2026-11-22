@@ -118,7 +118,7 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
                     samples.write(",".join(runner.SAMPLE_FIELDS) + "\n")
                     for tick in range(3001, 78001): samples.write(f"{seed},{tick},1.0\n")
                 seed_manifest = Path(actual_command[actual_command.index("--seeds-file") + 1])
-                provenance = {"cohort": "natural", "grant_e5": "false", "minutes": "130", "warmup_minutes": "5",
+                provenance = {"cohort": "natural", "grant_e5": "False", "minutes": "130", "warmup_minutes": "5",
                     "seeds_file": str(seed_manifest.resolve()), "seeds_sha256": runner.sha256(seed_manifest),
                     "pack_file": str(pack.resolve()), "pack_sha256": runner.sha256(pack),
                     "executable": str(harness.resolve()), "executable_sha256": runner.sha256(harness),
