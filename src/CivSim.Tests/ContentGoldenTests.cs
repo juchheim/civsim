@@ -42,14 +42,14 @@ public class ContentGoldenTests
     }
 
     [Fact]
-    public void The_first_five_eras_are_numeric_and_the_rest_are_draft()
+    public void The_first_six_eras_are_numeric_and_the_rest_are_draft()
     {
         foreach (Project p in Set.Projects)
         {
-            bool early = p.Era <= 4; // E0-E2, E3 with KEY-4 (docs/MVP/23) and, promoted together on 2026-11-03, E4 with KEY-5 (docs/MVP/25)
+            bool early = p.Era <= 5; // E0-E4 plus Faith & Fief with KEY-6 (docs/MVP/27)
             Assert.Equal(early ? "numeric" : "draft", p.Status);
         }
-        Assert.Equal(271, Set.Projects.Count(p => p.Status == "numeric")); // 148 (E0-E2 and KEY-1..3) + 65 E3 projects + KEY-4 + 56 E4 projects + KEY-5
+        Assert.Equal(321, Set.Projects.Count(p => p.Status == "numeric")); // 271 through E4 + 49 E5 projects + KEY-6
     }
 
     [Fact]

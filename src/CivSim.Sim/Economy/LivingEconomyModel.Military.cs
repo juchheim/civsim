@@ -147,7 +147,7 @@ public sealed partial class LivingEconomyModel
             int batches = Math.Min(batchLimit, requestedBatches ?? MilitaryGoodNeed(settlement, goodId));
             if (batches <= 0) return 0;
 
-            AccumulateRecipeInputs(recipe, Fix64.FromInt(batches), new HashSet<int>(), 0);
+            AccumulateRecipeInputs(recipe, Fix64.FromInt(batches), new List<int>(), 0);
             return batches;
         }
 
@@ -184,9 +184,10 @@ public sealed partial class LivingEconomyModel
             return Fix64.Zero;
         }
 
-        void AccumulateRecipeInputs(CompiledRecipe recipe, Fix64 batches, HashSet<int> path, int depth)
+        void AccumulateRecipeInputs(CompiledRecipe recipe, Fix64 batches, List<int> path, int depth)
         {
-            if (batches <= Fix64.Zero || depth > 8 || !path.Add(recipe.OutputSlot)) return;
+            if (batches <= Fix64.Zero || depth > 8 || path.Contains(recipe.OutputSlot)) return;
+            path.Add(recipe.OutputSlot);
             for (int input = 0; input < recipe.InputSlots.Length; input++)
             {
                 int[] slots = recipe.InputSlots[input];

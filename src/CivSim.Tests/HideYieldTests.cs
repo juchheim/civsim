@@ -33,7 +33,7 @@ public sealed class HideYieldTests
 
         Assert.Equal(Fix64.FromInt(15), meatHarvested);
         Assert.Equal(meatBefore + meatHarvested, economy.GoodStock(0, "G-MEAT"));
-        Assert.Equal(hideBefore + Fix64.Parse("1.5"), economy.GoodStock(0, "G-HIDE"));
+        Assert.Equal(hideBefore + Fix64.Parse("4.5"), economy.GoodStock(0, "G-HIDE"));
         Assert.Equal(Fix64.Zero, economy.WildHerd(herdIndex).AnimalCount);
     }
 
@@ -49,7 +49,7 @@ public sealed class HideYieldTests
 
         economy.FixtureRunDomesticHerdByproducts(0);
 
-        AssertFixClose(hideBefore + Fix64.Parse("0.525"), economy.GoodStock(0, "G-HIDE"));
+        AssertFixClose(hideBefore + Fix64.Parse("0.7875"), economy.GoodStock(0, "G-HIDE"));
         AssertFixClose(meatBefore + Fix64.Parse("2.05"), economy.GoodStock(0, "G-MEAT"));
         DomesticHerdView herd = economy.DomesticHerd(0);
         Assert.Equal(Fix64.FromInt(4), herd.SmallStock);
@@ -69,7 +69,7 @@ public sealed class HideYieldTests
 
         economy.FixtureApplyAggregateHuntByproducts(0, Fix64.FromInt(40));
 
-        AssertFixClose(hideBefore + Fix64.FromInt(3), economy.GoodStock(0, "G-HIDE"));
+        AssertFixClose(hideBefore + Fix64.Parse("4.5"), economy.GoodStock(0, "G-HIDE"));
         Assert.Equal(meatBefore, economy.GoodStock(0, "G-MEAT"));
     }
 }
