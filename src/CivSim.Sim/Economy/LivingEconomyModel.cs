@@ -3971,6 +3971,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         Fix64 need = FoodNeed(settlement, winter);
         if (settlement.UnderInvestment) need *= Fix64.FromRatio(75, 100);
+        if (winter && DiscoveryChain) need *= GreenhouseNeedFactor(settlement); // CER-11 greenhouse
         Fix64 available = FoodStores(settlement);
         settlement.LastSeasonFoodStoresBeforeConsumption = available;
         RecordFoodLedgerBeforeEating(settlement, available, need);
@@ -5733,7 +5734,9 @@ public sealed partial class LivingEconomyModel : ISimModel
         capacity += Fix64.FromInt(8 * settlement.Structures[(int)Structure.WattleHouse]);
         capacity += Fix64.FromInt(8 * settlement.Structures[(int)Structure.MudbrickHouse]);
         capacity += Fix64.FromInt(25 * settlement.Structures[(int)Structure.Longhouse]);
-        return settlement.Civic is null ? capacity : CivicHousing(settlement, capacity);
+        if (settlement.Civic is null) return capacity;
+        Fix64 housing = CivicHousing(settlement, capacity);
+        return DiscoveryChain ? housing * GlazedHousingFactor(settlement) : housing; // CER-11 glazed windows
     }
 
     private Fix64 GroupCap(SettlementState settlement)

@@ -88,6 +88,8 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "CHM-08") && Population(s.Id) >= 50) WantDiscoveryGood(plan, s, DiscoveryGood.Alkali, Fix64.FromInt(2));
         // Alkali needs salt and only some towns hold any, so the instruments are wanted in every town of size until the realm holds one: the towns that can make
         // one do, and the rest find the plan infeasible and spend nothing.
+        // CER-11: a pane of plate glass glazes the windows, and with a staffed garden it is a greenhouse; the glass is held, not used up.
+        if (Done(civ, "CER-11") && GardenStaffed(s)) WantDiscoveryGood(plan, s, DiscoveryGood.PlateGlass, Fix64.One);
         // The Renaissance Palace (BLD-13) draws its plate glass from the realm's stores: while one is being built, towns of size make it until the realm holds enough.
         if (Population(s.Id) >= 50 && PalaceUnderConstruction(civ) && RealmPlateGlass(civ) < Fix64.FromInt(IronSpecs[(int)IronStructure.RenaissancePalace].PlateGlass))
             WantDiscoveryGood(plan, s, DiscoveryGood.PlateGlass, Fix64.FromInt(IronSpecs[(int)IronStructure.RenaissancePalace].PlateGlass));
