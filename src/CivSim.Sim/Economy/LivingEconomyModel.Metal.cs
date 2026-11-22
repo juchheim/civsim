@@ -1547,6 +1547,18 @@ public sealed partial class LivingEconomyModel
             }
         }
 
+        if (FiefChain && m.Forges > 0 && plan.Tier != 0)
+        {
+            int support = SisterFighterArmsSupportBatches(s, plan.Tier);
+            if (support > 0)
+            {
+                int slot = MetalSlot(KitGood(plan.Tier));
+                Fix64 wanted = Fix64.FromInt(support);
+                plan.Terminal[slot] += wanted;
+                plan.SisterTerminal[slot] += wanted;
+            }
+        }
+
     }
 
     /// <summary>
@@ -1604,7 +1616,8 @@ public sealed partial class LivingEconomyModel
         if (!TierKnown(civ, 8) || plan.Tier == 0) return;
         int fighters = 0;
         foreach (FigureState f in Residents(s.Id)) if (f.Age >= 14) fighters++;
-        Fix64 target = Fix64.FromInt(fighters + _bronzeConstants.SpareArms);
+        int forgeBuffer = s.FoodSecurity >= Fix64.FromRatio(8, 10) ? FiefForgeArmsBuffer(s) : 0;
+        Fix64 target = Fix64.FromInt(fighters + _bronzeConstants.SpareArms + forgeBuffer);
         Fix64 have = Fix64.FromInt(Math.Min(target.FloorToInt(), TotalIssuedWeaponStock(s)));
         if (target <= have) return;
         bool war05 = Done(civ, "WAR-05");

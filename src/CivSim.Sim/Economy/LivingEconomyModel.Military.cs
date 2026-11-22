@@ -23,6 +23,8 @@ public sealed partial class LivingEconomyModel
     // research and deposits, so it is deliberately not part of snapshots or simulation state.
     private int _intermediateSupplierCacheSeason = int.MinValue;
     private int[,] _intermediateSupplierCache = new int[0, 0];
+    private int _armsSupportSupplierCacheSeason = int.MinValue;
+    private int[] _armsSupportSupplierCache = Array.Empty<int>();
 
     private sealed class MilitaryInputDemand
     {
@@ -137,35 +139,76 @@ public sealed partial class LivingEconomyModel
     {
         var demands = new List<MilitaryInputDemand>();
 
-        int AddOutput(string goodId, int batchLimit)
+        int AddOutput(string goodId, int batchLimit, int? requestedBatches = null)
         {
             if (batchLimit <= 0) return 0;
             CompiledRecipe? recipe = ProducerOf(SlotOf(goodId));
             if (recipe is null || !RecipeAvailable(settlement, recipe)) return 0;
-            int batches = Math.Min(batchLimit, MilitaryGoodNeed(settlement, goodId));
+            int batches = Math.Min(batchLimit, requestedBatches ?? MilitaryGoodNeed(settlement, goodId));
             if (batches <= 0) return 0;
 
+            AccumulateRecipeInputs(recipe, Fix64.FromInt(batches), new HashSet<int>(), 0);
+            return batches;
+        }
+
+        void AddDemand(int[] slots, Fix64 quantity)
+        {
+            if (slots.Length == 0 || quantity <= Fix64.Zero) return;
+            MilitaryInputDemand? demand = null;
+            foreach (MilitaryInputDemand existing in demands)
+            {
+                if (existing.Slots.Length != slots.Length) continue;
+                bool same = true;
+                for (int slotIndex = 0; slotIndex < slots.Length; slotIndex++)
+                    if (existing.Slots[slotIndex] != slots[slotIndex]) { same = false; break; }
+                if (same) { demand = existing; break; }
+            }
+            if (demand is null)
+            {
+                demand = new MilitaryInputDemand { Slots = slots, Quantity = Fix64.Zero };
+                demands.Add(demand);
+            }
+            demand.Quantity += quantity;
+        }
+
+        Fix64 DemandQuantity(int[] slots)
+        {
+            foreach (MilitaryInputDemand existing in demands)
+            {
+                if (existing.Slots.Length != slots.Length) continue;
+                bool same = true;
+                for (int slotIndex = 0; slotIndex < slots.Length; slotIndex++)
+                    if (existing.Slots[slotIndex] != slots[slotIndex]) { same = false; break; }
+                if (same) return existing.Quantity;
+            }
+            return Fix64.Zero;
+        }
+
+        void AccumulateRecipeInputs(CompiledRecipe recipe, Fix64 batches, HashSet<int> path, int depth)
+        {
+            if (batches <= Fix64.Zero || depth > 8 || !path.Add(recipe.OutputSlot)) return;
             for (int input = 0; input < recipe.InputSlots.Length; input++)
             {
                 int[] slots = recipe.InputSlots[input];
                 if (slots.Length == 0) continue;
-                MilitaryInputDemand? demand = null;
-                foreach (MilitaryInputDemand existing in demands)
-                {
-                    if (existing.Slots.Length != slots.Length) continue;
-                    bool same = true;
-                    for (int slotIndex = 0; slotIndex < slots.Length; slotIndex++)
-                        if (existing.Slots[slotIndex] != slots[slotIndex]) { same = false; break; }
-                    if (same) { demand = existing; break; }
-                }
-                if (demand is null)
-                {
-                    demand = new MilitaryInputDemand { Slots = slots, Quantity = Fix64.Zero };
-                    demands.Add(demand);
-                }
-                demand.Quantity += InputQuantity(settlement, recipe, input) * Fix64.FromInt(batches);
+                Fix64 quantity = InputQuantity(settlement, recipe, input) * batches;
+                AddDemand(slots, quantity);
+
+                // Keep the whole production chain supplied, not just the forge's final assembly inputs.
+                // For example, arsenical arms need ABRONZE, which needs ASORE and charcoal; CSTEEL arms
+                // need the steel, wrought iron and charcoal chain. Existing intermediate stock covers its
+                // share before any additional upstream input is reserved or requested.
+                if (slots.Length != 1) continue;
+                CompiledRecipe? inputRecipe = ProducerOf(slots[0]);
+                if (inputRecipe is null || inputRecipe.IsCharcoal || !RecipeAvailable(settlement, inputRecipe)) continue;
+                Fix64 output = OutputQuantity(settlement, inputRecipe);
+                if (output <= Fix64.Zero) continue;
+                Fix64 upstreamDeficit = Fix64.Max(Fix64.Zero,
+                    DemandQuantity(slots) - Stock(settlement, slots[0]));
+                if (upstreamDeficit > Fix64.Zero)
+                    AccumulateRecipeInputs(inputRecipe, upstreamDeficit / output, path, depth + 1);
             }
-            return batches;
+            path.Remove(recipe.OutputSlot);
         }
 
         if (settlement.Metal is { Forges: > 0 })
@@ -200,6 +243,11 @@ public sealed partial class LivingEconomyModel
                 baselineArms = "G-ARMS1";
             if (baselineArms is not null && armsBuffer > 0)
                 armsBuffer -= AddOutput(baselineArms, advancedArms is null ? armsBuffer : Math.Min(1, armsBuffer));
+            if (FiefChain && baselineArms is not null)
+            {
+                int sisterSupport = SisterFighterArmsSupportBatches(settlement, castTier);
+                AddOutput(baselineArms, sisterSupport, sisterSupport);
+            }
             if (advancedArms is not null && armsBuffer > 0)
                 AddOutput(advancedArms, armsBuffer);
             AddOutput("G-CHARIOT", 1);
@@ -215,6 +263,137 @@ public sealed partial class LivingEconomyModel
         }
 
         return demands;
+    }
+
+    /// <summary>
+    /// Assign an uncovered settlement's next five baseline arms to one nearby forge. The producer keeps its own
+    /// fighting-ready reserve; the finished-goods sharing pass moves only this additional production to its sister.
+    /// These batches also enter MilitaryProductionInputDemands so their forge keeps and requests the required inputs.
+    /// </summary>
+    private int SisterFighterArmsSupportBatches(SettlementState supplier, int supplierTier)
+    {
+        if (!FiefChain || !IronSharingEnabled || supplierTier == 0 ||
+            supplier.Metal is not { Forges: > 0 } || IsFreeFolk(supplier) || Population(supplier.Id) <= 0)
+            return 0;
+
+        EnsureArmsSupportSupplierCache();
+        int reach = ShareReach(supplier.Civilization);
+        if (reach < 0) return 0;
+
+        var receivers = new List<SettlementState>();
+        for (int i = 0; i < _settlements.Count; i++)
+        {
+            SettlementState receiver = _settlements[i];
+            if (receiver.Id == supplier.Id || receiver.Civilization != supplier.Civilization ||
+                receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) <= 0 ||
+                _armsSupportSupplierCache[receiver.Id] != supplier.Id ||
+                HexGrid.Distance(receiver.SiteTile, supplier.SiteTile, _world.Width) > reach)
+                continue;
+
+            if (SisterFighterArmsSupportNeed(receiver) > 0) receivers.Add(receiver);
+        }
+
+        receivers.Sort((a, b) =>
+        {
+            int coverage = CompareMilitaryCoverage(a, b);
+            if (coverage != 0) return coverage;
+            int aDistance = HexGrid.Distance(a.SiteTile, supplier.SiteTile, _world.Width);
+            int bDistance = HexGrid.Distance(b.SiteTile, supplier.SiteTile, _world.Width);
+            int distance = aDistance.CompareTo(bDistance);
+            return distance != 0 ? distance : a.Id.CompareTo(b.Id);
+        });
+
+        int remaining = SisterIntermediateSupportBatches;
+        int support = 0;
+        foreach (SettlementState receiver in receivers)
+        {
+            int need = SisterFighterArmsSupportNeed(receiver);
+            int movedNext = Math.Min(need, remaining);
+            support += movedNext;
+            remaining -= movedNext;
+            if (remaining <= 0) break;
+        }
+        return support;
+    }
+
+    private int SisterFighterArmsSupportNeed(SettlementState receiver)
+        => Math.Max(0, MilitaryArmsReserveTarget(receiver) - TotalIssuedWeaponStock(receiver));
+
+    /// <summary>
+    /// In Fief, a forge town keeps a small arms buffer against new adults entering the fighting cohort. At roughly
+    /// one kit per fifty residents (bounded to two through six), this covers several seasons of growth without
+    /// creating a large standing stockpile. Other eras keep the catalog's existing spare-kit target.
+    /// </summary>
+    private int FiefForgeArmsBuffer(SettlementState settlement)
+    {
+        int population = Population(settlement.Id);
+        if (!FiefChain || population <= 0 || settlement.Metal is not { Forges: > 0 }) return 0;
+        return Math.Clamp((population + 49) / 50, 2, 6);
+    }
+
+    private int MilitaryArmsReserveTarget(SettlementState settlement)
+        => FightingReadyCount(settlement) + _bronzeConstants.SpareArms + FiefForgeArmsBuffer(settlement);
+
+    private void EnsureArmsSupportSupplierCache()
+    {
+        int season = checked((int)_seasonsCompleted);
+        if (_armsSupportSupplierCacheSeason == season && _armsSupportSupplierCache.Length == _settlements.Count)
+            return;
+
+        _armsSupportSupplierCache = new int[_settlements.Count];
+        Array.Fill(_armsSupportSupplierCache, -1);
+        var suppliers = new List<(int Id, int Civilization, int Tier, int Tile)>();
+        for (int supplierIndex = 0; supplierIndex < _settlements.Count; supplierIndex++)
+        {
+            SettlementState supplier = _settlements[supplierIndex];
+            if (supplier.Metal is not { Forges: > 0 } || IsFreeFolk(supplier) || Population(supplier.Id) <= 0)
+                continue;
+
+            int tier = BestCastTier(supplier);
+            if (tier == 0) continue;
+            suppliers.Add((supplier.Id, supplier.Civilization, tier, supplier.SiteTile));
+        }
+
+        for (int receiverIndex = 0; receiverIndex < _settlements.Count; receiverIndex++)
+        {
+            SettlementState receiver = _settlements[receiverIndex];
+            int reach = ShareReach(receiver.Civilization);
+            if (reach < 0 || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) <= 0)
+                continue;
+
+            int bestSupplier = -1;
+            int bestTier = 0;
+            int bestDistance = int.MaxValue;
+            foreach ((int supplierId, int supplierCiv, int tier, int supplierTile) in suppliers)
+            {
+                if (supplierId == receiver.Id || supplierCiv != receiver.Civilization) continue;
+                int distance = HexGrid.Distance(supplierTile, receiver.SiteTile, _world.Width);
+                if (distance > reach || tier < bestTier || tier == bestTier &&
+                    (distance > bestDistance || distance == bestDistance && supplierId >= bestSupplier))
+                    continue;
+
+                bestSupplier = supplierId;
+                bestTier = tier;
+                bestDistance = distance;
+            }
+            _armsSupportSupplierCache[receiver.Id] = bestSupplier;
+        }
+        _armsSupportSupplierCacheSeason = season;
+    }
+
+    private int CompareMilitaryCoverage(SettlementState a, SettlementState b)
+    {
+        int aFighters = FightingReadyCount(a);
+        int bFighters = FightingReadyCount(b);
+        long aCovered = (long)Math.Min(aFighters, TotalIssuedWeaponStock(a)) * Math.Max(1, bFighters);
+        long bCovered = (long)Math.Min(bFighters, TotalIssuedWeaponStock(b)) * Math.Max(1, aFighters);
+        int byCoverage = aCovered.CompareTo(bCovered);
+        if (byCoverage != 0) return byCoverage;
+
+        int aGap = Math.Max(0, aFighters - TotalIssuedWeaponStock(a));
+        int bGap = Math.Max(0, bFighters - TotalIssuedWeaponStock(b));
+        int byGap = bGap.CompareTo(aGap);
+        return byGap != 0 ? byGap : a.Id.CompareTo(b.Id);
     }
 
     /// <summary>
@@ -405,10 +584,16 @@ public sealed partial class LivingEconomyModel
             {
                 int slot = SlotOf(good);
                 if (slot == NoSlot) continue;
+                var receivers = new List<SettlementState>();
                 for (int r = 0; r < _settlements.Count; r++)
                 {
                     SettlementState receiver = _settlements[r];
-                    if (receiver.Civilization != civ || receiver.Metal is null || IsFreeFolk(receiver) || Population(receiver.Id) <= 0) continue;
+                    if (receiver.Civilization == civ && receiver.Metal is not null && !IsFreeFolk(receiver) && Population(receiver.Id) > 0)
+                        receivers.Add(receiver);
+                }
+                receivers.Sort(CompareMilitaryCoverage);
+                foreach (SettlementState receiver in receivers)
+                {
                     int need = MilitaryGoodNeed(receiver, good);
                     if (need <= 0) continue;
                     for (int d = 0; d < _settlements.Count && need > 0; d++)
@@ -457,7 +642,6 @@ public sealed partial class LivingEconomyModel
     private int MilitaryGoodNeed(SettlementState settlement, string good)
     {
         int civ = settlement.Civilization;
-        int fighters = FightingReadyCount(settlement);
         Fix64 stock = Stock(settlement, SlotOf(good));
         if (good is "G-ARMS5" or "G-ARMS4" or "G-ARMS3")
         {
@@ -468,14 +652,14 @@ public sealed partial class LivingEconomyModel
             {
                 int soldiers = settlement.Metal?.IronSoldiersSupplied ?? 0;
                 int professionalNeed = Math.Max(0, soldiers + (soldiers > 0 ? 1 : 0) - stock.FloorToInt());
-                int baselineNeed = Math.Max(0, fighters + _bronzeConstants.SpareArms - TotalIssuedWeaponStock(settlement));
+                int baselineNeed = Math.Max(0, MilitaryArmsReserveTarget(settlement) - TotalIssuedWeaponStock(settlement));
                 return Math.Max(professionalNeed, baselineNeed);
             }
         }
         if (good is "G-ARMS1" or "G-ARMS2A" or "G-ARMS2T" or "G-ARMS3" or "G-ARMS4" or "G-ARMS5")
         {
             int other = TotalIssuedWeaponStock(settlement) - stock.FloorToInt();
-            return Math.Max(0, fighters + _bronzeConstants.SpareArms - other - stock.FloorToInt());
+            return Math.Max(0, MilitaryArmsReserveTarget(settlement) - other - stock.FloorToInt());
         }
         if (good is "G-CROSSBOW" or "G-LONGBOW")
         {
@@ -507,11 +691,11 @@ public sealed partial class LivingEconomyModel
                               good == "G-ARMS4" && Done(settlement.Civilization, "MET-10") && !(FiefChain && Done(settlement.Civilization, "MET-11")) ||
                               good == "G-ARMS3" && Done(settlement.Civilization, "WAR-08") && !Done(settlement.Civilization, "MET-10"))
                 return Math.Min(stock, Math.Max((settlement.Metal?.IronSoldiersSupplied ?? 0) + ((settlement.Metal?.IronSoldiersSupplied ?? 0) > 0 ? 1 : 0),
-                    Math.Max(0, FightingReadyCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock))));
+                    Math.Max(0, MilitaryArmsReserveTarget(settlement) - (TotalIssuedWeaponStock(settlement) - stock))));
         }
         int slot = SlotOf(good);
         if (good is "G-ARMS1" or "G-ARMS2A" or "G-ARMS2T" or "G-ARMS3" or "G-ARMS4" or "G-ARMS5")
-            return Math.Min(stock, Math.Max(0, FightingReadyCount(settlement) + _bronzeConstants.SpareArms - (TotalIssuedWeaponStock(settlement) - stock)));
+            return Math.Min(stock, Math.Max(0, MilitaryArmsReserveTarget(settlement) - (TotalIssuedWeaponStock(settlement) - stock)));
         if (good is "G-CROSSBOW" or "G-LONGBOW")
             return Math.Min(stock, Math.Max(0, LevyBowTarget(settlement) - Stock(settlement, SlotOf(good == "G-CROSSBOW" ? "G-LONGBOW" : "G-CROSSBOW")).FloorToInt()));
         if (good == "G-BOW") return Math.Min(stock, LevyBowTarget(settlement));
