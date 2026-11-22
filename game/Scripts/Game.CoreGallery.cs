@@ -89,6 +89,7 @@ public partial class Game
         foreach (var (kind, count) in stage.Structures) if (kind < structures.Length) structures[kind] = count;
         var works = new int[IronWorkKindCount()];
         foreach (string id in stage.Works) if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
+        if (stage.Name == "coastal" && settlement.ContainsKey("discCoal") && IronKindIndex("galleon") is >= 0 and int galleonAt) works[galleonAt] = 1; // Discovery: a galleon at the quay
         if (stage.Name == "iron" && settlement.ContainsKey("discCoal"))
         {
             // a Discovery match: the Iron city also holds the E6 industry and a bastion fort behind its castle (doc 39), coal in store and power on

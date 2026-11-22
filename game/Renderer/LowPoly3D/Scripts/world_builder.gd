@@ -568,7 +568,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 			h = h * 31 + (1 if int(fief.get("sawing_used_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(fief.get("craft_used_raw", 0)) > 0 else 0)
 		if w.discovery_active:
-			for wid in ["atmospheric_engine", "coke_oven", "factory", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "renaissance_palace"]:
+			for wid in ["atmospheric_engine", "coke_oven", "factory", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "renaissance_palace", "galleon"]:
 				h = h * 31 + w.iron_works(s, wid)
 			var disc := w.discovery_settlement(s)
 			h = h * 31 + (1 if int(disc.get("coal_raw", 0)) > 0 else 0)
@@ -2494,6 +2494,12 @@ func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_o
 			if w.iron_works(s, "galley") > 0:
 				var gp := c0 + dir * 1.18
 				props.add("galley", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y) + PI * 0.0) * Basis.from_scale(Vector3.ONE * 1.1), Vector3(gp.x, -0.02, gp.y)),
+					Color(cc.r, cc.g, cc.b, seed))
+			if w.discovery_active and w.iron_works(s, "galleon") > 0:
+				# SEA-13 (docs/MVP/39 §7.1): the galleon lies at the quay beyond the galley, the biggest ship on the map (art_disc_sea.gd; the mesh builds on first use)
+				kit.ensure_discovery()
+				var gnp := c0 + dir * 1.5 + tangent * 0.34
+				props.add("galleon", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y)) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(gnp.x, -0.02, gnp.y)),
 					Color(cc.r, cc.g, cc.b, seed))
 			var enemy := w.blockaders_of(int(s.get("index", -1)))
 			for k in enemy.size():

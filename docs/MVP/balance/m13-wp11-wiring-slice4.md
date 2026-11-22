@@ -41,6 +41,10 @@ Seen in the core gallery's Iron city (which now also holds all of them; its Grea
 
 **Worth knowing:** a town's Wonder hexes are few. A civilization that already holds the Great Dome, a Library and the Cathedral may not have a hex left for the Palace, which would then be dropped (as any extra Wonder is today). That is a layout-budget question for doc 31a, not wiring.
 
+## Galleon at the quay (added after the sixth commit)
+
+A harbor town that holds a galleon (SEA-13, `IronStructure.Galleon`) draws the art branch's `galleon` mesh off the quay beyond the war galley (`world_builder.gd` `_harbor`), in a Discovery match only. It is a still ship in port: the `galleonStation` states (blockade, escort), fishing luggers and the beached caravel are not wired. Seen in the core gallery's coastal town (dressed with a galleon in a Discovery match): a three-masted ship lying off the piers, bigger than the galley.
+
 ## A real bug the gallery found
 
 `FillDiscovery` threw an `OverflowException` when the viewer is -1 (spectator, `--viewer=-1`): `HasOceanReach` casts the civ to `uint`, which overflows under the Sim's checked arithmetic. The frame now returns before the realm block and the town loop for a spectator. `DiscoveryFrameTests` has a spectator test that fails without the fix. Any Discovery match with a spectator or a replay viewer would have crashed at startup.
