@@ -755,6 +755,24 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 			var fh = _whole([Q.HEALTH] + big, "hospital", "hospital" if bool(fief.get("hospital_staffed", false)) else "hospital_idle", 1.25)
 			if fh != null:
 				wb.civic_sites.append({"kind": "hospital", "p": fh[1], "y": w.height_at(fh[1]), "yaw": _face(fh[1]), "civ": _civ, "seed": _seed, "tile": _t, "fief": true})
+	# The Age of Discovery's civic buildings (docs/MVP/39 §3): the learned society in the Learning hex beside the university, the exchange house in the Civic
+	# hex, and the Renaissance Palace on a Wonder hex, built in stages. Each shows working or idle by the sim's staffing (an empty one must never look alive).
+	if w.discovery_active:
+		wb.kit.ensure_discovery()
+		var disc_civic := w.discovery_settlement(s)
+		if w.iron_works(s, "learned_society") > 0:
+			var ls = _whole([Q.LEARNING] + big, "learned_society", "learned_society" if w.disc_society_staffed else "learned_society_idle", 1.8)
+			if ls != null:
+				wb.civic_sites.append({"kind": "learned_society", "p": ls[1], "y": w.height_at(ls[1]), "yaw": _face(ls[1]), "civ": _civ, "seed": _seed, "tile": _t})
+		if w.iron_works(s, "exchange_house") > 0:
+			var xh = _whole([Q.CIVIC] + big, "exchange_house", "exchange_house" if w.disc_exchange_staffed else "exchange_house_idle", 1.6)
+			if xh != null:
+				wb.civic_sites.append({"kind": "exchange_house", "p": xh[1], "y": w.height_at(xh[1]), "yaw": _face(xh[1]), "civ": _civ, "seed": _seed, "tile": _t})
+		if w.iron_works(s, "renaissance_palace") > 0 or (build_id == "renaissance_palace" and build_pm > 0):
+			var palace_stage := clampi(1 + build_pm * 3 / 1000, 1, 4) if build_id == "renaissance_palace" and build_pm > 0 else 4
+			var palace = _whole([Q.WONDER_A, Q.WONDER_C, Q.WONDER_B] + big, "renaissance_palace", "renaissance_palace_%d" % palace_stage, 0.9)
+			if palace != null:
+				wb.civic_sites.append({"kind": "renaissance_palace", "p": palace[1], "y": w.height_at(palace[1]), "yaw": _face(palace[1]), "civ": _civ, "seed": _seed, "tile": _t})
 	if build_pm > 0 and build_id in ["academy", "theatre_arena", "bathhouse"]:
 		_whole(big, "site", site_mesh, 1.3)
 
@@ -1498,7 +1516,8 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 			var disc := w.discovery_settlement(s)
 			var burning := int(disc.get("coal_raw", 0)) > 0
 			var powered := int(disc.get("factory_coverage_raw", 0)) > 0
-			for dw in [["atmospheric_engine", "atmospheric_engine", burning, 1.35], ["coke_oven", "coke_oven", burning, 1.5], ["factory", "factory", powered, 1.3]]:
+			for dw in [["atmospheric_engine", "atmospheric_engine", burning, 1.35], ["coke_oven", "coke_oven", burning, 1.5], ["factory", "factory", powered, 1.3],
+					["botanical_garden", "botanical_garden", bool(disc.get("garden_staffed", false)), 1.4]]:
 				if w.iron_works(s, String(dw[0])) <= 0:
 					continue
 				var dwork := String(dw[0])
@@ -1508,6 +1527,8 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 					dmesh = "atmospheric_engine_body" if dworking else "atmospheric_engine_idle"
 				elif dwork == "coke_oven":
 					dmesh = "coke_oven" if dworking else "coke_oven_idle"
+				elif dwork == "botanical_garden":
+					dmesh = "botanical_garden" if dworking else "botanical_garden_idle"
 				else:
 					dmesh = "factory" if dworking else "factory_cold"
 				var dplaced = _fief_outer_site(outer_fief_sites, taken, dwork, dmesh, float(dw[3]), tint)

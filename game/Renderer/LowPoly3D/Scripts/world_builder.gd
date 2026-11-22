@@ -568,11 +568,12 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 			h = h * 31 + (1 if int(fief.get("sawing_used_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(fief.get("craft_used_raw", 0)) > 0 else 0)
 		if w.discovery_active:
-			for wid in ["atmospheric_engine", "coke_oven", "factory", "bastion_fort"]:
+			for wid in ["atmospheric_engine", "coke_oven", "factory", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "renaissance_palace"]:
 				h = h * 31 + w.iron_works(s, wid)
 			var disc := w.discovery_settlement(s)
 			h = h * 31 + (1 if int(disc.get("coal_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(disc.get("factory_coverage_raw", 0)) > 0 else 0)
+			h = h * 31 + (1 if bool(disc.get("garden_staffed", false)) else 0) + (2 if w.disc_society_staffed else 0) + (4 if w.disc_exchange_staffed else 0)
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17

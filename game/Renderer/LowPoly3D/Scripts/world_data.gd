@@ -107,6 +107,8 @@ var viewer_civ := -1                    # the civilization whose view this is (-
 var discovery_active := false           # whether this frame carries the Discovery-only settlement readout (a Discovery match is also a Fief one)
 var disc_lanes := PackedInt32Array()        # Discovery ocean lanes, four ints each: from tile, to tile, civilization, volume permille (docs/MVP/39 §7.2)
 var disc_capital_tile := -1               # the viewer's capital tile: where a colony's tether leads (docs/MVP/39 §7.3)
+var disc_society_staffed := false          # the viewer's learned society has a scholar at work / its exchange house is staffed (docs/MVP/39 §8.1)
+var disc_exchange_staffed := false
 var fief_active := false                # whether this frame carries the Fief-only settlement readout
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
@@ -160,6 +162,7 @@ func discovery_settlement(s: Dictionary) -> Dictionary:
 	return {
 		"coal_raw": int(s.get("discCoal", 0)),
 		"colony": int(s.get("discColony", 0)),
+		"garden_staffed": bool(s.get("discGardenStaffed", false)),
 		"engines": int(s.get("discEngines", 0)),
 		"ovens": int(s.get("discOvens", 0)),
 		"factory_coverage_raw": int(s.get("discFactoryCoverage", 0)),
@@ -260,6 +263,8 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	discovery_active = bool(d.get("discoveryActive", false))
 	disc_lanes = d.get("discLanes", PackedInt32Array())
 	disc_capital_tile = int(d.get("discCapitalTile", -1))
+	disc_society_staffed = bool(d.get("discSocietyStaffed", false))
+	disc_exchange_staffed = bool(d.get("discExchangeStaffed", false))
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)

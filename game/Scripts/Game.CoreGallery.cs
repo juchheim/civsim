@@ -92,9 +92,11 @@ public partial class Game
         if (stage.Name == "iron" && settlement.ContainsKey("discCoal"))
         {
             // a Discovery match: the Iron city also holds the E6 industry and a bastion fort behind its castle (doc 39), coal in store and power on
-            foreach (string id in new[] { "bastion_fort", "atmospheric_engine", "coke_oven", "factory" }) if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
+            foreach (string id in new[] { "bastion_fort", "atmospheric_engine", "coke_oven", "factory", "botanical_garden", "learned_society", "exchange_house", "renaissance_palace" }) if (IronKindIndex(id) is >= 0 and int at) works[at] = 1;
             settlement["discCoal"] = 40L << 32;
             settlement["discFactoryCoverage"] = 1L << 32;
+            settlement["discGardenStaffed"] = true;
+            if (IronKindIndex("great_dome") is >= 0 and int domeAt) works[domeAt] = 0; // a Wonder hex for the Palace: the core holds a few Wonders, not all of them
         }
         settlement["structures"] = structures;
         settlement["population"] = stage.Population;

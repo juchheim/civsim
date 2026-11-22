@@ -712,6 +712,7 @@ public partial class Game : Node3D
             if (frame.Discovery.Active)
             {
                 settlement["discColony"] = i < frame.Discovery.Colony.Length ? (int)frame.Discovery.Colony[i] : 0;
+                settlement["discGardenStaffed"] = i < frame.Discovery.GardenStaffed.Length && frame.Discovery.GardenStaffed[i] != 0;
                 settlement["discCoal"] = i < frame.Discovery.CoalLitres.Length ? frame.Discovery.CoalLitres[i] : 0L;
                 settlement["discEngines"] = i < frame.Discovery.Engines.Length ? (int)frame.Discovery.Engines[i] : 0;
                 settlement["discOvens"] = i < frame.Discovery.Ovens.Length ? (int)frame.Discovery.Ovens[i] : 0;
@@ -749,7 +750,7 @@ public partial class Game : Node3D
                 {
                     var discWorks = new int[IronWorkKindCount()];
                     if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(discWorks, 0);
-                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort" })
+                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort", "botanical_garden" })
                         if (IronKindIndex(id) is >= 0 and int discAt) discWorks[discAt] = 1;
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;
@@ -1059,6 +1060,8 @@ public partial class Game : Node3D
             ["discoveryActive"] = frame.Discovery.Active,
             ["discLanes"] = DiscoveryLanes(frame, world),
             ["discCapitalTile"] = frame.Discovery.CapitalTile,
+            ["discSocietyStaffed"] = frame.Discovery.SocietyStaffed,
+            ["discExchangeStaffed"] = frame.Discovery.ExchangeStaffed,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,
