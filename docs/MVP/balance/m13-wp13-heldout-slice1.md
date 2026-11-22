@@ -26,3 +26,7 @@ Three civilizations (a Grower and two Sages) **never reached KEY-5** in 190 minu
 ## Not done in WP-E6-13
 
 Everything that needs the whole age to be accepted: the 80-match sample with a held-out cohort, the replay and snapshot acceptance (see [the resume defect](m13-wp12-resume-slice4.md)), the E5-promoted re-run, and the human playtest.
+
+## Addendum (2026-11-22): re-run after the Palace, greenhouse, instruments and embassy slices
+
+Same command (`discovery-match --pack civsim.pack --seed 20261101 --seeds 6 --minutes 190 --grant-e5`) on commit `e71c8be`. **21 civilizations reached KEY-7: mean 25.4 minutes, range 19.8 to 32.0** (was 25.4 and 19.8 to 31.8); the same three civilizations never reached KEY-5. The instruments, Palace, greenhouse and DIP-09 embassy rule do not move pacing: the E6 fit stands. The caveat above still holds: with real E5 numbers (no grants) the stock AI reaches KEY-7 much sooner after KEY-6, so the era cost needs a re-fit once E5 is promoted or playtests report.
