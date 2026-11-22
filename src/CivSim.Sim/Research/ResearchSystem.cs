@@ -76,7 +76,10 @@ public sealed partial class ResearchSystem : IResearchView
     private readonly int[] _slotWeight = new int[CivResearch.SlotCount];
     private readonly int _statCommons, _statElder, _roleElder, _rolePriest, _roleScribe, _statScribe, _statPriest, _statRoleInsight, _roleScholar, _statScholar, _statScribeLearning, _statMecNrgCost, _statWritingRoleOutput, _statDiffusionDiscount, _wonderLibrary;
     private readonly int _statProjectCost, _statInqProjectCost, _statInsightTotal; // INQ-08, NUM-11 (Discovery)
-    private readonly int _lrn09;
+    private readonly int _lrn09, _dip09;
+
+    /// <summary>DIP-09: whether civilization <c>a</c> keeps a resident embassy with <c>b</c> (set by the match from diplomacy; null means every contacted rival counts, as before DIP-09 was modelled).</summary>
+    public Func<int, int, bool>? EmbassyOracle { get; set; }
     /// <summary>LRN-09's typed Know-how spillover share (the row's know_how_spillover), read once from the catalog.</summary>
     private readonly Fix64 _societySpillover;
     private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statAdminCapacity;
@@ -127,6 +130,7 @@ public sealed partial class ResearchSystem : IResearchView
         _com09 = catalog.IndexOf("COM-09");
         _com10 = catalog.IndexOf("COM-10");
         _lrn09 = catalog.IndexOf("LRN-09");
+        _dip09 = catalog.IndexOf("DIP-09");
         if (_lrn09 >= 0)
             foreach (EffectDef e in catalog.Projects[_lrn09].Effects)
                 if (e.Kind == EffectKind.Mod && e.Stat == "know_how_spillover" && e.HasValue) _societySpillover = e.Value;
@@ -276,9 +280,15 @@ public sealed partial class ResearchSystem : IResearchView
         CivResearch c = _civs[civ];
         ProjectDef def = _catalog.Projects[project];
         Fix64 cost = def.Cost;
-        int knowers = 0;
+        int knowers = 0, embassyKnowers = 0;
+        // DIP-09: its diffusion bonus is an embassy's, so it applies only to the rivals the civilization keeps an embassy with.
+        bool embassyRule = Rules.IsDiscovery && _dip09 >= 0 && c.Done[_dip09] && EmbassyOracle is not null;
         for (int o = 0; o < _civs.Length; o++)
-            if (o != civ && InContact(civ, o) && _civs[o].Done[project]) knowers++;
+            if (o != civ && InContact(civ, o) && _civs[o].Done[project])
+            {
+                knowers++;
+                if (embassyRule && EmbassyOracle!(civ, o)) embassyKnowers++;
+            }
         // The Great Library (LRN-06, once built) doubles each knowing civilization's discount; the floor stays, so a cost never goes below it.
         Fix64 step = _wonderLibrary >= 0 && c.WondersBuilt.BinarySearch(_wonderLibrary) >= 0 ? _diffusionStep * 2 : _diffusionStep;
         if (Rules.IsFief && _com10 >= 0 && c.Done[_com10] && _statDiffusionDiscount >= 0)
@@ -288,7 +298,10 @@ public sealed partial class ResearchSystem : IResearchView
             if (Rules.IsDiscovery && _lrn09 >= 0 && c.Done[_lrn09] && !_source.SocietyStaffed(civ))
                 step = step / ProjectModFactor(civ, _lrn09, "diffusion_discount");
         }
-        Fix64 discount = knowers > 0 ? Fix64.Max(_diffusionFloor, Fix64.One - step * knowers) : Fix64.One;
+        Fix64 reduction = step * knowers;
+        if (embassyRule && Rules.IsFief && _com10 >= 0 && c.Done[_com10] && _statDiffusionDiscount >= 0 && knowers > embassyKnowers)
+            reduction = step * embassyKnowers + step / ProjectModFactor(civ, _dip09, "diffusion_discount") * (knowers - embassyKnowers);
+        Fix64 discount = knowers > 0 ? Fix64.Max(_diffusionFloor, Fix64.One - reduction) : Fix64.One;
         if (Rules.IsDiscovery)
         {
             // INQ-08 (every project) and NUM-11 (INQ projects) are research-side cost modifiers: they share the diffusion discount's floor, so no stack reaches zero.

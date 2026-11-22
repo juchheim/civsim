@@ -925,4 +925,11 @@ public sealed partial class PoliticsSystem
         }
         else if (!war && _dip.AtWar(a, b)) _dip.MakePeace(a, b, _season);
     }
+
+    /// <summary>
+    /// DIP-09: a resident embassy stands between two civilizations that have met, are not at war and have not turned hostile (relations at or above zero); a stranger does
+    /// not stay at the court of an enemy. It needs no order: one embassy per rival, kept while those conditions hold. Read live, nothing is stored.
+    /// </summary>
+    public bool ResidentEmbassy(int civ, int other)
+        => civ != other && _dip.Contacted(civ, other) && !_dip.AtWar(civ, other) && _dip.Relations(civ, other) >= 0;
 }
