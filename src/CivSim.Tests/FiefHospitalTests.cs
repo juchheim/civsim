@@ -134,6 +134,7 @@ public sealed class FiefHospitalTests
 
     private static byte[] AsVersion45Snapshot(byte[] current)
     {
+        current = WithoutFiefFissionScaleTail(current);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -185,6 +186,7 @@ public sealed class FiefHospitalTests
 
     private static byte[] AsVersion46Snapshot(byte[] current)
     {
+        current = WithoutFiefFissionScaleTail(current);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -209,6 +211,16 @@ public sealed class FiefHospitalTests
             BitConverter.ToInt64(legacy, offset + sizeof(int) + 6 * sizeof(long)) != book)
             throw new InvalidDataException("Generated v46 array has invalid legacy Fief stocks.");
         return legacy;
+    }
+
+    private static byte[] WithoutFiefFissionScaleTail(byte[] current)
+    {
+        const int tailBytes = sizeof(int) + sizeof(int) + 8 * sizeof(long);
+        int offset = current.Length - tailBytes;
+        if (offset < 0 || BitConverter.ToInt32(current, offset) != 0x53495346 ||
+            BitConverter.ToInt32(current, offset + sizeof(int)) != 8)
+            throw new InvalidDataException("Could not locate the Fief fission-scale snapshot tail.");
+        return current[..offset];
     }
 
     private static int FindBytes(byte[] source, byte[] value)

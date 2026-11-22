@@ -216,7 +216,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 48;
+    private const int FiefSnapshotVersion = 49;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
     private bool _fiefBowGoodsNeedRead;
@@ -7103,6 +7103,15 @@ public sealed partial class LivingEconomyModel : ISimModel
             hash.Add(f.SkillLevels.Length); foreach (byte level in f.SkillLevels) hash.Add(level);
             hash.Add(f.SkillPractice.Length); foreach (Fix64 practice in f.SkillPractice) hash.Add(practice);
         }
+        bool nonDefaultFissionScale = false;
+        foreach (Fix64 scale in _fissionThresholdScale)
+            if (scale != Fix64.One) { nonDefaultFissionScale = true; break; }
+        if (FiefChain && nonDefaultFissionScale)
+        {
+            hash.Add(0x46495353494F4E53UL); // FISSIONS
+            hash.Add(_fissionThresholdScale.Length);
+            foreach (Fix64 scale in _fissionThresholdScale) hash.Add(scale);
+        }
         foreach (int deaths in _lastDeathsByCause) hash.Add(deaths);
         hash.Add(_lastDeathsByCauseAndAgeBand);
         hash.Add(_lastExpectedHazardsByCauseAndAgeBand);
@@ -7208,6 +7217,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteIron(writer);
         WriteFiefKnowHow(writer);
         WriteFiefGoods(writer);
+        if (FiefChain)
+        {
+            writer.Write(0x53495346); // FISS
+            writer.Write(_fissionThresholdScale.Length);
+            foreach (Fix64 scale in _fissionThresholdScale) writer.Write(scale.Raw);
+        }
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7222,7 +7237,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
         _fiefKnowHowNeedsMigration = FiefChain && version == 40;
@@ -7370,6 +7385,17 @@ public sealed partial class LivingEconomyModel : ISimModel
             reader.BaseStream.Position = position;
         }
         ReadFiefGoods(reader);
+        if (FiefChain && FiefSnapshotVersionForRestore >= 49)
+        {
+            if (reader.ReadInt32() != 0x53495346) throw new InvalidDataException("Fief snapshot has an invalid fission-scale tail.");
+            if (reader.ReadInt32() != _fissionThresholdScale.Length) throw new InvalidDataException("Fief snapshot civilization count differs in its fission-scale tail.");
+            for (int civ = 0; civ < _fissionThresholdScale.Length; civ++)
+            {
+                Fix64 scale = Fix64.FromRaw(reader.ReadInt64());
+                if (scale <= Fix64.Zero) throw new InvalidDataException("Fief snapshot contains an invalid fission scale.");
+                _fissionThresholdScale[civ] = scale;
+            }
+        }
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7558,6 +7584,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         InvalidateForageSettlementOwners();
         FiefSnapshotVersionForRestore = source.FiefSnapshotVersionForRestore;
+        Array.Copy(source._fissionThresholdScale, _fissionThresholdScale, _fissionThresholdScale.Length);
         _tick = source._tick;
         _seasonsCompleted = source._seasonsCompleted;
         _nextFigureId = source._nextFigureId;

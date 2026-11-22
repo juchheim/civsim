@@ -4,6 +4,7 @@ using System.Linq;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Research;
 
 namespace CivSim.Tests;
@@ -184,7 +185,7 @@ public class FiefChapterTests
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
         Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(48, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(49, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }
@@ -197,6 +198,7 @@ public class FiefChapterTests
         MatchModel bronze = Make(ChapterRules.Bronze), iron = Make(ChapterRules.Iron), fief = Make(ChapterRules.Fief);
         foreach (MatchModel m in new[] { bronze, iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
+        fief.Economy.SetFissionThresholdScale(0, Fix64.FromRatio(83, 100));
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
         Assert.True(fiefBytes.Length > ironBytes.Length); // Fief adds its goods and structure slots to the Iron economy payload.
         Assert.NotEqual(ironBytes, fiefBytes);
@@ -205,6 +207,7 @@ public class FiefChapterTests
         MatchModel fiefRestored = Make(ChapterRules.Fief);
         Restore(fiefRestored, fiefBytes);
         Assert.Equal(fief.ComputeChecksum(), fiefRestored.ComputeChecksum());
+        Assert.Equal(Fix64.FromRatio(83, 100), fiefRestored.Economy.FissionScaleOf(0));
 
         Assert.ThrowsAny<Exception>(() => Restore(Make(ChapterRules.Iron), fiefBytes));
         Assert.ThrowsAny<Exception>(() => Restore(Make(ChapterRules.Fief), ironBytes));

@@ -2432,6 +2432,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         ReadRaidResponses(r);
         _events.Clear();
         RefreshSettlements();
-        ApplyEconomyInputs();
+        // Since Fief snapshot v49 the economy carries the exact posture-derived threshold, which
+        // can be between yearly Politics updates stale relative to Research.Era at a checkpoint.
+        // Preserve that live value on restore; older snapshots still derive it from their posture.
+        if (!_economy.FiefChain || _economy.FiefSnapshotVersionForRestore < 49)
+            ApplyEconomyInputs();
     }
 }
