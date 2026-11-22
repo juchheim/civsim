@@ -101,6 +101,21 @@ func setup_frame(frame_data: Dictionary) -> void:
 	_sync_hearth_fx()
 	print("M7a low-poly world built: ", builder.stats)
 
+## Ocean lanes from the Discovery frame (docs/MVP/39 §7.2): a dashed arc between the two harbors of each deep-ocean trade route, a caravel on it (two on a busy one).
+## Only what the frame lists is drawn; nothing is invented.
+func _sync_ocean_lanes() -> void:
+	var lanes: Array = []
+	var tokens: Array = []
+	var flat := world.disc_lanes
+	for i in range(0, flat.size() - 3, 4):
+		var volume := clampf(float(flat[i + 3]) / 1000.0, 0.15, 1.0)
+		var lane_index := lanes.size()
+		lanes.append({"from": world.tile_center(int(flat[i])), "to": world.tile_center(int(flat[i + 1])), "civ": int(flat[i + 2]), "volume": volume, "age": 0, "bulge": 0.8})
+		tokens.append({"lane": lane_index, "phase": fposmod(0.37 * lane_index, 1.0), "dir": 1, "kind": "caravel"})
+		if volume > 0.6:
+			tokens.append({"lane": lane_index, "phase": fposmod(0.37 * lane_index + 0.5, 1.0), "dir": -1, "kind": "caravel"})
+	lane_overlay.sync(lanes, tokens, [])
+
 func update_frame(frame_data: Dictionary) -> void:
 	var started := Time.get_ticks_usec()
 	if world == null or builder == null or not world.load_frame_data(frame_data):
@@ -126,6 +141,8 @@ func update_frame(frame_data: Dictionary) -> void:
 	war_rig.sync()
 	if discovery_rig != null and not discovery_rig.demo:
 		discovery_rig.sync(builder.disc_works + builder.disc_mines)
+	if lane_overlay != null and not lane_overlay.demo:
+		_sync_ocean_lanes()
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:

@@ -1055,6 +1055,7 @@ public partial class Game : Node3D
             ["viewerCiv"] = frame.ViewerCiv,
             ["fiefActive"] = frame.Fief.Active,
             ["discoveryActive"] = frame.Discovery.Active,
+            ["discLanes"] = DiscoveryLanes(frame, world),
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,
@@ -1082,6 +1083,33 @@ public partial class Game : Node3D
     }
 
     /// <summary>Viewer-fair E3 map layers: known deposits, mine status, settlement Cohesion bands and compact routes.</summary>
+    /// <summary>The Discovery frame's ocean lanes flattened for the renderer: from tile, to tile, civilization, volume in permille, four ints a lane (docs/MVP/39 §7.2).</summary>
+    private static int[] DiscoveryLanes(MatchFrame frame, WorldView world)
+    {
+        DiscoveryFrame d = frame.Discovery;
+#if DEBUG
+        if (d.Active && d.LaneCount == 0 && frame.SettlementCount > 0 && OS.GetCmdlineUserArgs().Contains("--dev-disc-works"))
+        {
+            // dev aid: one lane from the first settlement to the nearest sea tile at least twelve hexes out, so the overlay can be seen before a played match has a deep-ocean route
+            int home = frame.SettlementTile[0], sea = -1;
+            for (int tile = 0; tile < frame.Width * frame.Height; tile++)
+            {
+                if (world.Biome[tile] > 1) continue;
+                int dist = HexLayout.Distance(tile, home, frame.Width);
+                if (dist >= 12 && (sea < 0 || dist < HexLayout.Distance(sea, home, frame.Width))) sea = tile;
+            }
+            if (sea >= 0) return new[] { home, sea, 0, 800 };
+        }
+#endif
+        if (!d.Active || d.LaneCount == 0) return Array.Empty<int>();
+        var flat = new int[d.LaneCount * 4];
+        for (int i = 0; i < d.LaneCount; i++)
+        {
+            flat[i * 4] = d.LaneFromTile[i]; flat[i * 4 + 1] = d.LaneToTile[i]; flat[i * 4 + 2] = d.LaneCiv[i]; flat[i * 4 + 3] = d.LaneVolume[i];
+        }
+        return flat;
+    }
+
     private static byte[] BuildE3OverlayBytes(MatchFrame frame, WorldView world)
     {
         const int stride = 4;

@@ -116,6 +116,23 @@ public partial class Game
             if (best >= 0) tile = best;
         }
 #endif
+#if DEBUG
+        if (HasArgument("--dev-focus-sea") && _session is not null)
+        {
+            // dev aid: the middle of the debug ocean lane (see DiscoveryLanes): between the capital and the nearest sea tile twelve or more hexes out
+            int sea = -1;
+            for (int t = 0; t < _current.Width * _current.Height; t++)
+                if (_session.WorldView.Biome[t] <= 1 && HexLayout.Distance(t, tile, _current.Width) >= 12 &&
+                    (sea < 0 || HexLayout.Distance(t, tile, _current.Width) < HexLayout.Distance(sea, tile, _current.Width))) sea = t;
+            if (sea >= 0)
+            {
+                Vector3 a0 = TileCenter(tile % _current.Width, tile / _current.Width), b0 = TileCenter(sea % _current.Width, sea / _current.Width);
+                var mid = (a0 + b0) * 0.5f;
+                MoveCameraTo(new Vector3(mid.X, 0.0f, mid.Z), 16.0f, instant: true);
+                return;
+            }
+        }
+#endif
         Vector3 center = TileCenter(tile % _current.Width, tile / _current.Width);
         var target = new Vector3(center.X + 0.3f, _terrainHeights[tile], center.Z + 0.2f);
         _yaw = _yawTarget = Mathf.DegToRad(30.0f);

@@ -287,6 +287,11 @@ internal static class DiscoveryMatchCommand
             int builder = match.Economy.WonderUnderConstruction(c);
             return builder < 0 ? $"civ{c} not started" : $"civ{c} building {LivingEconomyModel.IronWorkId(match.Economy.IronBuildAt(builder).Kind)} [{match.Economy.IronBuildShortages(builder)}]";
         })));
+        {
+            var laneFrame = new CivSim.Sim.View.MatchFrame();
+            new CivSim.Sim.View.FrameBuilder(match, -1).Build(match, laneFrame); // a spectator's frame lists every route, so every deep-ocean lane
+            Console.WriteLine($"  ocean lanes (deep-ocean trade routes in the world): {laneFrame.Discovery.LaneCount} of {laneFrame.RouteCount} routes");
+        }
         Console.WriteLine("  built: " + string.Join(", ", Structures.Select((name, j) => $"{name}={totals[j]}")) + $"; settlements={settlements}, holding coal={coalSettlements}, colonies={match.Economy.ColonyCount()}");
     }
 }

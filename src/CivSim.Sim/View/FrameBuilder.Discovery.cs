@@ -21,7 +21,19 @@ public sealed partial class FrameBuilder
         Array.Clear(d.Society, 0, n); Array.Clear(d.Bastion, 0, n); Array.Clear(d.GalleonCrewed, 0, n); Array.Clear(d.ExchangeHouse, 0, n);
         d.OceanReach = d.ExchangeStaffed = d.JointStockOpen = d.InsuranceOpen = d.SocietyStaffed = false;
         d.Colonies = 0; d.Key7Permille = 0;
+        d.LaneCount = 0;
         if (!d.Active) return;
+
+        // ocean lanes: the routes already in the frame that cross deep ocean (a spectator sees all of them, a player the routes it is party to)
+        d.EnsureLanes(target.RouteCount);
+        int lanes = 0;
+        for (int r = 0; r < target.RouteCount; r++)
+        {
+            int civ = target.RouteSellerCiv[r], from = target.RouteFromTile[r], to = target.RouteToTile[r];
+            if (civ < 0 || from < 0 || to < 0 || match.Politics.DeepSeaTilesOnRoute(civ, from, to) <= 0) continue;
+            d.LaneFromTile[lanes] = from; d.LaneToTile[lanes] = to; d.LaneCiv[lanes] = (sbyte)civ; d.LaneVolume[lanes++] = target.RouteVolumePermille[r];
+        }
+        d.LaneCount = lanes;
 
         if (_viewer < 0) return; // a spectator (viewer -1) owns no civilization, so there is no realm block and no own town to read
         d.OceanReach = match.Politics.HasOceanReach(_viewer);

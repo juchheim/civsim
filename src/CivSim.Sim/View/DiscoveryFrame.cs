@@ -18,8 +18,22 @@ public sealed class DiscoveryFrame
 
     /// <summary>The viewer's own civilization: ocean reach, a staffed exchange, joint-stock and insurance open, a staffed society, colonies held, KEY-7 progress in permille.</summary>
     public bool OceanReach, ExchangeStaffed, JointStockOpen, InsuranceOpen, SocietyStaffed;
+    /// <summary>
+    /// Ocean lanes (docs/MVP/39 §7.2): the visible trade routes whose trip crosses deep ocean, which only a SEA-12 ship can sail. Tiles of the two harbor towns, the seller's
+    /// civilization and the route's volume in permille. Taken from the frame's own route list, so a lane is listed only where the route is, and never reveals land.
+    /// </summary>
+    public int LaneCount;
+    public int[] LaneFromTile = Array.Empty<int>(), LaneToTile = Array.Empty<int>(), LaneVolume = Array.Empty<int>();
+    public sbyte[] LaneCiv = Array.Empty<sbyte>();
     public int Colonies;
     public short Key7Permille;
+
+    internal void EnsureLanes(int n)
+    {
+        if (LaneFromTile.Length >= n) return;
+        int size = Math.Max(n, Math.Max(4, LaneFromTile.Length * 2));
+        LaneFromTile = new int[size]; LaneToTile = new int[size]; LaneVolume = new int[size]; LaneCiv = new sbyte[size];
+    }
 
     internal void EnsureSettlements(int n)
     {
