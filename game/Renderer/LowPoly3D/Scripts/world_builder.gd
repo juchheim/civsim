@@ -9,7 +9,7 @@ const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
 const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
 	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines", "siege_cannons",
-	"bridge_sites", "civic_sites"]
+	"bridge_sites", "civic_sites", "disc_works"]
 
 const SPECIES := [
 	# mesh, colour, scale
@@ -90,6 +90,7 @@ var aqueduct_sites: Array = []          # {p, y}: the aqueducts, for the scenari
 var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for the war rig's smoke
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
+var disc_works: Array = []              # {kind, pos, yaw, scale, state, seed}: Discovery works for the discovery rig (docs/MVP/39 §9)
 var siege_cannons: Array = []           # {p, yaw, target, seed}: each cannon a besieger with gunpowder (WAR-12) trains on a wall, for the war rig (recoil, flash, smoke)
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
@@ -565,6 +566,12 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 			h = h * 31 + (1 if int(fief.get("power_hours_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(fief.get("sawing_used_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(fief.get("craft_used_raw", 0)) > 0 else 0)
+		if w.discovery_active:
+			for wid in ["atmospheric_engine", "coke_oven", "factory"]:
+				h = h * 31 + w.iron_works(s, wid)
+			var disc := w.discovery_settlement(s)
+			h = h * 31 + (1 if int(disc.get("coal_raw", 0)) > 0 else 0)
+			h = h * 31 + (1 if int(disc.get("factory_coverage_raw", 0)) > 0 else 0)
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
@@ -1416,6 +1423,7 @@ func _settlements() -> void:
 	castle_sites.clear()
 	harbor_sites.clear()
 	forge_sites.clear()
+	disc_works.clear()
 	frontier_sites.clear()
 	chimney_smokes.clear()
 	aqueduct_sites.clear()

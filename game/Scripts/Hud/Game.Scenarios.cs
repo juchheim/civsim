@@ -841,6 +841,112 @@ public partial class Game
                     Shot($"fief-{itemName}");
                 }
                 break;
+            case "discovery-gallery":
+                // the Discovery meshes (docs/MVP/39) on a stage above the map (LowPoly3DView.show_discovery_gallery): coal mine, engine, factory, bastion fort,
+                // ships, four-course fields and the state marks, each in its states and stages
+                Vector3 discOrigin = Vector3.Zero;
+                Step(() =>
+                {
+                    if (_hudLayer is not null) _hudLayer.Visible = false;
+                    if (_scrimLayer is not null) _scrimLayer.Visible = false;
+                    _visualRenderer!.Call("lock_season", 0);
+                    _session!.SetPaused(true);
+                    FrameCapital(true);
+                }, 1.5f);
+                Step(() =>
+                {
+                    discOrigin = (Vector3)_visualRenderer!.Call("show_discovery_gallery");
+                    _moveAnimating = false;
+                    _target = discOrigin;
+                    _yaw = _yawTarget = Mathf.DegToRad(0.0f);
+                    _pitch = Mathf.DegToRad(52.0f);
+                    ZoomTo(9.0f);
+                    UpdateCamera();
+                }, 1.5f);
+                Shot("disc-all");
+                foreach (var (item, dx, dz, zoom, pitchDeg, yawDeg) in new[]
+                {
+                    // rows: z 2.4 coal mines (x -1.35 .. 1.35), 0.2 engines and factories, -2.2 bastions (x -2.0 .. 2.0), -5.2 ships, -8.0 fields, -10.4 marks
+                    ("mine", 0.0f, 2.4f, 3.6f, 38.0f, 0.0f), ("mine-work", -1.4f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-work-side", -1.4f, 2.4f, 1.8f, 30.0f, 70.0f),
+                    ("mine-idle", -0.45f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-flooded", 0.5f, 2.4f, 1.8f, 30.0f, 0.0f), ("mine-site", 1.45f, 2.4f, 1.8f, 30.0f, 0.0f),
+                    ("works", 0.0f, 0.2f, 4.2f, 40.0f, 0.0f), ("engine", -1.6f, 0.2f, 1.7f, 28.0f, 0.0f), ("engine-side", -1.6f, 0.2f, 1.7f, 28.0f, 80.0f),
+                    ("engine-idle", -0.65f, 0.2f, 1.7f, 28.0f, 0.0f), ("factory", 0.35f, 0.2f, 2.0f, 30.0f, 0.0f), ("factory-side", 0.35f, 0.2f, 2.0f, 32.0f, 60.0f),
+                    ("factory-back", 0.35f, 0.2f, 2.0f, 32.0f, 160.0f), ("factory-cold", 1.4f, 0.2f, 2.0f, 30.0f, 0.0f), ("factory-site", 2.4f, 0.2f, 2.0f, 30.0f, 0.0f),
+                    ("bastion", 0.0f, -2.2f, 5.0f, 44.0f, 0.0f), ("bastion-stages", -1.0f, -2.2f, 3.2f, 40.0f, 0.0f), ("bastion-done", 1.0f, -2.2f, 2.0f, 36.0f, 0.0f),
+                    ("bastion-done-side", 1.0f, -2.2f, 2.0f, 36.0f, 60.0f), ("bastion-idle", 2.0f, -2.2f, 2.0f, 36.0f, 0.0f), ("bastion-top", 1.0f, -2.2f, 2.4f, 70.0f, 0.0f),
+                    ("ships", 0.0f, -5.2f, 3.4f, 34.0f, 0.0f), ("caravel", 0.15f, -5.2f, 1.5f, 28.0f, 0.0f), ("caravel-side", 0.15f, -5.2f, 1.5f, 24.0f, 90.0f),
+                    ("galleon", 1.05f, -5.2f, 1.7f, 28.0f, 0.0f), ("galleon-side", 1.05f, -5.2f, 1.7f, 22.0f, 90.0f), ("galleon-stern", 1.05f, -5.2f, 1.7f, 30.0f, 200.0f),
+                    ("fields", 0.0f, -8.0f, 5.0f, 50.0f, 0.0f), ("fields-close", 0.55f, -8.0f, 2.0f, 46.0f, 0.0f), ("fields-low", 0.55f, -8.0f, 1.8f, 24.0f, 0.0f),
+                    ("marks", 0.0f, -10.4f, 2.6f, 34.0f, 0.0f), ("marks-close", -0.2f, -10.4f, 1.4f, 14.0f, 0.0f),
+                    // P1 rows: z -12.8 coke ovens (x -1.4, -0.9), canal (-0.2), lock (0.7), toll gate (1.4); -15.2 garden (-1.1, -0.5), society (-0.03, 0.33),
+                    // exchange house (0.73, 1.18); -18.4 the Palace site and stages (x -2.2 .. 2.2)
+                    ("coke", -1.15f, -12.8f, 2.2f, 32.0f, 0.0f), ("coke-side", -1.4f, -12.8f, 1.8f, 30.0f, 70.0f), ("canal", 0.25f, -12.8f, 2.8f, 36.0f, 0.0f),
+                    ("canal-lock", 0.7f, -12.8f, 2.0f, 30.0f, 25.0f), ("toll", 1.4f, -12.8f, 1.8f, 28.0f, 30.0f),
+                    ("garden", -0.8f, -15.2f, 2.0f, 40.0f, 0.0f), ("garden-side", -1.1f, -15.2f, 1.9f, 30.0f, 40.0f), ("society", 0.15f, -15.2f, 1.7f, 26.0f, 0.0f),
+                    ("society-side", 0.15f, -15.2f, 1.7f, 26.0f, 50.0f), ("exchange", 0.95f, -15.2f, 1.8f, 26.0f, 0.0f), ("exchange-side", 0.95f, -15.2f, 1.8f, 28.0f, 55.0f),
+                    ("civic", 0.0f, -15.2f, 3.6f, 38.0f, 0.0f),
+                    ("palace", 0.0f, -18.4f, 4.6f, 42.0f, 0.0f), ("palace-done", 2.2f, -18.4f, 2.6f, 28.0f, 0.0f), ("palace-done-side", 2.2f, -18.4f, 2.6f, 30.0f, 60.0f),
+                    ("palace-stages", -0.6f, -18.4f, 3.4f, 34.0f, 20.0f), ("palace-top", 2.2f, -18.4f, 3.0f, 70.0f, 0.0f),
+                    // P1 figures, row z -21.6 (a soldier at x -2.1, then engineer -1.75, miner -1.45, navigator -1.1, botanist -0.7, operative -0.35, bargeman 0.0, coachman 0.4, coach 0.9)
+                    ("figures", -0.2f, -21.6f, 2.8f, 30.0f, 0.0f), ("figures-a", -1.3f, -21.6f, 2.7f, 24.0f, 0.0f), ("figures-b", -0.1f, -21.6f, 2.7f, 24.0f, 0.0f),
+                    ("figures-side", -0.9f, -21.6f, 2.7f, 24.0f, 70.0f), ("figures-back", -0.9f, -21.6f, 2.7f, 26.0f, 160.0f),
+                    ("coach", 0.9f, -21.6f, 2.7f, 30.0f, 0.0f), ("coach-side", 0.9f, -21.6f, 2.7f, 26.0f, 80.0f),
+                    // bastion damage, row z -24.6 (x -2.3 whole, -1.15 cracked, 0.0 breached, 1.2 ruined; E5 walls at 2.2, 2.6, 3.0)
+                    ("breach", 0.0f, -24.6f, 4.6f, 42.0f, 0.0f), ("breach-close", 0.0f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-cracked", -1.15f, -24.6f, 2.2f, 34.0f, 270.0f),
+                    ("breach-ruin", 1.2f, -24.6f, 2.2f, 34.0f, 270.0f), ("breach-top", 0.0f, -24.6f, 3.0f, 75.0f, 0.0f), ("breach-walls", 2.6f, -24.6f, 2.6f, 30.0f, 0.0f),
+                    // fishing and sugar, row z -27.4 (lugger -1.8, trawling -1.2, bank -0.5, cane 0.4, cut cane 1.5); cargo, row z -29.8 (x -0.3 .. 0.3)
+                    ("fish", -0.2f, -27.4f, 3.4f, 36.0f, 0.0f), ("fish-lugger", -1.8f, -27.4f, 1.6f, 28.0f, 30.0f), ("fish-lugger-side", -1.8f, -27.4f, 1.6f, 24.0f, 90.0f),
+                    ("fish-netting", -1.2f, -27.4f, 1.8f, 34.0f, 140.0f), ("fish-bank", -0.5f, -27.4f, 1.6f, 40.0f, 0.0f),
+                    ("cane", 0.95f, -27.4f, 3.2f, 48.0f, 0.0f), ("cane-close", 0.4f, -27.4f, 1.9f, 36.0f, 20.0f), ("cane-cut", 1.5f, -27.4f, 1.9f, 36.0f, 20.0f),
+                    ("cargo", 0.0f, -29.8f, 1.3f, 34.0f, 0.0f), ("cargo-close", -0.1f, -29.8f, 1.0f, 28.0f, 25.0f),
+                    // the ocean lanes, z -31.6 .. -37: three lanes (bold, medium with a galleon escort and a wreck, faded), ships along them
+                    ("lanes", 0.0f, -34.4f, 4.4f, 50.0f, 0.0f), ("lanes-region", 0.0f, -34.4f, 9.0f, 55.0f, 0.0f), ("lanes-close", -1.6f, -34.0f, 2.6f, 36.0f, 20.0f),
+                    ("lanes-wreck", 0.6f, -34.3f, 1.6f, 32.0f, 10.0f), ("lanes-low", 1.5f, -34.0f, 2.2f, 22.0f, 0.0f),
+                    // colonies, z -42 .. -45: content (-3.8), strained (-1.3), blockaded (1.3, galleon at 2.5), independent (3.8); a founding at (-0.4, -45.2)
+                    ("colony", 0.0f, -42.4f, 4.4f, 46.0f, 0.0f), ("colony-content", -3.8f, -42.0f, 1.9f, 34.0f, 0.0f), ("colony-strained", -1.3f, -42.6f, 1.9f, 34.0f, 0.0f),
+                    ("colony-blockaded", 1.6f, -41.8f, 2.2f, 34.0f, 0.0f), ("colony-free", 3.8f, -42.6f, 1.9f, 34.0f, 0.0f), ("colony-founding", -0.4f, -45.0f, 1.6f, 28.0f, 30.0f),
+                    ("colony-region", 0.0f, -43.0f, 9.0f, 52.0f, 0.0f),
+                    // P2 row z 5.4 (nearer the stage's warm middle: a prop far from the map's middle latitude gets snow): embassy flag (-2.05), observatory (-1.6), greenhouse (-1.0),
+                    // news board (-0.4), harbor (0.3) and galleon (1.2), crops (1.75 .. 2.15); row z 8.2: a soldier (-1.05), merchant (-0.75), master mason (-0.45), then the extra cargo (-0.2 .. 0.8)
+                    ("p2", 0.0f, 5.4f, 3.6f, 38.0f, 0.0f), ("p2-embassy", -2.05f, 5.4f, 1.5f, 28.0f, 20.0f), ("p2-observatory", -1.6f, 5.4f, 1.6f, 26.0f, 20.0f),
+                    ("p2-greenhouse", -1.0f, 5.4f, 1.8f, 32.0f, 15.0f), ("p2-board", -0.4f, 5.4f, 1.5f, 26.0f, 20.0f), ("p2-harbor", 0.75f, 5.4f, 2.4f, 30.0f, 20.0f),
+                    ("p2-crops", 1.95f, 5.4f, 1.1f, 26.0f, 0.0f), ("p2-figures", -0.75f, 8.2f, 1.8f, 24.0f, 0.0f), ("p2-cargo", 0.3f, 8.2f, 1.4f, 30.0f, 15.0f),
+                })
+                {
+                    string itemName = item;
+                    // --discovery-only=mine,bastion : photograph only the shots whose name starts with one of these (a short run, for a busy machine)
+                    string? discOnly = ArgumentValue("--discovery-only=");
+                    if (discOnly is not null && !Array.Exists(discOnly.Split(','), o => itemName.StartsWith(o))) continue;
+                    float x = dx, z = dz, zm = zoom, pitch = pitchDeg, yaw = yawDeg;
+                    Step(() =>
+                    {
+                        _pitch = Mathf.DegToRad(pitch);
+                        _yaw = _yawTarget = Mathf.DegToRad(yaw);
+                        _moveAnimating = false;
+                        _target = new Vector3(discOrigin.X + x, discOrigin.Y, discOrigin.Z + z);
+                        ZoomTo(zm);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot($"disc-{itemName}");
+                }
+                // the chart grain (docs/MVP/39 §5): switched on for one wide shot of the lanes and colonies, then off again
+                string? discChart = ArgumentValue("--discovery-only=");
+                if (discChart is null || Array.Exists(discChart.Split(','), o => "chart".StartsWith(o)))
+                {
+                    Step(() =>
+                    {
+                        _visualRenderer!.Call("set_chart_grain", 1.0f);
+                        _moveAnimating = false;
+                        _target = new Vector3(discOrigin.X, discOrigin.Y, discOrigin.Z - 38.0f);
+                        _pitch = Mathf.DegToRad(50.0f);
+                        _yaw = _yawTarget = 0.0f;
+                        ZoomTo(9.0f);
+                        UpdateCamera();
+                    }, 3.0f);
+                    Shot("disc-chart");
+                    Step(() => _visualRenderer!.Call("set_chart_grain", 0.0f), 0.5f);
+                }
+                break;
             case "fief-overlays":
                 // the Faith & Fief route and spread overlays (docs/MVP/32 §7, §8.4) on the live map round the capital, with synthetic data from
                 // LowPoly3DView.show_fief_overlay_demo: pilgrimage routes with way-posts and pilgrims, quarantine, disease spreading and outbreaks

@@ -7,8 +7,11 @@ const M7MeshKit = preload("res://Renderer/LowPoly3D/Scripts/mesh_kit.gd")
 const M7WorldBuilder = preload("res://Renderer/LowPoly3D/Scripts/world_builder.gd")
 const M7ZigguratRig = preload("res://Renderer/LowPoly3D/Scripts/zig_rig.gd")
 const M7WarRig = preload("res://Renderer/LowPoly3D/Scripts/war_rig.gd")
+const M7DiscoveryRig = preload("res://Renderer/LowPoly3D/Scripts/discovery_rig.gd")
 const M7SkirmishRig = preload("res://Renderer/LowPoly3D/Scripts/skirmish_rig.gd")
 const M7FiefOverlay = preload("res://Renderer/LowPoly3D/Scripts/fief_overlay.gd")
+const M7LaneOverlay = preload("res://Renderer/LowPoly3D/Scripts/lane_overlay.gd")
+const M7ColonyOverlay = preload("res://Renderer/LowPoly3D/Scripts/colony_overlay.gd")
 
 var world: M7WorldData
 var kit: M7MeshKit
@@ -39,10 +42,13 @@ var burn_rig: M7BurnRig
 var feast_rig: M7FeastRig
 var dog_rig: M7DogRig
 var farm_rig: M7FarmRig
+var colony_overlay: M7ColonyOverlay     # Discovery colonies: pennant, state ring, tether, founding and breakaway (docs/MVP/39 §7.3); draws nothing until the frame has the data
+var lane_overlay: M7LaneOverlay         # Discovery ocean lanes, their ship tokens and wrecks (docs/MVP/39 §7.2); draws nothing until the frame has the data
 var fief_overlay: M7FiefOverlay        # Faith & Fief pilgrim routes, quarantine and spread (docs/MVP/32); draws nothing until the frame has the data
 var skirmish_rig: M7SkirmishRig
 var zig_rig: M7ZigguratRig
 var war_rig: M7WarRig
+var discovery_rig: M7DiscoveryRig
 var golden_hour := false
 var camera_focus := Vector3.ZERO
 var camera_distance := 40.0
@@ -82,11 +88,14 @@ func setup_frame(frame_data: Dictionary) -> void:
 	farm_rig.sync()
 	fief_overlay = M7FiefOverlay.new(builder, world_root)
 	fief_overlay.sync()
+	lane_overlay = M7LaneOverlay.new(builder, world_root)
+	colony_overlay = M7ColonyOverlay.new(builder, world_root)
 	skirmish_rig = M7SkirmishRig.new(builder, world_root)
 	zig_rig = M7ZigguratRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	zig_rig.sync()
 	war_rig = M7WarRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	war_rig.sync()
+	discovery_rig = M7DiscoveryRig.new(builder, world_root, Callable(self, "_make_smoke"))
 	_apply_season(world.season)
 	_set_villages()
 	_sync_hearth_fx()
@@ -115,6 +124,8 @@ func update_frame(frame_data: Dictionary) -> void:
 	fief_overlay.sync()
 	zig_rig.sync()
 	war_rig.sync()
+	if discovery_rig != null and not discovery_rig.demo:
+		discovery_rig.sync(builder.disc_works)
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:
@@ -168,6 +179,12 @@ func set_render_tick(tick: float, profile: bool = false) -> void:
 		zig_rig.update(tick)
 	if war_rig != null:
 		war_rig.update(tick)
+	if discovery_rig != null and not discovery_rig.demo:
+		discovery_rig.update(tick * 0.1)
+	if lane_overlay != null and not lane_overlay.demo:
+		lane_overlay.update(tick * 0.1)
+	if colony_overlay != null and not colony_overlay.demo:
+		colony_overlay.update(tick * 0.1)
 	if profile:
 		var total_usec := Time.get_ticks_usec() - profile_started
 		if total_usec > _render_tick_profile_max_usec:
@@ -624,6 +641,115 @@ func show_fief_gallery() -> Vector3:
 	batch.build(stage, kit, Callable(builder, "_material_for"))
 	return centre
 
+## Dev aid for scenarios (discovery-gallery, docs/MVP/39): the Discovery meshes on a plain stage, rows 2.4 apart from the nearest (+z): the coal mine working,
+## idle, flooded and as a site, the engine working and banked, the factory lit, cold and as a site, the bastion fort in its four stages and idle, the ships
+## (the galley and the cog beside them for scale), the four-course fields beside the three-field one, and the state marks. Returns the stage centre.
+func show_discovery_gallery() -> Vector3:
+	kit.ensure_discovery()
+	var stage := Node3D.new()
+	stage.name = "DiscoveryGallery"
+	var centre := Vector3(-5.0, 0.25, world.height * M7WorldData.S * 0.5)
+	stage.position = centre
+	world_root.add_child(stage)
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(12.0, 72.0)
+	floor_mesh.mesh = plane
+	floor_mesh.position = Vector3(0.0, -0.01, -21.2)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color("#7a9a52")
+	floor_material.roughness = 1.0
+	floor_mesh.material_override = floor_material
+	stage.add_child(floor_mesh)
+	var batch := M7Batcher.new()
+	batch.chunk_size = 100.0
+	# [mesh, width it needs, scale]; the coal mine's body gets its wheel and the engine its beam fitted at the pivot
+	var rows := [
+		[["coal_mine", 0.7, 1.35], ["coal_mine_idle", 0.7, 1.35], ["coal_mine_flooded", 0.7, 1.35], ["coal_mine_site", 0.6, 1.35]],
+		[["atmospheric_engine", 0.7, 1.35], ["atmospheric_engine_idle", 0.7, 1.35], ["factory", 0.75, 1.3], ["factory_cold", 0.75, 1.3], ["factory_site", 0.7, 1.3]],
+		[["bastion_1", 1.0, 1.0], ["bastion_2", 1.0, 1.0], ["bastion_3", 1.0, 1.0], ["bastion_4", 1.0, 1.0], ["bastion_4_idle", 1.0, 1.0]],
+		[["galley", 0.8, 1.3], ["cog", 0.8, 1.3], ["caravel", 0.75, 1.3], ["galleon", 0.9, 1.3]],
+		[["field_three_0", 1.1, 1.0], ["field_four_0", 1.1, 1.0], ["field_four_1", 1.1, 1.0], ["field_four_2", 1.1, 1.0], ["field_four_3", 1.1, 1.0], ["hedge_line", 0.4, 1.4]],
+		[["colony_pennant", 0.4, 1.6], ["mark_dormant", 0.3, 2.4], ["mark_blocked", 0.3, 2.4], ["mark_flooded", 0.3, 2.4], ["mark_strained", 0.3, 2.4], ["mark_blockaded", 0.3, 2.4]],
+		# P1: the coke oven, the navigation canal tile, the lock and a barge on it (the barge is set by hand below), the toll gate
+		[["coke_oven", 0.5, 1.5], ["coke_oven_idle", 0.5, 1.5], ["canal_nav_straight", 0.9, 1.0], ["canal_nav_lock", 0.9, 1.0], ["toll_gate", 0.5, 1.8]],
+		# P1: the garden, the society and the exchange house, working and idle
+		[["botanical_garden", 0.6, 1.4], ["botanical_garden_idle", 0.6, 1.4], ["learned_society", 0.35, 1.8], ["learned_society_idle", 0.35, 1.8], ["exchange_house", 0.45, 1.6], ["exchange_house_idle", 0.45, 1.6]],
+		# P1: the Renaissance Palace, its plot and its four stages
+		[["renaissance_palace_site", 1.1, 0.9], ["renaissance_palace_1", 1.1, 0.9], ["renaissance_palace_2", 1.1, 0.9], ["renaissance_palace_3", 1.1, 0.9], ["renaissance_palace_4", 1.1, 0.9]],
+		# P1 figures: a soldier for scale, then the engineer, miner, navigator, botanist, operative, bargeman and coachman, and the turnpike coach
+		[["person_soldier", 0.3, 2.4], ["person_engineer", 0.3, 2.4], ["person_miner", 0.3, 2.4], ["person_navigator", 0.4, 2.4], ["person_botanist", 0.35, 2.4], ["person_operative", 0.3, 2.4],
+			["person_bargeman", 0.4, 2.4], ["person_coachman", 0.4, 2.4], ["coach", 0.6, 2.0]],
+		# P1 bastion damage (docs/MVP/39 §4.5): the whole fort, then cracked, breached and ruined, each turned about Y by 90 degrees so the break faces +X (an
+		# attacker's side); beside them the E5 wall at the same bands for scale
+		[["bastion_4", 1.0, 1.0, 1.5708], ["bastion_cracked", 1.0, 1.0, 1.5708], ["bastion_breach", 1.0, 1.0, 1.5708], ["bastion_ruin", 1.1, 1.0, 1.5708],
+			["wall_seg", 0.4, 1.6], ["wall_seg_cracked", 0.4, 1.6], ["wall_seg_breach", 0.4, 1.6]],
+		# P1 fishing and sugar: the lugger stowed and trawling, the offshore bank, the cane field growing and at harvest
+		[["lugger", 0.5, 1.8], ["lugger_netting", 0.7, 1.8], ["fishing_bank", 0.7, 1.5], ["field_cane", 1.1, 1.0], ["field_cane_cut", 1.1, 1.0]],
+		# P1 cargo for the flows layer: coal, coke, sugar loaves and salt cod
+		[["cargo_coal", 0.2, 3.0], ["cargo_coke", 0.2, 3.0], ["cargo_sugar", 0.2, 3.0], ["cargo_cod", 0.2, 3.0]],
+		# P2 buildings and props: embassy flag, observatory, greenhouse, news board, the E4 harbor beside a galleon (the scale audit), the three exchange crops
+		[["embassy_flag", 0.4, 2.0], ["observatory", 0.5, 2.0], ["greenhouse", 0.7, 1.7], ["news_board", 0.5, 2.0], ["harbor", 0.9, 1.3], ["galleon", 0.9, 1.3],
+			["crop_maize", 0.2, 3.5], ["crop_potato", 0.2, 3.5], ["crop_tobacco", 0.2, 3.5]],
+		# P2 figures (a soldier for scale) and the extra cargo: plate glass, parts, acid, alkali, pamphlets, instruments
+		[["person_soldier", 0.3, 2.4], ["person_merchant", 0.3, 2.4], ["person_master_mason", 0.3, 2.4], ["cargo_glass", 0.2, 3.0], ["cargo_parts", 0.2, 3.0],
+			["cargo_acid", 0.2, 3.0], ["cargo_alkali", 0.2, 3.0], ["cargo_pamphlets", 0.2, 3.0], ["cargo_instruments", 0.2, 3.0]],
+	]
+	var rig_works := []
+	for r in rows.size():
+		var row: Array = rows[r]
+		var total := 0.0
+		for item in row:
+			total += float(item[1])
+		var x := -total * 0.5
+		var z: float = [2.4, 0.2, -2.2, -5.2, -8.0, -10.4, -12.8, -15.2, -18.4, -21.6, -24.6, -27.4, -29.8, 5.4, 8.2][r]
+		for i in row.size():
+			var item: Array = row[i]
+			x += float(item[1]) * 0.5
+			var name: String = item[0]
+			var tint := M7MeshBuilder.lin(M7WorldData.civ_color(i % 4), 0.5)
+			var custom := Color(tint.r, tint.g, tint.b, 0.5)
+			var s := float(item[2])
+			var y := 0.0
+			if name.begins_with("mark_"):
+				y = 0.2
+			if name.begins_with("person"):
+				custom = Color(float(i % 4) + 0.5 * 0.98, 0.0, 0.0, 0.0)
+			# works that move are drawn from their body meshes and handed to the Discovery rig (the wheel and the beam turn; the chimneys smoke)
+			var rig_kind := ""
+			var rig_state := ""
+			match name:
+				"coal_mine": rig_kind = "coal_mine"; rig_state = "work"; name = "coal_mine_body"
+				"atmospheric_engine": rig_kind = "atmospheric_engine"; rig_state = "work"; name = "atmospheric_engine_body"
+				"factory": rig_kind = "factory"; rig_state = "work"
+				"coke_oven": rig_kind = "coke_oven"; rig_state = "work"
+			if rig_kind != "":
+				rig_works.append({"kind": rig_kind, "pos": centre + Vector3(x, y, z), "yaw": 0.0, "scale": s, "state": rig_state, "seed": "%s%d" % [rig_kind, i]})
+			var yaw: float = float(item[3]) if item.size() > 3 else 0.0
+			var dmg_state := ""
+			match name:
+				"bastion_cracked": dmg_state = "cracked"
+				"bastion_breach": dmg_state = "breach"
+				"bastion_ruin": dmg_state = "ruin"
+			if dmg_state != "":
+				rig_works.append({"kind": "bastion_fort", "pos": centre + Vector3(x, y, z), "yaw": yaw, "scale": s, "state": dmg_state, "seed": name})
+			batch.add(name, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), Vector3(x, y, z)), custom, false)
+			if name == "canal_nav_lock":
+				# a coal barge in the lock chamber, lying along the canal (the barge's bow is +Z, the canal runs along X)
+				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x, 0.0, z)), custom, false)
+			elif name == "canal_nav_straight":
+				batch.add("barge_coal", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * s), Vector3(x + 0.05, 0.0, z)), custom, false)
+			x += float(item[1]) * 0.5
+	batch.build(stage, kit, Callable(builder, "_material_for"))
+	if discovery_rig != null:
+		discovery_rig.demo = true
+		discovery_rig.sync(rig_works)
+	if lane_overlay != null:
+		lane_overlay.load_demo(centre)
+	if colony_overlay != null:
+		colony_overlay.load_demo(centre)
+	return centre
+
 ## Dev aid for scenarios (fief-overlays, docs/MVP/32): fills the Faith & Fief overlay tables from the live map round the human capital (pilgrimage routes,
 ## quarantine, disease spreading, outbreaks) and returns where to look (the origin when the map has no suitable ground).
 func show_fief_overlay_demo() -> Vector3:
@@ -665,6 +791,12 @@ func _process(_delta: float) -> void:
 		skirmish_rig.update(_delta, clampf(1.25 + (camera_distance - 8.0) / 24.0, 1.25, 2.6), clampf(camera_distance / 12.0, 1.0, 6.0), camera.global_position if camera != null else Vector3.ZERO)
 	if signal_rig != null:
 		signal_rig.update(Time.get_ticks_msec() / 1000.0)
+	if discovery_rig != null and discovery_rig.demo:
+		discovery_rig.update(Time.get_ticks_msec() / 1000.0)
+	if lane_overlay != null and lane_overlay.demo:
+		lane_overlay.update(Time.get_ticks_msec() / 1000.0)
+	if colony_overlay != null and colony_overlay.demo:
+		colony_overlay.update(Time.get_ticks_msec() / 1000.0)
 
 func set_season(season: int) -> void:
 	_apply_season(season)
@@ -715,6 +847,10 @@ func set_camera(target: Vector3, yaw: float, pitch: float, distance: float) -> v
 			(builder.road_node.material_override as ShaderMaterial).set_shader_parameter("width_boost", clampf(distance / 22.0, 1.0, 2.6))
 	if fief_overlay != null:
 		fief_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
+	if lane_overlay != null:
+		lane_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
+	if colony_overlay != null:
+		colony_overlay.set_boost(clampf(distance / 22.0, 1.0, 2.6))
 	var regional := distance > 38.0
 	if builder != null:
 		builder.set_regional_lod(regional)
@@ -997,6 +1133,33 @@ func _make_camera() -> void:
 	camera.attributes = camera_attributes
 	add_child(camera)
 	camera.make_current()
+
+## Discovery chart grain (docs/MVP/39 §5): a screen overlay under the HUD. It is created the first time the HUD turns it up (amount above 0) and hidden whenever the
+## amount is 0, so a match that never asks for it, and Bronze, Iron and Fief in particular, has no extra full-screen pass at all.
+var chart_grain_layer: CanvasLayer
+var chart_grain_material: ShaderMaterial
+
+func _make_chart_grain() -> void:
+	chart_grain_layer = CanvasLayer.new()
+	chart_grain_layer.layer = 0
+	var rect := ColorRect.new()
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chart_grain_material = ShaderMaterial.new()
+	chart_grain_material.shader = load("res://Renderer/LowPoly3D/Shaders/chart_grain.gdshader")
+	rect.material = chart_grain_material
+	chart_grain_layer.add_child(rect)
+	add_child(chart_grain_layer)
+
+func set_chart_grain(amount: float) -> void:
+	if amount <= 0.0:
+		if chart_grain_layer != null:
+			chart_grain_layer.visible = false
+		return
+	if chart_grain_layer == null:
+		_make_chart_grain()
+	chart_grain_layer.visible = true
+	chart_grain_material.set_shader_parameter("amount", clampf(amount, 0.0, 1.0))
 
 func _make_grade_overlay() -> void:
 	var layer := CanvasLayer.new()

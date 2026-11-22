@@ -1467,6 +1467,31 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 			var placed = _fief_outer_site(outer_fief_sites, taken, String(fw[0]), mesh_name, float(fw[2]), tint)
 			if placed != null:
 				taken[int(placed[0])] = true
+		if w.discovery_active:
+			# The Age of Discovery's industry (docs/MVP/39 §4): the engine and the ovens burn while coal is in store, the factory lights while it has power. The still
+			# meshes are art_disc_power.gd's; a working engine is its body, and M7DiscoveryRig (discovery_rig.gd) adds the beam, the wheel and the smoke.
+			wb.kit.ensure_discovery()
+			var disc := w.discovery_settlement(s)
+			var burning := int(disc.get("coal_raw", 0)) > 0
+			var powered := int(disc.get("factory_coverage_raw", 0)) > 0
+			for dw in [["atmospheric_engine", "atmospheric_engine", burning, 1.35], ["coke_oven", "coke_oven", burning, 1.5], ["factory", "factory", powered, 1.3]]:
+				if w.iron_works(s, String(dw[0])) <= 0:
+					continue
+				var dwork := String(dw[0])
+				var dworking := bool(dw[2])
+				var dmesh := dwork
+				if dwork == "atmospheric_engine":
+					dmesh = "atmospheric_engine_body" if dworking else "atmospheric_engine_idle"
+				elif dwork == "coke_oven":
+					dmesh = "coke_oven" if dworking else "coke_oven_idle"
+				else:
+					dmesh = "factory" if dworking else "factory_cold"
+				var dplaced = _fief_outer_site(outer_fief_sites, taken, dwork, dmesh, float(dw[3]), tint)
+				if dplaced != null:
+					taken[int(dplaced[0])] = true
+					var dp: Vector2 = dplaced[1]
+					wb.disc_works.append({"kind": dwork, "pos": Vector3(dp.x, w.height_at(dp), dp.y), "yaw": atan2((_c0 - dp).x, (_c0 - dp).y), "scale": float(dw[3]),
+						"state": "work" if dworking else "idle", "seed": "%s%d" % [dwork, si]})
 		var build_k := int(s.get("ironBuildKind", -1))
 		var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
 		if w.iron_works(s, "monastery") > 0:

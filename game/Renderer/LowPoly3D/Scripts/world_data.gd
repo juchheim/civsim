@@ -104,6 +104,7 @@ var ghosts := PackedInt32Array()        # stride 8: people who just left; fade o
 var herds := PackedInt32Array()         # stride 7: x, y, species, animals, id, prev x, prev y (-1 = new)
 var settlements: Array = []
 var viewer_civ := -1                    # the civilization whose view this is (-1 sees everything)
+var discovery_active := false           # whether this frame carries the Discovery-only settlement readout (a Discovery match is also a Fief one)
 var fief_active := false                # whether this frame carries the Fief-only settlement readout
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
@@ -148,6 +149,17 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"hospital_staffed": bool(s.get("fiefHospitalStaffed", false)),
 		"concentric_castle": bool(s.get("fiefConcentricCastle", false)),
 		"arsenal_stocked": bool(s.get("fiefArsenalStocked", false)),
+	}
+
+## Discovery-only, viewer-filtered settlement values; returns an empty dictionary outside a Discovery frame.
+func discovery_settlement(s: Dictionary) -> Dictionary:
+	if not discovery_active:
+		return {}
+	return {
+		"coal_raw": int(s.get("discCoal", 0)),
+		"engines": int(s.get("discEngines", 0)),
+		"ovens": int(s.get("discOvens", 0)),
+		"factory_coverage_raw": int(s.get("discFactoryCoverage", 0)),
 	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
@@ -242,6 +254,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 		return false
 	viewer_civ = int(d.viewerCiv) if d.has("viewerCiv") else -1
 	fief_active = bool(d.get("fiefActive", false))
+	discovery_active = bool(d.get("discoveryActive", false))
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)
