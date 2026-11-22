@@ -980,6 +980,7 @@ public sealed partial class LivingEconomyModel
         Fix64 q = BellowsActive(s, r) ? r.OutputQuantity * Modifier(s.Civilization, "smelt_yield") : r.OutputQuantity;
         if (FiefChain)
             q *= FiefMilitaryIntermediateYield(r.Def.Id);
+        if (DiscoveryChain) q *= AlkaliOutputFactor(s, r);
         return FurnaceActive(s, r) ? q * FurnaceOutputFactor(s) : q;
     }
 
@@ -1577,6 +1578,7 @@ public sealed partial class LivingEconomyModel
         FiefWeaponWants(s, plan);
         IronArmsWant(s, m, plan);
         IronEngineWant(s, m, plan);
+        DiscoveryInstrumentWants(s, plan);
     }
 
     private void WantBaselineArms(SettlementState s, MetalState m, MetalPlan plan)

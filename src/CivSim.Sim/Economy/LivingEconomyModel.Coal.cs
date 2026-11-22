@@ -15,11 +15,19 @@ namespace CivSim.Sim.Economy;
 public sealed partial class LivingEconomyModel
 {
     /// <summary>Discovery-only goods. Appended after <see cref="BowGood"/>; never renumber.</summary>
-    private enum DiscoveryGood : byte { Coal, Coke, Count }
+    private enum DiscoveryGood : byte
+    {
+        Coal, Coke,
+        // The glass-and-instruments chain (docs/MVP/38 §5.3, M13 WP-E6-7 slice 3): appended after coal and coke, written to Discovery snapshots only.
+        Alkali, Acid, PlateGlass, Parts, Chronometer, Telescope,
+        Count
+    }
 
     private static string DiscoveryGoodId(DiscoveryGood good) => good switch
     {
-        DiscoveryGood.Coal => "G-COAL", DiscoveryGood.Coke => "G-COKE", _ => "",
+        DiscoveryGood.Coal => "G-COAL", DiscoveryGood.Coke => "G-COKE",
+        DiscoveryGood.Alkali => "G-ALKALI", DiscoveryGood.Acid => "G-ACID", DiscoveryGood.PlateGlass => "G-PLATEGLASS",
+        DiscoveryGood.Parts => "G-PARTS", DiscoveryGood.Chronometer => "G-CHRONOMETER", DiscoveryGood.Telescope => "G-TELESCOPE", _ => "",
     };
 
     private static int DiscoverySlotBase => BowSlotBase + (int)BowGood.Count;

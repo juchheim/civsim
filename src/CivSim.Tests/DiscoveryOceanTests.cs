@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
@@ -82,6 +83,10 @@ public sealed class DiscoveryOceanTests
         if (coastOnly < PoliticsSystem.VoyageMaxRiskPermille) Assert.True(baseRisk > coastOnly, "deep water costs more than coast water");
 
         Grant(runner, match, 0, "WAY-10");
+        Assert.Equal(baseRisk, politics.VoyageRiskPermille(0, home, destination)); // the cut needs a chronometer in a harbor town
+        int homeTown = Enumerable.Range(0, match.Economy.SettlementCount).First(s => match.Economy.SettlementLite(s).Civilization == 0);
+        match.Economy.FixtureSetIronWork(homeTown, "harbor", 1);
+        match.Economy.FixtureAddDiscoveryGood(homeTown, "G-CHRONOMETER", Fix64.One);
         Assert.Equal(baseRisk * PoliticsSystem.ChronometerRiskTenths / 10, politics.VoyageRiskPermille(0, home, destination));
 
         Grant(runner, match, 0, "WAY-08");

@@ -131,6 +131,9 @@ public sealed class DiscoveryMindTests
 
         Grant(runner, match, 0, "INQ-07");
         Assert.Equal(before - 1, match.Economy.FixtureCohesionTarget(home));
+        Assert.Equal(riskBefore, match.Politics.VoyageRiskPermille(0, siteTile, destination)); // the sea benefit needs a telescope in a harbor town
+        match.Economy.FixtureSetIronWork(home, "harbor", 1);
+        match.Economy.FixtureAddDiscoveryGood(home, "G-TELESCOPE", Fix64.One);
         Assert.Equal(riskBefore * 100 / 105, match.Politics.VoyageRiskPermille(0, siteTile, destination));
         Grant(runner, match, 0, "BEL-12");
         Assert.Equal(before, match.Economy.FixtureCohesionTarget(home));

@@ -249,6 +249,34 @@ internal static class DiscoveryMatchCommand
             }
             if (match.Economy.CoalLitres(s) > Fix64.Zero) coalSettlements++;
         }
+        var goodTotals = new System.Text.StringBuilder();
+        foreach (string good in new[] { "G-ALKALI", "G-PLATEGLASS", "G-PARTS", "G-CHRONOMETER", "G-TELESCOPE" })
+        {
+            Fix64 total = Fix64.Zero;
+            for (int s = 0; s < settlements; s++) total += match.Economy.DiscoveryGoodStock(s, good);
+            goodTotals.Append($"{good}={total.ToDoubleForDisplay():F1} ");
+        }
+        Console.WriteLine("  goods: " + goodTotals.ToString().TrimEnd());
+        if (Environment.GetEnvironmentVariable("CIVSIM_CHAINDIAG") == "1")
+        {
+            const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var avail = typeof(LivingEconomyModel).GetMethod("FixtureRecipeAvailable", F)!;
+            string[] recipes = { "make_alkali", "make_plate_glass", "make_parts", "make_chronometer", "make_telescope" };
+            string[] inputs = { "G-GLASS", "G-ALKALI", "G-STEEL", "G-WROUGHT", "G-PLATEGLASS", "G-PARTS", "G-SALT", "G-LIME", "G-COAL", "G-CHAR" };
+            for (int c = 0; c < civs; c++)
+            {
+                var can = new int[recipes.Length]; var have = new int[inputs.Length]; int towns = 0;
+                for (int s = 0; s < settlements; s++)
+                {
+                    if (match.Economy.SettlementLite(s).Civilization != c) continue;
+                    towns++;
+                    for (int r = 0; r < recipes.Length; r++) if ((bool)avail.Invoke(match.Economy, new object[] { s, recipes[r] })!) can[r]++;
+                    for (int g = 0; g < inputs.Length; g++) if (match.Economy.DiscoveryGoodStock(s, inputs[g]) > Fix64.Zero || match.Economy.FiefStockPublic(s, inputs[g]) > Fix64.Zero) have[g]++;
+                }
+                Console.WriteLine($"  chain civ{c}: towns={towns} can-run " + string.Join(" ", recipes.Select((n, r) => $"{n}={can[r]}")) + " | towns holding " + string.Join(" ", inputs.Select((n, g) => $"{n}={have[g]}")));
+            }
+        }
+        Console.WriteLine("  instruments held at a harbor: " + string.Join(", ", Enumerable.Range(0, civs).Select(c => $"civ{c} chronometer={match.Economy.ChronometerHeld(c)} telescope={match.Economy.TelescopeHeld(c)}")));
         Console.WriteLine("  built: " + string.Join(", ", Structures.Select((name, j) => $"{name}={totals[j]}")) + $"; settlements={settlements}, holding coal={coalSettlements}, colonies={match.Economy.ColonyCount()}");
     }
 }

@@ -105,6 +105,25 @@ Release builds. The scratch numeric-status pack is only for testing core systems
 and UI continuity, not balance acceptance or release. Do not use it to claim
 WP-E5-11 promotion or copy its statuses back into repository content.
 
+### Opt-in Discovery playtest (Debug only)
+
+Discovery is the age after Faith & Fief (E6: coal and steam, the ocean and colonies, the factory, the exchange). Its 42 rows
+are promoted in the repository, but the 50 E5 rows are still draft, so a human cannot reach it with the ordinary pack.
+`playtest/make-discovery-pack.sh` builds a scratch pack with E5 flipped to numeric (repository content is untouched):
+
+```bash
+playtest/make-discovery-pack.sh                       # writes playtest/discovery-numeric-e5.pack
+dotnet build game/CivSim.Game.csproj -c Debug
+/Applications/Godot_mono.app/Contents/MacOS/Godot --headless --editor --path game --quit   # after pulling new assets
+CIVSIM_PACK="$PWD/playtest/discovery-numeric-e5.pack" \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path game -- --discovery-playtest --seed=12345
+```
+
+The flag starts a Discovery match (window title and age chip say DISCOVERY PLAYTEST) and makes New Match start another one.
+Debug builds keep Discovery mode in quick-saves and replays (mode byte 3). Not yet in the game: the Discovery cards, art for the
+new structures (engines, ovens, canals, factories, galleons, exchange houses, gardens, societies and bastions are simulated but
+drawn with no model), the mode picker. Rivals are the stock AI. See `docs/MVP/38-discovery-age.md`.
+
 A new match starts with the human player's Auto-fill (the Council) off and opens the
 research web to what is ready now. The focus bar is always on screen: three cards sized
 1 : 0.618 : 0.382 (Primary, Secondary, Tertiary) with live share, progress and ETA; an

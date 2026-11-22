@@ -194,12 +194,12 @@ public sealed partial class PoliticsSystem
         int risk = Math.Min(VoyageMaxRiskPermille, VoyageBaseRiskPermille + VoyageRiskPerSeaTile * sea + OceanDeepRiskPerTile * deep);
         if (_economy.FiefChain && (uint)civ < (uint)_civs && _way08 >= 0 && _research.IsDone(civ, _way08))
             risk /= 2;
-        // WAY-10 (Discovery): a chronometer and a navigator solve longitude and cut the loss to three parts in ten. The good and the navigator's
-        // staffing are WP-E6-7's instruments; for now the project itself carries the benefit (flagged in m13-wp6-ocean-slice1.md).
-        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _way10 >= 0 && _research.IsDone(civ, _way10))
+        // WAY-10 (Discovery): a chronometer solves longitude and cuts the loss to three parts in ten. The benefit needs the instrument in a harbor town (the planner
+        // wants one in each); the navigator's staffing is not modelled.
+        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _way10 >= 0 && _research.IsDone(civ, _way10) && _economy.ChronometerHeld(civ))
             risk = risk * ChronometerRiskTenths / 10;
-        // INQ-07 (Discovery): the telescope makes sea routes 5% more reliable (the row's sea_route_reliability x1.05), taken off the loss.
-        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _inq07 >= 0 && _research.IsDone(civ, _inq07))
+        // INQ-07 (Discovery): the telescope makes sea routes 5% more reliable (the row's sea_route_reliability x1.05), taken off the loss, once one is in a harbor town.
+        if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _inq07 >= 0 && _research.IsDone(civ, _inq07) && _economy.TelescopeHeld(civ))
             risk = risk * 100 / 105;
         // TRD-11 (Discovery): insurance spreads a loss across the realm's harbor towns, so a staffed exchange house halves it (voyage_loss x0.5; mints nothing).
         if (_economy.DiscoveryChain && (uint)civ < (uint)_civs && _economy.InsuranceOpen(civ)) risk /= 2;
