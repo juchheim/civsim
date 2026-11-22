@@ -1535,6 +1535,22 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 				if dplaced != null:
 					taken[int(dplaced[0])] = true
 					var dp: Vector2 = dplaced[1]
+					# the staff cue (docs/MVP/39 §4): the people the sim says are in post stand at the door, never more than it holds
+					var staff_mesh := ""
+					var staff_n := 0
+					if dwork == "atmospheric_engine":
+						staff_mesh = "person_engineer"
+						staff_n = mini(int(disc.get("engineers", 0)), 2)
+					elif dwork == "factory":
+						staff_mesh = "person_operative"
+						staff_n = mini(int(disc.get("operatives", 0)), 3)
+					elif dwork == "botanical_garden" and dworking:
+						staff_mesh = "person_botanist"
+						staff_n = 1
+					for k in staff_n:
+						var off: Vector3 = M7WorldBuilder.rot_y(atan2((_c0 - dp).x, (_c0 - dp).y)) * (Vector3((k - (staff_n - 1) * 0.5) * 0.07, 0.0, 0.2) * float(dw[3]))
+						var spp := Vector2(dp.x + off.x, dp.y + off.z)
+						wb.props.add(staff_mesh, wb._xf(spp, w.height_at(spp), atan2((_c0 - dp).x, (_c0 - dp).y) + PI, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 					wb.disc_works.append({"kind": dwork, "pos": Vector3(dp.x, w.height_at(dp), dp.y), "yaw": atan2((_c0 - dp).x, (_c0 - dp).y), "scale": float(dw[3]),
 						"state": "work" if dworking else "idle", "seed": "%s%d" % [dwork, si]})
 		var build_k := int(s.get("ironBuildKind", -1))

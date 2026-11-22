@@ -11,7 +11,7 @@ public sealed class DiscoveryFrame
 {
     public bool Active;
     public long[] CoalLitres = Array.Empty<long>(), FactoryCoverage = Array.Empty<long>(), Soot = Array.Empty<long>();
-    public byte[] Engines = Array.Empty<byte>(), Ovens = Array.Empty<byte>(), Operatives = Array.Empty<byte>();
+    public byte[] Engines = Array.Empty<byte>(), Ovens = Array.Empty<byte>(), Operatives = Array.Empty<byte>(), Engineers = Array.Empty<byte>();
     /// <summary>1 where the thing stands or works: canal, factory, colony (Colony is a state instead: 0 none, 1 content, 2 strained, 3 blockaded), staffed garden, learned society, bastion fort, crewed galleon, exchange house.</summary>
     public byte[] Canal = Array.Empty<byte>(), Factory = Array.Empty<byte>(), Colony = Array.Empty<byte>(), GardenStaffed = Array.Empty<byte>(),
         Society = Array.Empty<byte>(), Bastion = Array.Empty<byte>(), GalleonCrewed = Array.Empty<byte>(), ExchangeHouse = Array.Empty<byte>();
@@ -42,7 +42,7 @@ public sealed class DiscoveryFrame
         if (CoalLitres.Length >= n) return;
         int size = Math.Max(n, Math.Max(4, CoalLitres.Length * 2));
         CoalLitres = new long[size]; FactoryCoverage = new long[size]; Soot = new long[size];
-        Engines = new byte[size]; Ovens = new byte[size]; Operatives = new byte[size];
+        Engines = new byte[size]; Ovens = new byte[size]; Operatives = new byte[size]; Engineers = new byte[size];
         Canal = new byte[size]; Factory = new byte[size]; Colony = new byte[size]; GardenStaffed = new byte[size];
         Society = new byte[size]; Bastion = new byte[size]; GalleonCrewed = new byte[size]; ExchangeHouse = new byte[size];
     }

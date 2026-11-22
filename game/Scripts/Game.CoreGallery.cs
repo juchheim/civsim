@@ -97,6 +97,8 @@ public partial class Game
             settlement["discCoal"] = 40L << 32;
             settlement["discFactoryCoverage"] = 1L << 32;
             settlement["discGardenStaffed"] = true;
+            settlement["discEngineers"] = 2;
+            settlement["discOperatives"] = 3;
             if (IronKindIndex("great_dome") is >= 0 and int domeAt) works[domeAt] = 0; // a Wonder hex for the Palace: the core holds a few Wonders, not all of them
         }
         settlement["structures"] = structures;

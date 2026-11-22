@@ -162,6 +162,8 @@ func discovery_settlement(s: Dictionary) -> Dictionary:
 	return {
 		"coal_raw": int(s.get("discCoal", 0)),
 		"colony": int(s.get("discColony", 0)),
+		"engineers": int(s.get("discEngineers", 0)),
+		"operatives": int(s.get("discOperatives", 0)),
 		"garden_staffed": bool(s.get("discGardenStaffed", false)),
 		"engines": int(s.get("discEngines", 0)),
 		"ovens": int(s.get("discOvens", 0)),

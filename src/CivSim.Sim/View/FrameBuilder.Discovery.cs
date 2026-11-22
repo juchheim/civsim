@@ -16,7 +16,7 @@ public sealed partial class FrameBuilder
         int n = target.SettlementCount;
         d.EnsureSettlements(n);
         Array.Clear(d.CoalLitres, 0, n); Array.Clear(d.FactoryCoverage, 0, n); Array.Clear(d.Soot, 0, n);
-        Array.Clear(d.Engines, 0, n); Array.Clear(d.Ovens, 0, n); Array.Clear(d.Operatives, 0, n);
+        Array.Clear(d.Engines, 0, n); Array.Clear(d.Ovens, 0, n); Array.Clear(d.Operatives, 0, n); Array.Clear(d.Engineers, 0, n);
         Array.Clear(d.Canal, 0, n); Array.Clear(d.Factory, 0, n); Array.Clear(d.Colony, 0, n); Array.Clear(d.GardenStaffed, 0, n);
         Array.Clear(d.Society, 0, n); Array.Clear(d.Bastion, 0, n); Array.Clear(d.GalleonCrewed, 0, n); Array.Clear(d.ExchangeHouse, 0, n);
         d.OceanReach = d.ExchangeStaffed = d.JointStockOpen = d.InsuranceOpen = d.SocietyStaffed = false;
@@ -58,7 +58,7 @@ public sealed partial class FrameBuilder
             if (!own || (uint)settlement >= (uint)_settlementCount) continue;
             DiscoveryTownReadout t = eco.DiscoveryTown(settlement);
             d.CoalLitres[w] = t.CoalLitres; d.FactoryCoverage[w] = t.FactoryCoverage; d.Soot[w] = t.Soot;
-            d.Engines[w] = (byte)Math.Min(255, t.Engines); d.Ovens[w] = (byte)Math.Min(255, t.Ovens); d.Operatives[w] = (byte)Math.Min(255, t.Operatives);
+            d.Engines[w] = (byte)Math.Min(255, t.Engines); d.Ovens[w] = (byte)Math.Min(255, t.Ovens); d.Operatives[w] = (byte)Math.Min(255, t.Operatives); d.Engineers[w] = (byte)Math.Min(255, t.Engineers);
             d.Canal[w] = (byte)(t.Canal ? 1 : 0); d.Factory[w] = (byte)(t.Factory ? 1 : 0); d.Colony[w] = ColonyState(match, target, w, settlement, t.Colony);
             d.GardenStaffed[w] = (byte)(t.GardenStaffed ? 1 : 0); d.Society[w] = (byte)(t.SocietyHere ? 1 : 0);
             d.Bastion[w] = (byte)(t.Bastion ? 1 : 0); d.GalleonCrewed[w] = (byte)(t.GalleonCrewed ? 1 : 0); d.ExchangeHouse[w] = (byte)(t.ExchangeHere ? 1 : 0);

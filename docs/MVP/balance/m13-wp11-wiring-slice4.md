@@ -45,6 +45,12 @@ Seen in the core gallery's Iron city (which now also holds all of them; its Grea
 
 A harbor town that holds a galleon (SEA-13, `IronStructure.Galleon`) draws the art branch's `galleon` mesh off the quay beyond the war galley (`world_builder.gd` `_harbor`), in a Discovery match only. It is a still ship in port: the `galleonStation` states (blockade, escort), fishing luggers and the beached caravel are not wired. Seen in the core gallery's coastal town (dressed with a galleon in a Discovery match): a three-masted ship lying off the piers, bigger than the galley.
 
+## Staff cue (added after the seventh commit)
+
+The people the sim says are in post stand at the door of their works, never more than it holds: up to two engineers at an engine (`DiscoveryFrame.Engineers`, new, from `EngineersHeld`), up to three operatives at the factory (`Operatives`), and the botanist in a staffed garden. They use the art branch's `person_engineer`, `person_operative` and `person_botanist` and are static props laid out with the building. Seen in the playtest with `--dev-disc-works` (which now forces two engineers and three operatives): two engineers by the engine, three operatives lined up at the factory door.
+
+**Not the same as drawing the sim's own people by role.** The map's figure payload carries no role, so the walking people are still generic; these are staff cues, and a staffed works shows its crew standing there even while the sim's engineer walks about elsewhere. Drawing each figure by role means adding the role to the figure payload and a mesh per role in the figure renderer: a larger change, left for the figure pass.
+
 ## A real bug the gallery found
 
 `FillDiscovery` threw an `OverflowException` when the viewer is -1 (spectator, `--viewer=-1`): `HasOceanReach` casts the civ to `uint`, which overflows under the Sim's checked arithmetic. The frame now returns before the realm block and the town loop for a spectator. `DiscoveryFrameTests` has a spectator test that fails without the fix. Any Discovery match with a spectator or a replay viewer would have crashed at startup.

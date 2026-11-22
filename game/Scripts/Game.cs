@@ -711,6 +711,8 @@ public partial class Game : Node3D
             }
             if (frame.Discovery.Active)
             {
+                settlement["discEngineers"] = i < frame.Discovery.Engineers.Length ? (int)frame.Discovery.Engineers[i] : 0;
+                settlement["discOperatives"] = i < frame.Discovery.Operatives.Length ? (int)frame.Discovery.Operatives[i] : 0;
                 settlement["discColony"] = i < frame.Discovery.Colony.Length ? (int)frame.Discovery.Colony[i] : 0;
                 settlement["discGardenStaffed"] = i < frame.Discovery.GardenStaffed.Length && frame.Discovery.GardenStaffed[i] != 0;
                 settlement["discCoal"] = i < frame.Discovery.CoalLitres.Length ? frame.Discovery.CoalLitres[i] : 0L;
@@ -755,6 +757,8 @@ public partial class Game : Node3D
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;
                     settlement["discFactoryCoverage"] = 1L << 32;
+                    settlement["discEngineers"] = 2;
+                    settlement["discOperatives"] = 3;
                     settlement["discColony"] = HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
                 }
                 if (forcedWorks || forcedSite > 0)
