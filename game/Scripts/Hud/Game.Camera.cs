@@ -1,6 +1,7 @@
 using System;
 using CivSim.Game.Ui;
 using CivSim.Sim.View;
+using CivSim.Sim.World;
 using Godot;
 
 namespace CivSim.Game;
@@ -104,6 +105,17 @@ public partial class Game
         if (selected < 0 && _current.SettlementCount > 0) selected = 0;
         if (selected < 0) return;
         int tile = _current.SettlementTile[selected];
+#if DEBUG
+        if (HasArgument("--dev-focus-coal") && _session is not null)
+        {
+            // dev aid for the Discovery art: look at the coal tile nearest the capital (see BuildE3OverlayBytes)
+            int best = -1;
+            for (int t = 0; t < _current.Width * _current.Height; t++)
+                if (_session.WorldView.Deposit[t] == (byte)DepositKind.Coal &&
+                    (best < 0 || HexLayout.Distance(t, tile, _current.Width) < HexLayout.Distance(best, tile, _current.Width))) best = t;
+            if (best >= 0) tile = best;
+        }
+#endif
         Vector3 center = TileCenter(tile % _current.Width, tile / _current.Width);
         var target = new Vector3(center.X + 0.3f, _terrainHeights[tile], center.Z + 0.2f);
         _yaw = _yawTarget = Mathf.DegToRad(30.0f);

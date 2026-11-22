@@ -15,9 +15,13 @@
 | **Redraw** | `world_builder.gd`'s layout hash includes the three structures and both states. |
 | **Dev flag** | `--dev-disc-works` (Debug) gives the biggest town the three works with coal in store and power on, so they can be photographed without playing to them. |
 
+## Coal pits (added after the first commit)
+
+A dug coal seam (`DepositKind.Coal`, overlay kind 13, with the worked bit) is drawn as the branch's headframe pit instead of the generic deposit marker, in `world_builder.gd` `_deposits()`: working is `coal_mine_body` with the rig adding the winding wheel and smoke; spent (the exhausted bit) is `coal_mine_idle`. Pits go in `world_builder.disc_mines`, rebuilt with the deposits, and `LowPoly3DView` passes `disc_works + disc_mines` to the rig. Outside a Discovery frame nothing changes. The flooded state is not drawn: the sim has no flooding. Debug aids: `--dev-disc-works` also marks the two coal tiles nearest the capital known (one dug, one spent), and `--dev-focus-coal` points the camera at the nearest.
+
 ## How it was checked
 
-The game builds (0 errors). In the Discovery playtest with `--dev-disc-works` the three works stand outside the capital's cleared ground with the engine's steam, the ovens' bank and the factory's black smoke, all reading as intended. The idle and cold twins were not photographed in the map (they are in the art branch's gallery).
+The game builds (0 errors). In the Discovery playtest with `--dev-disc-works` the three works stand outside the capital's cleared ground with the engine's steam, the ovens' bank and the factory's black smoke, all reading as intended. The coal pit was photographed the same way (headframe, spoil heap, steam). The idle and cold twins and the spent pit were not photographed in the map (they are in the art branch's gallery).
 
 ## Not done
 

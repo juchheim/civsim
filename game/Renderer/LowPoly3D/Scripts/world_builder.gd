@@ -91,6 +91,7 @@ var chimney_smokes: Array = []          # {pos, seed}: bathhouse chimneys, for t
 var frontier_sites: Array = []          # {p, y}: the frontier wall runs
 var forge_sites: Array = []             # {chimney, mouth, seed}: forges at work, for the war rig's flame and smoke
 var disc_works: Array = []              # {kind, pos, yaw, scale, state, seed}: Discovery works for the discovery rig (docs/MVP/39 §9)
+var disc_mines: Array = []              # Discovery coal pits for the discovery rig (like disc_works, but rebuilt with the deposits)
 var siege_cannons: Array = []           # {p, yaw, target, seed}: each cannon a besieger with gunpowder (WAR-12) trains on a wall, for the war rig (recoil, flash, smoke)
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
@@ -2610,6 +2611,7 @@ static func mine_mesh_name(kind: int, g: int, camp_head: bool) -> String:
 	return name
 
 const M7_MINED_KINDS := [6, 7, 8, 9, 10, 11, 12]
+const COAL_KIND := 13       # DepositKind.Coal (a Discovery pit, see _deposits)
 
 ## A known deposit shows its marker; once it has produced ore its working replaces the marker on the same spot and turn (or, on a tile
 ## with a mining camp, on the far side of the tile from the camp), see `mine_mesh_name`. A working's pennant takes the colour of the
@@ -2619,6 +2621,7 @@ func _deposits() -> void:
 	var tiles := w.width * w.height
 	if bytes.size() != tiles * 4:
 		return
+	disc_mines.clear()
 	var camps := _mining_camps_by_tile()
 	var gallery := _mine_gallery(bytes) if MINE_GALLERY else {}
 	for t in tiles:
@@ -2644,6 +2647,22 @@ func _deposits() -> void:
 			continue
 		var tall := "_tall" if w.biome[t] >= M7WorldData.Biome.MOUNTAIN else ""
 		var seed := M7WorldData.hash01(t, 23)
+		if w.discovery_active and kind == COAL_KIND and (g & MINE_WORKED) != 0 and not gallery.has(t):
+			# MIN-09 (docs/MVP/39 §4.1): a dug coal seam is a headframe pit, not a marker. Working turns its wheel (the rig); spent is the still, shuttered pit.
+			var spent := (g & MINE_EXHAUSTED) != 0
+			var pit_p := w.tile_center(t) + Vector2(cos(MINE_AWAY_FROM_CAMP), sin(MINE_AWAY_FROM_CAMP)) * 0.2
+			var pit_placement := _deposit_visual_placement(t, pit_p)
+			if pit_placement.is_empty():
+				continue
+			pit_p = pit_placement[0]
+			var pit_scale: float = 1.35 * float(pit_placement[1])
+			kit.ensure_discovery()
+			var pit_civ: int = int(camps[t][0]) if camps.has(t) else (w.owner[t] if t < w.owner.size() else -1)
+			var pit_cc := M7MeshBuilder.lin(M7WorldData.civ_color(pit_civ) if pit_civ >= 0 else Color("#9c8466"), 0.5)
+			props.add("coal_mine_idle" if spent else "coal_mine_body", _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
+			disc_mines.append({"kind": "coal_mine", "pos": Vector3(pit_p.x, w.height_at(pit_p), pit_p.y), "yaw": yaw, "scale": pit_scale,
+				"state": "idle" if spent else "work", "seed": "coal%d" % t})
+			continue
 		var mesh := mine_mesh_name(kind, g, camp_head)
 		if not kit.meshes.has(mesh + tall):
 			mesh = "deposit%d" % kind

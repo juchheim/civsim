@@ -125,7 +125,7 @@ func update_frame(frame_data: Dictionary) -> void:
 	zig_rig.sync()
 	war_rig.sync()
 	if discovery_rig != null and not discovery_rig.demo:
-		discovery_rig.sync(builder.disc_works)
+		discovery_rig.sync(builder.disc_works + builder.disc_mines)
 	var built := Time.get_ticks_usec()
 	_set_villages()
 	if structures_changed:

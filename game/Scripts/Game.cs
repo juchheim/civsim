@@ -1099,6 +1099,22 @@ public partial class Game : Node3D
             if (frame.KnownDeposits[tile] != 0 && world.DepositDepth[tile] >= 2) mine |= 4;
             data[tile * stride + 1] = (byte)mine;
         }
+#if DEBUG
+        if (frame.Discovery.Active && OS.GetCmdlineUserArgs().Contains("--dev-disc-works") && frame.SettlementCount > 0)
+        {
+            // dev aid: the two coal tiles nearest the first settlement show as known; the nearer is dug (a working pit), the other dug out (a spent one)
+            int home = frame.SettlementTile[0], first = -1, second = -1;
+            for (int tile = 0; tile < tiles; tile++)
+            {
+                if (world.Deposit[tile] != (byte)DepositKind.Coal) continue;
+                int d = HexLayout.Distance(tile, home, frame.Width);
+                if (first < 0 || d < HexLayout.Distance(first, home, frame.Width)) { second = first; first = tile; }
+                else if (second < 0 || d < HexLayout.Distance(second, home, frame.Width)) second = tile;
+            }
+            if (first >= 0) { data[first * stride] = (byte)(DepositKind.Coal + 1); data[first * stride + 1] = 1; }
+            if (second >= 0) { data[second * stride] = (byte)(DepositKind.Coal + 1); data[second * stride + 1] = 1 | 8; }
+        }
+#endif
         for (int i = 0; i < frame.SettlementCount; i++)
         {
             int tile = frame.SettlementTile[i];
