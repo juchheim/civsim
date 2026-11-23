@@ -377,11 +377,13 @@ public class ResearchVisibleChangeTests
     [Fact]
     public void Every_numeric_project_announces_a_visible_change_when_it_completes()
     {
-        var rig = new ResearchRig(rules: CivSim.Sim.Research.ChapterRules.Iron); // E4 can be granted only in an Iron match
+        var rig = new ResearchRig(rules: CivSim.Sim.Research.ChapterRules.Discovery); // E5 and E6 projects are reachable only in a Fief or Discovery match
         ResearchCatalog catalog = rig.Catalog;
-        var numeric = catalog.Projects.Where(p => p.Numeric && p.Era <= 4).ToList(); // E6 is numeric too, but an Iron match refuses it
-        Assert.Equal(271, numeric.Count);
-        foreach (ProjectDef p in numeric) rig.Do(rig.Grant(0, p.Id));
+        var numeric = catalog.Projects.Where(p => p.Numeric).ToList();
+        Assert.Equal(363, numeric.Count);
+        foreach (ProjectDef p in numeric.Where(p => p.Era <= 4)) rig.Do(rig.Grant(0, p.Id));
+        foreach (ProjectDef p in numeric.Where(p => p.Era == 5)) rig.Do(rig.Grant(0, p.Id));
+        foreach (ProjectDef p in numeric.Where(p => p.Era == 6)) rig.Do(rig.Grant(0, p.Id));
 
         var missing = new List<string>();
         foreach (ProjectDef p in numeric)

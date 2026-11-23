@@ -42,15 +42,14 @@ public class ContentGoldenTests
     }
 
     [Fact]
-    public void The_first_five_eras_and_the_Discovery_age_are_numeric_and_the_rest_are_draft()
+    public void The_first_seven_eras_are_numeric_and_the_rest_are_draft()
     {
         foreach (Project p in Set.Projects)
         {
-            // E0-E2, E3 with KEY-4 (docs/MVP/23), E4 with KEY-5 (docs/MVP/25, promoted 2026-11-03) and, promoted together on 2026-11-21, E6 with KEY-7 (docs/MVP/38). E5 stays draft until its own balance work is accepted.
-            bool numeric = p.Era <= 4 || p.Era == 6;
+            bool numeric = p.Era <= 6; // E0-E4, Faith & Fief with KEY-6 (docs/MVP/27) and Discovery with KEY-7 (docs/MVP/38)
             Assert.Equal(numeric ? "numeric" : "draft", p.Status);
         }
-        Assert.Equal(313, Set.Projects.Count(p => p.Status == "numeric")); // 271 (E0-E4) + 41 E6 projects + KEY-7 // 148 (E0-E2 and KEY-1..3) + 65 E3 projects + KEY-4 + 56 E4 projects + KEY-5
+        Assert.Equal(363, Set.Projects.Count(p => p.Status == "numeric")); // 271 through E4 + 49 E5 projects + KEY-6 + 41 E6 projects + KEY-7
     }
 
     [Fact]

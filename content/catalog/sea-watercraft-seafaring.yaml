@@ -136,7 +136,7 @@ projects:
     name: "Keeled Ships & Cogs"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [SEA-06, WOD-10]
     effects:
       - {kind: mod, stat: ship_cargo, op: mult, value: 2.0}
@@ -148,7 +148,7 @@ projects:
     name: "Lateen Sail & Sternpost Rudder"
     era: 5
     type: M
-    status: draft
+    status: numeric
     cost: 12800
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [SEA-10]

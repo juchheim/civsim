@@ -113,7 +113,7 @@ projects:
     name: Illuminated Manuscripts
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [ART-08, BEL-10]
     effects:
       - {kind: good, id: "G-MANUSCRIPT"}

@@ -92,7 +92,7 @@ projects:
     name: "Zero & Positional Numerals"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-07, LRN-05]
     effects:
       - {kind: mod, stat: trade_volume, op: mult, value: 1.15}
@@ -104,7 +104,7 @@ projects:
     name: Algebra
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [NUM-08]
     effects:
       - {kind: mod, stat: scholar_insight, op: mult, value: 1.15, note: "staffed scholars only"}

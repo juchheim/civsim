@@ -161,7 +161,7 @@ projects:
     name: Gothic Cathedral
     era: 5
     type: W
-    status: draft
+    status: numeric
     cost: 25600
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x W 2.0."
     requires: [BLD-11, STN-13]

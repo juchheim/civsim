@@ -16,7 +16,7 @@ public class ResearchCatalogTests
         ResearchCatalog catalog = TestPack.Catalog;
         Assert.Equal(519, catalog.Count);
         Assert.Equal(33, catalog.LineageCodes.Count);
-        Assert.Equal(313, catalog.Projects.Count(p => p.Numeric)); // 271 (E0-E4) + the 42 E6 rows promoted together; formerly: 148 (E0-E2, KEY-1..3) + 65 E3 projects + KEY-4 + 56 E4 projects + KEY-5
+        Assert.Equal(363, catalog.Projects.Count(p => p.Numeric)); // E0-E4, all 50 Faith & Fief rows and the 42 Discovery rows
         for (int i = 0; i < catalog.Count; i++) Assert.Equal(i, catalog.Projects[i].Index);
         ProjectDef key1 = catalog.Get("KEY-1");
         Assert.True(key1.IsKeystone);

@@ -75,6 +75,8 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
             pack, harness, sim = root / "pack", root / "Harness.dll", root / "CivSim.Sim.dll"
             for path in (pack, harness, sim):
                 path.write_bytes(path.name.encode())
+            pack_alias = root / "pack-alias"
+            pack_alias.symlink_to(pack)
             out = root / "out"
             natural_manifest = NATURAL.resolve()
             command = self._command(root, natural_manifest, False)
@@ -118,9 +120,11 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
                     samples.write(",".join(runner.SAMPLE_FIELDS) + "\n")
                     for tick in range(3001, 78001): samples.write(f"{seed},{tick},1.0\n")
                 seed_manifest = Path(actual_command[actual_command.index("--seeds-file") + 1])
-                provenance = {"cohort": "natural", "grant_e5": "false", "minutes": "130", "warmup_minutes": "5",
+                granted = "--grant-e5" in actual_command
+                provenance = {"cohort": "e5-granted" if granted else "natural",
+                    "grant_e5": "True" if granted else "False", "minutes": "130", "warmup_minutes": "5",
                     "seeds_file": str(seed_manifest.resolve()), "seeds_sha256": runner.sha256(seed_manifest),
-                    "pack_file": str(pack.resolve()), "pack_sha256": runner.sha256(pack),
+                    "pack_file": str(pack_alias), "pack_sha256": runner.sha256(pack),
                     "executable": str(harness.resolve()), "executable_sha256": runner.sha256(harness),
                     "runtime": ".NET fixture", "os": "fixture OS", "architecture": "X64", "process_id": "1"}
                 prefix.with_name(prefix.name + "-provenance.txt").write_text(
@@ -130,8 +134,9 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
             with patch.object(runner, "capture_candidate", return_value=snapshot), \
                  patch.object(runner.subprocess, "run", side_effect=fake_run), \
                  patch.object(runner.shutil, "which", return_value="/usr/bin/dotnet"):
-                self.assertEqual(0, runner.run(args))
+                exit_code = runner.run(args)
             metadata = json.loads((out / "wrapper_metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(0, exit_code, json.dumps(metadata, indent=2))
             self.assertEqual("complete", metadata["status"])
             self.assertEqual(20, len(metadata["seeds"]))
             for seed in metadata["seeds"]:
@@ -144,6 +149,23 @@ class FrozenE5CohortCommandTests(unittest.TestCase):
                 self.assertEqual(snapshot, seed["provenanceAfter"])
                 self.assertEqual("1", seed["performance"]["mean_ms"])
                 self.assertTrue(seed["artifactsSha256"])
+
+            grant_out = root / "out-grant"
+            grant_command = self._command(root, GRANTED.resolve(), True)
+            grant_command[grant_command.index("--output-prefix") + 1] = str(grant_out / "perf")
+            args.manifest = GRANTED.resolve()
+            args.output_dir = grant_out
+            args.expected_manifest_sha256 = runner.GRANT_MANIFEST_SHA256
+            args.command = grant_command
+            with patch.object(runner, "capture_candidate", return_value=snapshot), \
+                 patch.object(runner.subprocess, "run", side_effect=fake_run), \
+                 patch.object(runner.shutil, "which", return_value="/usr/bin/dotnet"):
+                exit_code = runner.run(args)
+            grant_metadata = json.loads((grant_out / "wrapper_metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(0, exit_code, json.dumps(grant_metadata, indent=2))
+            self.assertEqual("complete", grant_metadata["status"])
+            self.assertEqual(20, len(grant_metadata["seeds"]))
+            self.assertTrue(all(seed["status"] == "complete" for seed in grant_metadata["seeds"]))
 
     def test_existing_root_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

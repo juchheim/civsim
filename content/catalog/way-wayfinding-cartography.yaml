@@ -98,7 +98,7 @@ projects:
     name: Magnetic Compass
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [WAY-07, INQ-06]
     effects:
       - {kind: mod, stat: sea_travel_losses, op: mult, value: 0.5, note: "all-weather navigation"}
@@ -110,7 +110,7 @@ projects:
     name: "Portolan Charts & Astrolabe"
     era: 5
     type: M
-    status: draft
+    status: numeric
     cost: 12800
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x M 1.0."
     requires: [WAY-08, NUM-08]

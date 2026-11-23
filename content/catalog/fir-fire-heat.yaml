@@ -133,7 +133,7 @@ projects:
     name: "Chimneys & Flues"
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [FIR-09, STN-11]
     effects:
       - {kind: hazard, cause: exposure, mult: 0.6, scope: winter}

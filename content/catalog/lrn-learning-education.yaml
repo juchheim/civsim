@@ -84,7 +84,7 @@ projects:
     name: "Monastery & Cathedral Schools"
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [LRN-05, BEL-10]
     effects:
       - {kind: mod, stat: scholar_cap, op: mult, value: 1.5, note: "slots exist only at staffed schools and monasteries; no scholar without a building"}
@@ -96,7 +96,7 @@ projects:
     name: Universities
     era: 5
     type: S
-    status: draft
+    status: numeric
     cost: 15360
     cost_reason: "docs/MVP/27 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E5 project; 2x EraBase 6400 x S 1.2."
     requires: [LRN-07, GOV-10]

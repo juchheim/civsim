@@ -127,7 +127,7 @@ projects:
     name: Monasticism
     era: 5
     type: S
-    status: draft
+    status: numeric
     requires: [BEL-09, LRN-05]
     effects:
       - {kind: build, structure: monastery}
@@ -140,7 +140,7 @@ projects:
     name: Pilgrimage Routes
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [BEL-10, TRN-07]
     effects:
       - {kind: unlock_action, action: pilgrimage}

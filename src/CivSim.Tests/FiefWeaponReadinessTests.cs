@@ -256,6 +256,8 @@ public sealed class FiefWeaponReadinessTests
         fixture.Economy.FixtureSetGoodStock(0, "G-WOOD", Fix64.FromInt(40));
         fixture.Economy.FixtureSetGoodStock(0, "G-BRONZE", Fix64.FromInt(8));
         fixture.Economy.FixtureSetGoodStock(0, "G-LEATHER", Fix64.FromInt(8));
+        // Keep this assembly-path test from competing with the higher-priority initial fighter-arm backlog.
+        fixture.Economy.FixtureSetGoodStock(0, "G-ARMS1", Fix64.FromInt(60));
         var trace = new StringBuilder();
         fixture.Economy.MetalDebug = trace;
         fixture.Economy.MetalDebugSettlementId = 0;

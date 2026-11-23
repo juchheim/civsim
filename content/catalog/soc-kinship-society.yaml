@@ -140,7 +140,7 @@ projects:
     name: Guilds
     era: 5
     type: I
-    status: draft
+    status: numeric
     requires: [SOC-10, TRD-07]
     effects:
       - {kind: mod, stat: craft_quality, op: mult, value: 1.2, note: "durability and waste of non-kit crafted goods; tool service life is unchanged (no double multiplier with T12)"}

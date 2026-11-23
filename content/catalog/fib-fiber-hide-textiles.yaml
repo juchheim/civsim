@@ -131,7 +131,7 @@ projects:
     name: Treadle Loom
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [FIB-08, MEC-07, SOC-11]
     effects:
       - {kind: mod, stat: weave_output, op: mult, value: 2.0, note: "a weaver at a treadle loom; hand-powered, no power source"}
@@ -143,7 +143,7 @@ projects:
     name: Spinning Wheel
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [FIB-06, MEC-07]
     effects:
       - {kind: mod, stat: spin_output, op: mult, value: 3.0, note: "a spinner at a wheel; hand-powered, no power source"}

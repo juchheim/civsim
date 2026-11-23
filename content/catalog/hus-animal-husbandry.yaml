@@ -134,7 +134,7 @@ projects:
     name: Selective Breeding
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [HUS-06, AGR-07]
     effects:
       - {kind: mod, stat: herd_yield, op: mult, value: 1.5, note: "meat, milk and wool from bred herds"}

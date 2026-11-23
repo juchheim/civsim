@@ -109,7 +109,7 @@ projects:
     name: Paper
     era: 5
     type: M
-    status: draft
+    status: numeric
     requires: [COM-08, FIB-07]
     effects:
       - {kind: good, id: "G-PAPER"}
@@ -121,7 +121,7 @@ projects:
     name: Movable Type
     era: 5
     type: D
-    status: draft
+    status: numeric
     requires: [COM-09, MEC-05, MET-06]
     effects:
       - {kind: build, structure: print_shop}
