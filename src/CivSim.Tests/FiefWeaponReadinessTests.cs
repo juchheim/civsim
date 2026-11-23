@@ -6,6 +6,7 @@ using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.World;
 using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -15,6 +16,26 @@ public sealed class FiefWeaponReadinessTests
 {
     private const ulong Seed = 20261118;
     private static Fix64 F(string value) => Fix64.Parse(value);
+
+    [Fact]
+    public void Empty_allocated_Iron_goods_are_not_persistent_economy_state_after_supplied_soldiers_clear()
+    {
+        BronzeFixture live = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, Seed + 41, 100);
+        live.Economy.FixtureSetSoldiersSupplied(0, 1);
+        live.Economy.FixtureSetIronWork(0, "water_mill", 0);
+        using var snapshot = new MemoryStream();
+        using (var writer = new BinaryWriter(snapshot, System.Text.Encoding.UTF8, leaveOpen: true))
+            live.Economy.WriteSnapshot(writer);
+
+        BronzeFixture resumed = BronzeFixture.CreateFiefWithCamp(TestPack.Pack, Seed + 41, 100);
+        using (var reader = new BinaryReader(new MemoryStream(snapshot.ToArray())))
+            resumed.Economy.ReadSnapshot(reader);
+        Assert.Equal(live.Economy.ComputeChecksum(), resumed.Economy.ComputeChecksum());
+
+        live.Economy.FixtureSetSoldiersSupplied(0, 0);
+        resumed.Economy.FixtureSetSoldiersSupplied(0, 0);
+        Assert.Equal(live.Economy.ComputeChecksum(), resumed.Economy.ComputeChecksum());
+    }
 
     [Fact]
     public void Current_season_metal_weapon_output_is_not_aged_after_production()
