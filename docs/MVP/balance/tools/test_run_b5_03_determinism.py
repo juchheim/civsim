@@ -328,6 +328,15 @@ class B503DeterminismRunnerTests(unittest.TestCase):
             self.assertEqual(1_560, result["intervalCount"])
             self.assertEqual(f"{runner.TOTAL_TICKS + 1:016x}", result["finalChecksum"])
             self.assertEqual(hashlib.sha256(sidecar.read_bytes()).hexdigest(), result["sidecarSha256"])
+            raw_snapshot_hashes = [snapshot["sha256"] for snapshot in result["snapshots"]]
+            storage = runner.compress_continuation_snapshots(sidecar, root)
+            self.assertEqual(105, len(storage["snapshots"]))
+            self.assertTrue(all(item["compression"] == "gzip" for item in storage["snapshots"]))
+            self.assertFalse(any(root.glob("*.snapshot")))
+            result = runner.parse_continuation(sidecar, root, seed, runner.TOTAL_TICKS)
+            self.assertEqual(raw_snapshot_hashes, [snapshot["sha256"] for snapshot in result["snapshots"]])
+            self.assertTrue(all(snapshot["compression"] == "gzip" for snapshot in result["snapshots"]))
+            self.assertTrue(all(snapshot["path"].endswith(".snapshot.gz") for snapshot in result["snapshots"]))
             index_entry = {"checksums": [{"tick": tick, "checksum": f"{tick + 1:016x}"}
                                           for tick in range(runner.CHECKSUM_INTERVAL, runner.TOTAL_TICKS + 1,
                                                             runner.CHECKSUM_INTERVAL)]}
