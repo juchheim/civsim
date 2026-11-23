@@ -38,11 +38,11 @@ The comparator verifies the exact frozen manifest bytes and requires both indexe
 
 ## Frozen runner and shard merge
 
-`tools/run_b5_03_determinism.py` is the frozen runner for this gate. It refuses dirty checkouts or any mismatch in source HEAD/tree, canonical content/src/game source aggregate and per-file manifest, pack, Release harness, or simulation DLL. It writes and hashes the source file manifest, records input SHA-256 values, and confirms source and binary hashes remain unchanged at run completion. By default it is preflight-only. `--execute` runs only the selected shard; with the default `--shard-count 1`, that is all 1,000 seeds. For an accelerated macOS arm64 run, use four balanced contiguous 250-seed shards with indices 0 through 3 and distinct fresh artifact roots. Run the same four shards independently on Windows x64 against byte-identical source, pack, harness, simulation DLL and manifest inputs. Do not pass `--compare-index` on individual shards.
+`tools/run_b5_03_determinism.py` is the frozen runner for this gate. It refuses dirty checkouts or any mismatch in source HEAD/tree, canonical content/src/game source aggregate and per-file manifest, pack, Release harness, or simulation DLL. It writes and hashes the source file manifest, records input SHA-256 values, and confirms source and binary hashes remain unchanged at run completion. By default it is preflight-only. `--execute` runs only the selected shard; with the default `--shard-count 1`, that is all 1,000 seeds. Snapshot files are losslessly gzip-compressed after the shard's match command completes. The continuation sidecar retains the SHA-256 of each original snapshot; the run index also records the compressed-file hash and size, and the parser decompresses every file and checks its original hash before accepting it. This keeps the 750-tick continuation evidence exact while reducing storage use. Use fresh artifact roots. For bounded disk use, shard the manifest into 100 contiguous 10-seed shards and run at most ten shards concurrently; after each shard compresses, its retained files remain small. Run the same shard partition independently on Windows x64 against byte-identical source, pack, harness, simulation DLL and manifest inputs. Do not pass `--compare-index` on individual shards.
 
-After all four shards complete on each host, `tools/merge_b5_03_shards.py` verifies the exact four-way partition and complete 1,000-seed coverage; requires matching source/runtime/protocol/pack/binary hashes; revalidates every local stdout/stderr log hash, replay, checksum-index row, continuation sidecar and snapshot; then emits a canonical ascending-seed index. Compare the two host-level merged `replay-index.json` files with `tools/compare_replay_indexes.py`. Never merge evidence from different source or binary snapshots. The shard partition, canonical coverage and raw-log integrity rules have focused unit tests in `test_run_b5_03_determinism.py`.
+After all 100 shards complete on each host, `tools/merge_b5_03_shards.py` verifies the exact partition and complete 1,000-seed coverage; requires matching source/runtime/protocol/pack/binary hashes; revalidates every local stdout/stderr log hash, replay, checksum-index row, continuation sidecar and losslessly compressed snapshot; then emits a canonical ascending-seed index. Compare the two host-level merged `replay-index.json` files with `tools/compare_replay_indexes.py`. Never merge evidence from different source or binary snapshots. The shard partition, canonical coverage and raw-log integrity rules have focused unit tests in `test_run_b5_03_determinism.py`.
 
-Example for one host after source, pack, binaries and hashes are frozen (run once per index, each with a new output root):
+Example for one host after source, pack, binaries and hashes are frozen (repeat with each index from 0 through 99, each with a new output root):
 
 ```sh
 python3 docs/MVP/balance/tools/run_b5_03_determinism.py \
@@ -51,15 +51,16 @@ python3 docs/MVP/balance/tools/run_b5_03_determinism.py \
   --expected-source-tree "$TREE" --expected-source-aggregate "$SOURCE_AGGREGATE" \
   --expected-pack-sha256 "$PACK_SHA" \
   --expected-harness-sha256 "$HARNESS_SHA" --expected-sim-sha256 "$SIM_SHA" \
-  --shard-count 4 --shard-index 0 --execute
+  --shard-count 100 --shard-index 0 --execute
 ```
 
-Repeat with `--shard-index 1`, `2` and `3` and output roots `shard-01`, `shard-02`, and `shard-03`. Once all four are complete, merge them:
+Run no more than ten shards concurrently, then wait for the runners to compress and validate their snapshots before launching the next batch. Once all 100 are complete, merge them:
 
 ```sh
+SHARDS=()
+for i in $(seq -w 0 99); do SHARDS+=(--shard-root "$OUT/$HOST/shard-$i"); done
 python3 docs/MVP/balance/tools/merge_b5_03_shards.py \
-  --shard-root "$OUT/$HOST/shard-00" --shard-root "$OUT/$HOST/shard-01" \
-  --shard-root "$OUT/$HOST/shard-02" --shard-root "$OUT/$HOST/shard-03" \
+  "${SHARDS[@]}" \
   --output-root "$OUT/$HOST/merged" --expected-source-head "$HEAD" \
   --expected-source-tree "$TREE" --expected-source-aggregate "$SOURCE_AGGREGATE" \
   --expected-pack-sha256 "$PACK_SHA" \
@@ -123,14 +124,14 @@ Store one `run_metadata.json` in each fresh host root. It must use this schema s
       "replay": { "path": "<path>", "sha256": "<sha256>", "verifyExitCode": 0 },
       "continuation": {
         "sidecar": "<path>", "sidecarSha256": "<sha256>",
-        "snapshots": [{ "tick": 0, "path": "<path>", "sha256": "<sha256>", "expectedChecksum": "<hash>", "restoredChecksum": "<hash>", "resumedChecksum": "<hash>" }]
+        "snapshots": [{ "tick": 0, "path": "<gzip snapshot path>", "sha256": "<uncompressed snapshot sha256>", "storedSha256": "<gzip sha256>", "compression": "gzip", "expectedChecksum": "<hash>", "restoredChecksum": "<hash>", "resumedChecksum": "<hash>" }]
       }
     }
   ]
 }
 ```
 
-In addition to this manifest, preserve/hash every replay, continuation sidecar and snapshot, both indexes, every raw stdout/stderr log, and the index-comparator output. Record one `replay-verify` command entry per seed. For each seed, record match and replay-verification exit codes, ticks, command count, checksum interval/count, final checksum, replay hash, checkpoint-sidecar hash, and every checkpoint snapshot hash plus expected/restored/resumed checksums. The index itself carries the complete ordered `(tick, checksum)` sequence for each seed; do not replace it with only a summary hash.
+In addition to this manifest, preserve/hash every replay, continuation sidecar and snapshot (losslessly gzip-compressed, with the original uncompressed SHA-256 verified by the merger), both indexes, every raw stdout/stderr log, and the index-comparator output. Record one `replay-verify` command entry per seed. For each seed, record match and replay-verification exit codes, ticks, command count, checksum interval/count, final checksum, replay hash, checkpoint-sidecar hash, and every checkpoint snapshot hash plus expected/restored/resumed checksums. The index itself carries the complete ordered `(tick, checksum)` sequence for each seed; do not replace it with only a summary hash.
 
 On both hosts require 1,000/1,000 replay verifications and continuation passes, no missing seeds/checkpoints, and exact per-seed/per-tick checksum-index parity. The macOS arm64 index is the canonical `fief-v1` golden for these exact inputs; the Windows x64 index must compare equal under the comparator. Snapshot bytes and replay bytes must be retained and compared; snapshot hashes may differ only if the format is not platform-canonical, while semantic checksums immediately after restore and at every continued interval must match. Any mismatch fails the gate and both raw records remain available for diagnosis. B5-03 remains open until both runs and comparison complete successfully.
 

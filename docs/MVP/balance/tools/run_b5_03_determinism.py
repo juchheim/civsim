@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import gzip
 import hashlib
 import json
 import os
@@ -357,15 +358,29 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
                 snapshot = path.parent / snapshot_name
                 if not snapshot.is_file():
                     raise FileNotFoundError(f"missing continuation snapshot: {snapshot}")
-                snapshot_hash = sha256(snapshot)
+                raw_bytes = 0
+                if snapshot_name == f"{seed}-{tick}.snapshot.gz":
+                    with gzip.open(snapshot, "rb") as stream:
+                        digest = hashlib.sha256()
+                        for block in iter(lambda: stream.read(1024 * 1024), b""):
+                            digest.update(block)
+                            raw_bytes += len(block)
+                        snapshot_hash = digest.hexdigest()
+                    compression = "gzip"
+                elif snapshot_name == f"{seed}-{tick}.snapshot":
+                    snapshot_hash = sha256(snapshot)
+                    raw_bytes = snapshot.stat().st_size
+                    compression = "none"
+                else:
+                    raise ValueError(f"{path}: snapshot name does not agree with seed/tick")
                 if snapshot_hash != row["snapshotSha256"].lower():
-                    raise ValueError(f"{snapshot}: snapshot SHA-256 differs from sidecar")
+                    raise ValueError(f"{snapshot}: uncompressed snapshot SHA-256 differs from sidecar")
                 if expected != restored or expected != matched:
                     raise ValueError(f"{path}: restored checkpoint checksum differs at tick {tick}")
-                if snapshot_name != f"{seed}-{tick}.snapshot":
-                    raise ValueError(f"{path}: snapshot name does not agree with seed/tick")
                 checkpoints.append({
                     "tick": tick, "path": str(snapshot.resolve()), "sha256": snapshot_hash,
+                    "storedSha256": sha256(snapshot), "storedBytes": snapshot.stat().st_size,
+                    "rawBytes": raw_bytes, "compression": compression,
                     "expectedChecksum": expected, "restoredChecksum": restored, "resumedChecksum": matched,
                 })
             elif row["kind"] == "interval":
@@ -391,6 +406,66 @@ def parse_continuation(path: Path, root: Path, seed: int, ticks: int) -> dict[st
         "checkpointCount": len(checkpoints), "intervalCount": len(intervals),
         "checkpoints": checkpoints, "intervals": intervals,
         "finalChecksum": finals[0]["checksum"], "snapshots": checkpoints,
+    }
+
+
+def compress_continuation_snapshots(sidecar: Path, root: Path) -> dict[str, Any]:
+    """Store exact snapshots losslessly as gzip while retaining each raw SHA-256.
+
+    The continuation CSV is updated to name the gzip artifact; its snapshotSha256
+    column continues to identify the uncompressed bytes emitted by the harness.
+    """
+    original_sidecar_sha256 = sha256(sidecar)
+    with sidecar.open("r", encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream)
+        required = {"kind", "seed", "tick", "snapshotFile", "snapshotSha256",
+                    "expectedChecksum", "restoredChecksum", "matchChecksum"}
+        if set(reader.fieldnames or ()) != required:
+            raise ValueError(f"{sidecar}: unexpected continuation CSV header")
+        rows = list(reader)
+        fieldnames = list(reader.fieldnames or ())
+
+    stored: list[dict[str, Any]] = []
+    for row in rows:
+        if row["kind"] != "checkpoint":
+            continue
+        raw_name = row["snapshotFile"]
+        if Path(raw_name).name != raw_name or not raw_name.endswith(".snapshot"):
+            raise ValueError(f"{sidecar}: invalid raw snapshot filename {raw_name!r}")
+        raw_path = root / raw_name
+        if not raw_path.is_file():
+            raise FileNotFoundError(f"missing continuation snapshot: {raw_path}")
+        raw_bytes = raw_path.read_bytes()
+        raw_hash = hashlib.sha256(raw_bytes).hexdigest()
+        if raw_hash != row["snapshotSha256"].lower():
+            raise ValueError(f"{raw_path}: snapshot SHA-256 differs from continuation sidecar")
+        gzip_name = raw_name + ".gz"
+        gzip_path = root / gzip_name
+        if gzip_path.exists():
+            raise FileExistsError(f"refusing to overwrite compressed snapshot: {gzip_path}")
+        compressed = gzip.compress(raw_bytes, compresslevel=6, mtime=0)
+        gzip_path.write_bytes(compressed)
+        if gzip.decompress(gzip_path.read_bytes()) != raw_bytes:
+            raise ValueError(f"{gzip_path}: lossless compression verification failed")
+        compressed_hash = sha256(gzip_path)
+        raw_path.unlink()
+        row["snapshotFile"] = gzip_name
+        stored.append({
+            "path": str(gzip_path.resolve()), "rawSha256": raw_hash,
+            "storedSha256": compressed_hash, "rawBytes": len(raw_bytes),
+            "storedBytes": len(compressed), "compression": "gzip",
+        })
+
+    temporary = sidecar.with_suffix(sidecar.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary.replace(sidecar)
+    return {
+        "sidecarOriginalSha256": original_sidecar_sha256,
+        "sidecarStoredSha256": sha256(sidecar),
+        "snapshots": stored,
     }
 
 
@@ -603,6 +678,23 @@ def run(args: argparse.Namespace) -> int:
         save()
         return match_cmd["exitCode"] or 1
 
+    compressed_by_seed: dict[int, dict[str, Any]] = {}
+    snapshot_count = 0
+    raw_snapshot_bytes = 0
+    stored_snapshot_bytes = 0
+    for seed in selected_seeds:
+        sidecar = continuation_dir / f"{seed}.continuation.csv"
+        compression = compress_continuation_snapshots(sidecar, continuation_dir)
+        compressed_by_seed[seed] = compression
+        snapshot_count += len(compression["snapshots"])
+        raw_snapshot_bytes += sum(item["rawBytes"] for item in compression["snapshots"])
+        stored_snapshot_bytes += sum(item["storedBytes"] for item in compression["snapshots"])
+        metadata["artifacts"]["snapshotStorage"] = {
+            "compression": "gzip", "snapshotCount": snapshot_count,
+            "rawBytes": raw_snapshot_bytes, "storedBytes": stored_snapshot_bytes,
+        }
+        save()
+
     expected_pack_hash = provenance["pack"]["sha256"]
     replay_metadata: dict[int, dict[str, Any]] = {}
     for seed in selected_seeds:
@@ -660,6 +752,7 @@ def run(args: argparse.Namespace) -> int:
         validate_continuation_against_index(seed, continuation, index[seed])
         continuation_record = {key: value for key, value in continuation.items()
                                if key not in {"checkpoints", "intervals"}}
+        continuation_record["harnessSidecarSha256"] = compressed_by_seed[seed]["sidecarOriginalSha256"]
         replay_path = replay_dir / f"{seed}.replay"
         metadata["seeds"].append({
             "seed": seed, "matchExitCode": match_cmd["exitCode"], "ticks": entry["ticks"],

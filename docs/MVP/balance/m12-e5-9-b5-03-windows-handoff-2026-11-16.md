@@ -81,22 +81,23 @@ $Common = @('--repo-root', $RepoPath, '--pack', $PackPath,
   '--expected-source-head', $Head, '--expected-source-tree', $Tree,
   '--expected-source-aggregate', $SourceAggregate,
   '--expected-pack-sha256', $PackSha, '--expected-harness-sha256', $HarnessSha,
-  '--expected-sim-sha256', $SimSha, '--shard-count', '4')
+  '--expected-sim-sha256', $SimSha, '--shard-count', '100')
 
 # Preflight shard 0 only; no --execute and no matches.
 & py -3 $RunnerPath @Common --output-root (Join-Path $ArtifactRoot 'shard-00') --shard-index 0
 if ($LASTEXITCODE -ne 0) { throw 'B5-03 Windows preflight failed; do not run matches.' }
 
-# Only after successful preflight, run four disjoint shards. Each holds 250
-# consecutive seeds: 40,000,000–40,000,249; then the next three 250-seed ranges.
-for ($ShardIndex = 0; $ShardIndex -lt 4; $ShardIndex++) {
-  $ShardName = 'shard-{0:D2}' -f $ShardIndex
+# Only after successful preflight, run 100 disjoint shards of 10 consecutive
+# seeds. The runner losslessly gzip-compresses snapshots after each shard and
+# verifies their original SHA-256 values. This bounds local disk usage.
+for ($ShardIndex = 0; $ShardIndex -lt 100; $ShardIndex++) {
+  $ShardName = 'shard-{0:D3}' -f $ShardIndex
   $ShardRoot = Join-Path $ArtifactRoot $ShardName
   & py -3 $RunnerPath @Common --output-root $ShardRoot --shard-index $ShardIndex --execute
   if ($LASTEXITCODE -ne 0) { throw "B5-03 shard $ShardIndex failed; preserve partial artifacts and stop." }
 }
 
-# Merge only after all four shards have complete metadata and artifacts.
+# Merge only after all 100 shards have complete metadata and artifacts.
 $MergeArgs = @('--manifest', $ManifestPath, '--expected-manifest-sha256', $ManifestSha,
   '--expected-test-assembly-sha256', $TestAssemblySha,
   '--expected-test-source-sha256', $TestSourceSha,
@@ -105,8 +106,8 @@ $MergeArgs = @('--manifest', $ManifestPath, '--expected-manifest-sha256', $Manif
   '--expected-source-head', $Head, '--expected-source-tree', $Tree,
   '--expected-source-aggregate', $SourceAggregate, '--expected-pack-sha256', $PackSha,
   '--expected-harness-sha256', $HarnessSha, '--expected-sim-sha256', $SimSha)
-for ($ShardIndex = 0; $ShardIndex -lt 4; $ShardIndex++) {
-  $MergeArgs += @('--shard-root', (Join-Path $ArtifactRoot ('shard-{0:D2}' -f $ShardIndex)))
+for ($ShardIndex = 0; $ShardIndex -lt 100; $ShardIndex++) {
+  $MergeArgs += @('--shard-root', (Join-Path $ArtifactRoot ('shard-{0:D3}' -f $ShardIndex)))
 }
 & py -3 $MergerPath @MergeArgs
 if ($LASTEXITCODE -ne 0) { throw 'B5-03 Windows shard merge failed; preserve all artifacts.' }
@@ -130,8 +131,8 @@ if ($CompareExit -ne 0) { throw 'B5-03 cross-host replay-index comparison failed
 
 ## Shard accounting and parity criteria
 
-The runner partitions the 1,000-row ordered manifest by integer boundaries into four contiguous non-overlapping shards of 250 seeds each. Expected ranges are `40,000,000–40,000,249`, `40,000,250–40,000,499`, `40,000,500–40,000,749`, and `40,000,750–40,000,999`. Each shard must complete 250 matches, replay verifications, and checkpoint continuations. Do not retry or replace a failed seed in place; preserve the failed attempt and use a separately labeled rerun protocol only if the gate owner approves it.
+The runner partitions the 1,000-row ordered manifest by integer boundaries into 100 contiguous non-overlapping shards of 10 seeds each. Shard 0 covers `40,000,000–40,000,009`; shard 99 covers `40,000,990–40,000,999`. Each shard must complete 10 matches, replay verifications, and checkpoint continuations. Do not retry or replace a failed seed in place; preserve the failed attempt and use a separately labeled rerun protocol only if the gate owner approves it.
 
-The merger requires all four unique shard indices, exact ordered partition/coverage, the same manifest/source/pack/binary/test/tool provenance, hashed stdout/stderr logs, all replay/index rows, continuation sidecars and snapshots. It writes a canonical 1,000-seed merged replay index. Compare the Windows merged index against the complete macOS arm64 merged index with the exact reviewed manifest. Pass requires 1,000/1,000 verified replays and continuation passes on both hosts; no missing seeds/checkpoints; same pack/mode/protocol; and identical ordered per-tick checksums and final checksums for every seed. Retain both index hashes, comparator command/output/exit code, and the byte-identical transferred input hashes. Any mismatch leaves B5-03 open for diagnosis. The complete gate description is in the [B5-03 determinism preflight](m12-e5-9-b5-03-determinism-preflight-2026-11-15.md).
+The merger requires all 100 unique shard indices, exact ordered partition/coverage, the same manifest/source/pack/binary/test/tool provenance, hashed stdout/stderr logs, all replay/index rows, continuation sidecars and losslessly compressed snapshots. It decompresses each snapshot and verifies its uncompressed SHA-256 against the sidecar. It writes a canonical 1,000-seed merged replay index. Compare the Windows merged index against the complete macOS arm64 merged index with the exact reviewed manifest. Pass requires 1,000/1,000 verified replays and continuation passes on both hosts; no missing seeds/checkpoints; same pack/mode/protocol; and identical ordered per-tick checksums and final checksums for every seed. Retain both index hashes, comparator command/output/exit code, and the byte-identical transferred input hashes. Any mismatch leaves B5-03 open for diagnosis. The complete gate description is in the [B5-03 determinism preflight](m12-e5-9-b5-03-determinism-preflight-2026-11-15.md).
 
 No Windows run or parity result is recorded by this handoff.

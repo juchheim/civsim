@@ -247,6 +247,9 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
     if [record.get("seed") for record in seed_records] != shard["seeds"]:
         raise ValueError(f"shard {shard['index']}: seed records are missing, duplicated, or out of order")
     checked: dict[str, dict[str, Any]] = {}
+    snapshot_count = 0
+    raw_snapshot_bytes = 0
+    stored_snapshot_bytes = 0
     for record in seed_records:
         seed = record["seed"]
         if record.get("matchExitCode") != 0 or record.get("ticks") != runner.TOTAL_TICKS:
@@ -280,7 +283,17 @@ def _validate_shard_artifacts(root: Path, metadata: dict[str, Any], pack_hash: s
             raise ValueError(f"seed {seed}: continuation evidence count differs from verified sidecar")
         if continuation_info.get("snapshots") != continuation["snapshots"]:
             raise ValueError(f"seed {seed}: recorded snapshot evidence differs from verified sidecar")
+        if any(snapshot["compression"] != "gzip" for snapshot in continuation["snapshots"]):
+            raise ValueError(f"seed {seed}: continuation snapshot is not stored with the frozen gzip protocol")
+        snapshot_count += continuation["checkpointCount"]
+        raw_snapshot_bytes += sum(snapshot["rawBytes"] for snapshot in continuation["snapshots"])
+        stored_snapshot_bytes += sum(snapshot["storedBytes"] for snapshot in continuation["snapshots"])
         checked[seed] = entry
+    storage = artifacts.get("snapshotStorage", {})
+    if (storage.get("compression") != "gzip" or storage.get("snapshotCount") != snapshot_count
+            or storage.get("rawBytes") != raw_snapshot_bytes
+            or storage.get("storedBytes") != stored_snapshot_bytes):
+        raise ValueError(f"shard {shard['index']}: compressed snapshot storage summary differs from verified files")
     return checked
 
 
