@@ -729,10 +729,40 @@ public sealed partial class LivingEconomyModel
         for (int i = 0; i < _figures.Count; i++)
         {
             FigureState f = _figures[i];
-            if (f.Kit == 0 && f.Task == 0 && f.Camp < 0 && f.Role == 0 && !f.Infected) continue;
+            bool toolWork = IronChain && f.WorkedWithToolLastSeason;
+            if (f.Kit == 0 && f.Task == 0 && f.Camp < 0 && f.Role == 0 && !f.Infected && !toolWork) continue;
             hash.Add(f.Id); hash.Add(f.Kit); hash.Add(f.KitLeft); hash.Add(f.Task); hash.Add(f.Camp); hash.Add(f.Role); hash.Add(f.Infected);
+            if (toolWork) hash.Add(true); // the Iron kit-sharing rules read it; a figure that never set it hashes as before
         }
         HashCivic(ref hash);
+    }
+
+    /// <summary>
+    /// The tail of the snapshot: the figures that worked with a metal tool last season (ascending figure indexes). The Iron kit-sharing and fission rules read the flag at the
+    /// next season start; before Fief snapshot 49 and Iron snapshot 31 it was neither saved nor hashed, so a restored match lost it and drifted from the live run at the first
+    /// season end. It is a tail, not part of the figure records, so older readers and the layout of earlier sections are unchanged.
+    /// </summary>
+    private void WriteToolWorkFlags(BinaryWriter writer)
+    {
+        if (!IronChain) return;
+        int count = 0;
+        for (int i = 0; i < _figures.Count; i++) if (_figures[i].WorkedWithToolLastSeason) count++;
+        writer.Write(count);
+        for (int i = 0; i < _figures.Count; i++) if (_figures[i].WorkedWithToolLastSeason) writer.Write(i);
+    }
+
+    private void ReadToolWorkFlags(BinaryReader reader)
+    {
+        if (!_toolWorkTailPresent) return; // Bronze and older Iron or Fief saves never carried it
+        int count = ReadCount(reader, _figures.Count);
+        int previous = -1;
+        for (int n = 0; n < count; n++)
+        {
+            int index = reader.ReadInt32();
+            if (index <= previous || index >= _figures.Count) throw new InvalidDataException("Invalid tool-work figure index.");
+            previous = index;
+            _figures[index].WorkedWithToolLastSeason = true;
+        }
     }
 
     private void WriteBronze(BinaryWriter writer)

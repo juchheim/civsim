@@ -400,6 +400,8 @@ public sealed partial class LivingEconomyModel
     internal void FixtureSetWorkedWithToolLastSeason(int figureIndex, bool worked)
         => _figures[figureIndex].WorkedWithToolLastSeason = worked;
 
+    internal bool FixtureWorkedWithToolLastSeason(int figureIndex) => _figures[figureIndex].WorkedWithToolLastSeason;
+
     internal void FixtureSetLastIronHolderShareSeason(int settlementIndex, int season)
         => _settlements[settlementIndex].LastIronHolderShareSeason = season;
 

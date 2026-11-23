@@ -216,9 +216,12 @@ public sealed partial class LivingEconomyModel : ISimModel
     }
     public const int SeasonTicks = 150;
     public const int SnapshotVersion = 30;
-    private const int FiefSnapshotVersion = 48;
+    /// <summary>The non-Fief Iron chapter's snapshot version: 31 added the tool-work tail (<see cref="WriteToolWorkFlags"/>); Bronze keeps <see cref="SnapshotVersion"/> unchanged.</summary>
+    public const int IronSnapshotVersion = 31;
+    private const int FiefSnapshotVersion = 49;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
+    private bool _toolWorkTailPresent;
     private bool _fiefBowGoodsNeedRead;
     private const int Radius = 3;
     /// <summary>The Bronze value of <see cref="MaxEra"/>: a civilization past KEY-4 stays at era 3 here (docs/MVP/22 §3.1).</summary>
@@ -7137,7 +7140,7 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     public void WriteSnapshot(BinaryWriter writer)
     {
-        writer.Write(0x45434F4E); writer.Write(FiefChain ? FiefSnapshotVersion : SnapshotVersion); writer.Write(_seed);
+        writer.Write(0x45434F4E); writer.Write(FiefChain ? FiefSnapshotVersion : IronChain ? IronSnapshotVersion : SnapshotVersion); writer.Write(_seed);
         writer.Write(_world.Fingerprint); writer.Write(_world.DepositFingerprint); writer.Write(_contentFingerprint);
         writer.Write(_gentleStart);
         writer.Write(_archetypes.Length); foreach (EconomyArchetype archetype in _archetypes) writer.Write((byte)archetype);
@@ -7229,6 +7232,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteDiscoveryGoods(writer);
         WriteSteam(writer);
         WriteSoot(writer);
+        WriteToolWorkFlags(writer);
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7243,9 +7247,10 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion))
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion && version != IronSnapshotVersion)) // a Bronze economy may read an Iron save's Bronze prefix (tested); MatchModel rejects the cross-mode save
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
+        _toolWorkTailPresent = FiefChain ? version >= 49 : IronChain && version >= IronSnapshotVersion;
         _fiefKnowHowNeedsMigration = FiefChain && version == 40;
         _fiefCraftNeedsMigration = FiefChain && version < 42;
         _fiefBowGoodsNeedRead = FiefChain && version >= 43;
@@ -7394,6 +7399,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadDiscoveryGoods(reader);
         ReadSteam(reader);
         ReadSoot(reader);
+        ReadToolWorkFlags(reader);
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7651,6 +7657,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         CareWorkThisSeason = source.CareWorkThisSeason, FireWorkThisSeason = source.FireWorkThisSeason,
         SkillLevels = (byte[])source.SkillLevels.Clone(), SkillPractice = (Fix64[])source.SkillPractice.Clone(),
         Kit = source.Kit, KitLeft = source.KitLeft, Task = source.Task, Camp = source.Camp, Role = source.Role, Infected = source.Infected,
+        WorkedWithToolLastSeason = source.WorkedWithToolLastSeason,
     };
 
     private static void CopyWildHerdState(WildHerdState source, WildHerdState target)

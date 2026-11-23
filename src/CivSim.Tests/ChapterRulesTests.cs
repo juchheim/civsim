@@ -132,9 +132,9 @@ public class ChapterRulesTests
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
 
         byte[] bronzeBytes = Snapshot(bronze), ironBytes = Snapshot(iron), fiefBytes = Snapshot(fief);
-        Assert.Equal(30, System.BitConverter.ToInt32(bronzeBytes, 4));
-        Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(48, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(CivSim.Sim.Economy.LivingEconomyModel.SnapshotVersion, System.BitConverter.ToInt32(bronzeBytes, 4));
+        Assert.Equal(CivSim.Sim.Economy.LivingEconomyModel.IronSnapshotVersion, System.BitConverter.ToInt32(ironBytes, 4));
+        Assert.Equal(49, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.Equal(bronzeBytes, Snapshot(explicitBronze));
         Assert.Equal(bronze.ComputeChecksum(), explicitBronze.ComputeChecksum());
         Assert.True(ironBytes.Length > bronzeBytes.Length); // the Iron trailer

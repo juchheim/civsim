@@ -98,6 +98,13 @@ internal static class DiscoveryMatchCommand
         if (a is Array xa)
         {
             var xb = (Array)b;
+            if (xa.Rank != 1)
+            {
+                if (xa.Length != xb.Length) { found.Add($"{path}: length {xa.Length} vs {xb.Length}"); return; }
+                var ea = xa.GetEnumerator(); var eb = xb.GetEnumerator(); int n = 0;
+                while (ea.MoveNext() && eb.MoveNext()) { if (!Equals(ea.Current, eb.Current)) { found.Add($"{path}[flat {n}]: {ea.Current} vs {eb.Current}"); break; } n++; }
+                return;
+            }
             if (xa.Length != xb.Length) { found.Add($"{path}: length {xa.Length} vs {xb.Length}"); return; }
             if (t.GetElementType()!.IsPrimitive) { for (int i = 0; i < xa.Length; i++) if (!Equals(xa.GetValue(i), xb.GetValue(i))) { found.Add($"{path}[{i}]: {xa.GetValue(i)} vs {xb.GetValue(i)}"); break; } return; }
             for (int i = 0; i < xa.Length && found.Count < 4000; i++) DeepDiff(xa.GetValue(i), xb.GetValue(i), $"{path}[{i}]", depth + 1, found, seen);
@@ -195,7 +202,6 @@ internal static class DiscoveryMatchCommand
                             if (startAt >= 0 && (!d && k - last > 64)) { Console.WriteLine($"    diff run {startAt:N0}..{last:N0} (~{(startAt - 100) / 128004.0:F2} arrays in)"); clusters++; startAt = -1; }
                         } }
                 }
-                if (!diverged) continue;
             }
             else { runner.Advance(150); twinRunner?.Advance(150); }
             if (twin is not null && !diverged && twin.ComputeChecksum() != match.ComputeChecksum()) { diverged = true; Console.WriteLine($"  first divergence after tick {runner.Tick}: {Parts(match)} vs {Parts(twin)}"); }

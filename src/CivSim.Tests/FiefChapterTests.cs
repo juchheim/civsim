@@ -183,8 +183,8 @@ public class FiefChapterTests
         foreach (MatchModel m in new[] { iron, fief })
             for (long t = 0; t < 3 * Season; t++) m.Step(t, default);
         byte[] ironBytes = EconomyBytes(iron), fiefBytes = EconomyBytes(fief);
-        Assert.Equal(30, System.BitConverter.ToInt32(ironBytes, 4));
-        Assert.Equal(48, System.BitConverter.ToInt32(fiefBytes, 4));
+        Assert.Equal(LivingEconomyModel.IronSnapshotVersion, System.BitConverter.ToInt32(ironBytes, 4));
+        Assert.Equal(49, System.BitConverter.ToInt32(fiefBytes, 4));
         Assert.NotEqual(ironBytes, fiefBytes); // E5's expanded structure state belongs to the Fief snapshot only.
         Assert.NotEqual(iron.ComputeChecksum(), fief.ComputeChecksum());
     }

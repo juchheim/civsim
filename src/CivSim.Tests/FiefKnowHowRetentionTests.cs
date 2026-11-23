@@ -196,7 +196,7 @@ public sealed class FiefKnowHowRetentionTests
     }
 
     [Fact]
-    public void Iron_and_Bronze_keep_their_version_30_snapshot_and_hash_paths()
+    public void Iron_and_Bronze_keep_their_non_Fief_snapshot_and_hash_paths()
     {
         foreach (bool iron in new[] { false, true })
         {
@@ -204,7 +204,7 @@ public sealed class FiefKnowHowRetentionTests
                 ? BronzeFixture.CreateIron(TestPack.Pack, Seed, 100, "KEY-5")
                 : BronzeFixture.Create(TestPack.Pack, Seed, 100, true, tin: true, arsenic: true, "KEY-3");
             byte[] before = Snapshot(fixture.Economy.WriteSnapshot);
-            Assert.Equal(30, BinaryPrimitives.ReadInt32LittleEndian(before.AsSpan(sizeof(int), sizeof(int))));
+            Assert.Equal(iron ? LivingEconomyModel.IronSnapshotVersion : LivingEconomyModel.SnapshotVersion, BinaryPrimitives.ReadInt32LittleEndian(before.AsSpan(sizeof(int), sizeof(int))));
             var restored = iron
                 ? BronzeFixture.CreateIron(TestPack.Pack, Seed, 100, "KEY-5")
                 : BronzeFixture.Create(TestPack.Pack, Seed, 100, true, tin: true, arsenic: true, "KEY-3");

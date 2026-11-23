@@ -134,6 +134,7 @@ public sealed class FiefHospitalTests
 
     private static byte[] AsVersion45Snapshot(byte[] current)
     {
+        current = WithoutToolWorkTail(current);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -185,6 +186,7 @@ public sealed class FiefHospitalTests
 
     private static byte[] AsVersion46Snapshot(byte[] current)
     {
+        current = WithoutToolWorkTail(current);
         long paper = Fix64.Parse("2.25").Raw, book = Fix64.Parse("3.75").Raw;
         using var anchorStream = new MemoryStream();
         using (var writer = new BinaryWriter(anchorStream, System.Text.Encoding.UTF8, leaveOpen: true))
@@ -209,6 +211,13 @@ public sealed class FiefHospitalTests
             BitConverter.ToInt64(legacy, offset + sizeof(int) + 6 * sizeof(long)) != book)
             throw new InvalidDataException("Generated v46 array has invalid legacy Fief stocks.");
         return legacy;
+    }
+
+    /// <summary>Snapshots before Fief 49 end without the tool-work tail (a count of zero here, since no figure has worked with a tool in these fixtures).</summary>
+    private static byte[] WithoutToolWorkTail(byte[] current)
+    {
+        if (BitConverter.ToInt32(current, current.Length - sizeof(int)) != 0) throw new InvalidDataException("The fixture snapshot has tool-work flags.");
+        return current[..^sizeof(int)];
     }
 
     private static int FindBytes(byte[] source, byte[] value)
