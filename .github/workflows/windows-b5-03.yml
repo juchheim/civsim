@@ -1,0 +1,174 @@
+name: WP-E5-11 temporary Windows x64 B5-03
+on:
+  push:
+    branches:
+      - codex/wp-e5-11-windows-parity-20261123
+permissions:
+  contents: read
+jobs:
+  windows-build-test:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c3aa4e063244748ffb1f951050ded4003ce8262a
+          path: source
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.402
+      - run: dotnet build source/CivSim.slnx -c Release
+        shell: pwsh
+      - run: dotnet test source/CivSim.slnx -c Release --no-build
+        shell: pwsh
+  payload:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: campaign
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.402
+      - name: Verify and extract pinned inputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:GITHUB_WORKSPACE 'campaign/windows-parity-inputs.zip'
+          $archiveHash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          if ($archiveHash -ne 'b06e3ae028cdfbbfd24e7c790c6987ee51ec451eb2d297a2c356ceee761cabda') { throw "Input archive hash mismatch: $archiveHash" }
+          $payload = Join-Path $env:RUNNER_TEMP 'b5-payload'
+          Expand-Archive -LiteralPath $archive -DestinationPath $payload
+          $pins = @{
+            'numeric-e5.pack' = '564b9e77b065441fc25b6137c37e6fd71b8c349bf82638199df3beaae37c2ebe'
+            'harness/CivSim.Harness.dll' = '5746fa66fefe6e52ab9f0268d6ec69004c95ec3a8a8d275d6d5f468b5704d950'
+            'harness/CivSim.Sim.dll' = 'a85cc888b53ef7deb2dfe85fb49218eb62a03a0d51da620205db34ff224234bc'
+            'tests/CivSim.Tests.dll' = 'ecd86123731d11a49b251f9b06e08c748ff87a626be33031e9b3d3b34e03d702'
+          }
+          foreach ($relative in $pins.Keys) {
+            $file = Join-Path $payload $relative
+            $actual = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
+            if ($actual -ne $pins[$relative]) { throw "Input mismatch for $relative - $actual" }
+          }
+          dotnet --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-b5-03-payload
+          path: ${{ runner.temp }}/b5-payload
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+  windows-shard:
+    needs: payload
+    runs-on: windows-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c3aa4e063244748ffb1f951050ded4003ce8262a
+          path: source
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.402
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-b5-03-payload
+          path: ${{ runner.temp }}/b5-payload
+      - name: Run pinned B5-03 shard
+        id: run_shard
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'source'
+          $payload = Join-Path $env:RUNNER_TEMP 'b5-payload'
+          $indexText = ($env:SHARD_INDEX).PadLeft(3, '0')
+          $output = Join-Path $env:RUNNER_TEMP "b5-shard-$indexText"
+          $runner = Join-Path $source 'docs/MVP/balance/tools/run_b5_03_determinism.py'
+          $runArgs = @(
+            '--repo-root', $source,
+            '--pack', (Join-Path $payload 'numeric-e5.pack'),
+            '--harness-dll', (Join-Path $payload 'harness/CivSim.Harness.dll'),
+            '--sim-dll', (Join-Path $payload 'harness/CivSim.Sim.dll'),
+            '--manifest', (Join-Path $source 'docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt'),
+            '--expected-manifest-sha256', '12f313f9878c568798b32e723f1aa1783b2dbb3039bfae60749f7a279d1d9895',
+            '--test-assembly', (Join-Path $payload 'tests/CivSim.Tests.dll'),
+            '--expected-test-assembly-sha256', 'ecd86123731d11a49b251f9b06e08c748ff87a626be33031e9b3d3b34e03d702',
+            '--test-source', (Join-Path $source 'docs/MVP/balance/tools/test_run_b5_03_determinism.py'),
+            '--expected-test-source-sha256', '0233a824a7e7adb94711f813f23afd0ad502973acc3cd1da074da200d9d022e9',
+            '--expected-runner-sha256', 'fac86cdd7cb2b86691d34f34da234ea2c8bcb69b7c2a1fcc45d59a10ae136618',
+            '--output-root', $output,
+            '--minutes', '130',
+            '--expected-source-head', 'c3aa4e063244748ffb1f951050ded4003ce8262a',
+            '--expected-source-tree', '5f8d7b925b9292eb01a22e42829145e4b273390d',
+            '--expected-source-aggregate', '701d31e084c03e9320f0de57f61abca57c4fa566aa4fca98e6a3d9c5e3e92503',
+            '--expected-pack-sha256', '564b9e77b065441fc25b6137c37e6fd71b8c349bf82638199df3beaae37c2ebe',
+            '--expected-harness-sha256', '5746fa66fefe6e52ab9f0268d6ec69004c95ec3a8a8d275d6d5f468b5704d950',
+            '--expected-sim-sha256', 'a85cc888b53ef7deb2dfe85fb49218eb62a03a0d51da620205db34ff224234bc',
+            '--shard-count', '100',
+            '--shard-index', $env:SHARD_INDEX,
+            '--execute'
+          )
+          python $runner @runArgs
+          if ($LASTEXITCODE -ne 0) { throw "B5-03 shard $indexText failed: $LASTEXITCODE" }
+          $metaPath = Join-Path $output 'run_metadata.json'
+          $meta = Get-Content -Raw $metaPath | ConvertFrom-Json
+          if ($meta.status -ne 'complete') { throw "Shard $indexText is not complete" }
+          $receipt = Join-Path $env:RUNNER_TEMP "b5-receipt-$indexText"
+          New-Item -ItemType Directory -Path $receipt | Out-Null
+          Copy-Item $metaPath (Join-Path $receipt 'run_metadata.json')
+          Copy-Item (Join-Path $output 'replay-index.json') (Join-Path $receipt 'replay-index.json')
+          Copy-Item $meta.artifacts.sourceManifest.path (Join-Path $receipt 'source-manifest.json')
+          Copy-Item $meta.shard.subsetManifest.path (Join-Path $receipt 'seed-manifest.txt')
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "receipt=$receipt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-b5-03-shard-${{ matrix.shard }}
+          path: ${{ steps.run_shard.outputs.receipt }}
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 6
+  collect-windows-index:
+    needs: windows-shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: campaign
+      - uses: actions/checkout@v4
+        with:
+          ref: c3aa4e063244748ffb1f951050ded4003ce8262a
+          path: source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: windows-b5-03-shard-*
+          path: ${{ runner.temp }}/b5-shards
+          merge-multiple: false
+      - name: Validate shards and merge Windows index
+        run: >-
+          python campaign/ci/windows-b5-03/collect_windows_b5_03.py
+          --artifacts ${{ runner.temp }}/b5-shards
+          --manifest source/docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt
+          --output ${{ runner.temp }}/windows-b5-03-index
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-b5-03-index
+          path: ${{ runner.temp }}/windows-b5-03-index
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
