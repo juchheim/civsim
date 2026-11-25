@@ -779,6 +779,7 @@ public sealed partial class LivingEconomyModel
         };
         labor *= Modifier(civ, "construction_labor");
         labor *= Modifier(civ, "build_labor"); // BLD-11, MEC-04 (Iron chapter only: exactly 1 until those projects are complete)
+        labor *= CityBuildLaborFactor(s); // BLD-13 (Discovery): a City builds faster
         if (b is CivicBuild.Temple or CivicBuild.Palace or CivicBuild.Hall or CivicBuild.Ziggurat) labor *= Modifier(civ, "stone_building_labor") * Modifier(civ, "stone_build_labor");
         if (b is CivicBuild.Market or CivicBuild.School or CivicBuild.Caravanserai) labor *= Modifier(civ, "timber_building_labor");
         if (b == CivicBuild.Ziggurat)
@@ -1222,8 +1223,9 @@ public sealed partial class LivingEconomyModel
             int now = CohesionPoints(s.Cohesion);
             int diff = target - now;
             // A quarter of the way each season, in whole points (docs/MVP/22 §8.3); at least one point while it differs.
-            int step = (Fix64.FromInt(diff) * _civic.Step).FloorToInt();
-            if (diff < 0) step = -((Fix64.FromInt(-diff) * _civic.Step).FloorToInt());
+            Fix64 stepShare = DiscoveryChain ? _civic.Step * CohesionResponse(s) : _civic.Step; // COM-11: news travels faster in a print-shop town
+            int step = (Fix64.FromInt(diff) * stepShare).FloorToInt();
+            if (diff < 0) step = -((Fix64.FromInt(-diff) * stepShare).FloorToInt());
             if (step == 0 && diff != 0) step = Math.Sign(diff);
             now = Math.Clamp(now + step, 0, 100);
             s.Cohesion = CohesionFactor(now);
@@ -1262,6 +1264,7 @@ public sealed partial class LivingEconomyModel
         int capital = CapitalOf(civ);
         SettlementState? cap = capital >= 0 ? _settlements[capital] : null;
         Fix64 t = Fix64.FromInt(_civic.Base);
+        Fix64 govTerms = Fix64.Zero; // the GOV projects' share of the target, which COM-11 lifts a tenth in a print-shop town
         if (HasClockTowerWithin(s)) t += Fix64.FromInt(2);
         if (!conquered)
         {
@@ -1269,7 +1272,7 @@ public sealed partial class LivingEconomyModel
             if (Done(civ, "SOC-05")) t += Fix64.FromInt(8);
             // BEL-05: within twenty tiles of the capital, or of a shrine of the civilization (docs/MVP/29); either one, never both.
             if (Done(civ, "BEL-05") && (cap is not null && HexGrid.Distance(cap.SiteTile, s.SiteTile, _world.Width) <= 20 || OwnShrineWithin(s, ShrineReach))) t += Fix64.FromInt(3);
-            if (Done(civ, "GOV-03")) t += Fix64.FromInt(3);
+            if (Done(civ, "GOV-03")) { t += Fix64.FromInt(3); govTerms += Fix64.FromInt(3); }
         }
         t += Fix64.FromInt(Math.Min(5, LuxuryItems(s) * 10 / Math.Max(1, pop)));
         if (FiefSettlementHasReserve(s)) t += Fix64.FromInt(2);
@@ -1298,8 +1301,9 @@ public sealed partial class LivingEconomyModel
                 "diverse_group_integration" => IronChain && c.ConqueredTerm < 0,
                 _ => true,
             };
-            if (applies) t += value;
+            if (applies) { t += value; if (_content.Projects[term.Project].Id.StartsWith("GOV-", StringComparison.Ordinal)) govTerms += value; }
         }
+        if (DiscoveryChain && govTerms > Fix64.Zero) t += govTerms * PublicOpinionGain(s); // COM-11: GOV effects +10% where the news is printed
         // The Megalith (STN-10, an E2 Wonder named in the target): +10 within 8 walking tiles of the civilization's oldest settlement.
         if (Done(civ, "STN-10") && OldestOf(civ) is int oldest and >= 0)
         {

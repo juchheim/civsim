@@ -82,7 +82,7 @@ public sealed partial class ResearchSystem : IResearchView
     public Func<int, int, bool>? EmbassyOracle { get; set; }
     /// <summary>LRN-09's typed Know-how spillover share (the row's know_how_spillover), read once from the catalog.</summary>
     private readonly Fix64 _societySpillover;
-    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statAdminCapacity;
+    private readonly int _soc03, _trd04, _bel05, _bld05, _bld07, _com09, _com10, _cer10, _roleMonk, _statMonasteryInsight, _statArtInsight, _statAdminCapacity;
     private long _tick;
 
 
@@ -137,6 +137,7 @@ public sealed partial class ResearchSystem : IResearchView
         _cer10 = catalog.IndexOf("CER-10");                               // spectacles gate its Elder Insight
         _roleMonk = catalog.RoleIndex("monk");
         _statMonasteryInsight = catalog.StatIndex("monastery_insight");   // ART-09
+        _statArtInsight = catalog.StatIndex("art_insight");               // ART-10 (Discovery)
         _statAdminCapacity = catalog.StatIndex("admin_capacity");         // NUM-08
         _soc03 = catalog.IndexOf("SOC-03");
         _trd04 = catalog.IndexOf("TRD-04");
@@ -840,6 +841,8 @@ public sealed partial class ResearchSystem : IResearchView
             if (r == _roleElder) output = output * lmElder * spectacleLift;
             // ART-09 (Fief): illuminated manuscripts lift only the Insight of monks at a staffed monastery, which is every monk head the economy reports.
             if (Rules.IsFief && r == _roleMonk && _statMonasteryInsight >= 0) output = output * civ.ModMult[_statMonasteryInsight];
+            // ART-10 (Discovery): patron-funded masters, the monks of a staffed monastery, work a tenth better while a court or a Wonder stands.
+            if (Rules.IsDiscovery && r == _roleMonk && inputs.PatronFundsMasters && _statArtInsight >= 0) output = output * civ.ModMult[_statArtInsight];
             // E3 roles by structure (docs/MVP/22 §8.4): COM-06 ×1.5 scribe output, NUM-06 +4 a Priest, SOC-08 +10% role Insight.
             if (r == _roleScribe && _statScribe >= 0) output = output * civ.ModMult[_statScribe];
             if (r == _rolePriest && _statPriest >= 0) output = output + heads * civ.ModFlat[_statPriest];

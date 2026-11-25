@@ -283,6 +283,7 @@ public sealed class LivingEconomySource : IResearchSource
             InsightScale = insight,
             RolesScale = roles,
             KnowHowScale = knowHow,
+            PatronFundsMasters = _economy.PatronFundsMasters(civ),
         };
     }
 

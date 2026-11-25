@@ -387,7 +387,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     public bool IsFreeFolk(int settlementIndex) => settlementIndex < _free.Count && _free[settlementIndex];
 
     /// <summary>Beacons a civilization may hold: one from ART-05 Songlines, plus Era Boons (docs/MVP/05 §11.4).</summary>
-    public int BeaconAllowance(int civ) => (_research.IsDone(civ, _p.Art05) ? 1 : 0) + _research.BeaconBoons(civ);
+    public int BeaconAllowance(int civ) => (_research.IsDone(civ, _p.Art05) ? 1 : 0) + _research.BeaconBoons(civ) + _economy.PatronBeaconSlots(civ); // ART-10: one more while a patron court stands (Discovery)
 
     /// <summary>Read-only estimate for placing at a tile, including the nearest-Beacon replacement used when slots are full.</summary>
     public BeaconSitePreview PreviewBeaconPlacement(int civ, int tile)

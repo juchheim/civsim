@@ -1067,6 +1067,7 @@ public sealed partial class LivingEconomyModel
         // Dressing stone takes twice as long without a T8+ kit (docs/MVP/23 §5).
         if (id == "dress_stone" && !anyMetalKit) labor *= 2;
         if (DiscoveryChain && id == "make_coke" && IronWorksCount(s, IronStructure.CokeOven) > 0) labor *= CokeOvenLaborFactor;
+        if (DiscoveryChain) labor *= InstrumentCalcFactor(s.Civilization, id); // NUM-10: the calculation behind parts and instruments
         // Outside Fief preserve Iron's water-mill rule. In Fief these jobs draw from one budget in priority order:
         // grinding, sawing, then powered craft and bellows work.
         if (IronChain && (r.Def.Bellows || IsMillPowered(id)))

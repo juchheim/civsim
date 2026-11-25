@@ -3773,9 +3773,9 @@ public sealed partial class LivingEconomyModel : ISimModel
 
     private Fix64 StructureBuildLabor(SettlementState settlement, Structure structure)
     {
-        if (structure == Structure.StoneWalls) return Fix64.FromInt(_civic.WallLabor * ((int)Tier(settlement.Id) + 1));
-        if (structure == Structure.Palisade) return Fix64.FromInt(6 * ((int)Tier(settlement.Id) + 1));
-        return BuildLabor(structure);
+        if (structure == Structure.StoneWalls) return Fix64.FromInt(_civic.WallLabor * ((int)Tier(settlement.Id) + 1)) * CityBuildLaborFactor(settlement);
+        if (structure == Structure.Palisade) return Fix64.FromInt(6 * ((int)Tier(settlement.Id) + 1)) * CityBuildLaborFactor(settlement);
+        return BuildLabor(structure) * CityBuildLaborFactor(settlement); // BLD-13 (Discovery): a City builds faster; exactly 1 elsewhere
     }
 
     internal static Fix64 PalisadeWoodCost(int tier)
@@ -6781,11 +6781,13 @@ public sealed partial class LivingEconomyModel : ISimModel
     private Fix64 ComputeModifier(int civ, string stat)
     {
         Fix64 multiplier = Fix64.One;
+        Fix64 newton = NewtonStrength(civ); // INQ-09 (Discovery): exactly 1 everywhere else
         for (int i = 0; i < _content.Effects.Length; i++)
         {
             EconomyEffect effect = _content.Effects[i];
             if (effect.Kind != "mod" || effect.Stat != stat || effect.Value is null || !_completedProjects[civ][effect.ProjectIndex]) continue;
             Fix64 value = effect.Value.Value;
+            if (newton != Fix64.One) value = NewtonLift(newton, _content.Projects[effect.ProjectIndex].Id, effect.Operation, value);
             multiplier *= effect.Operation switch
             {
                 "pct" => Fix64.One + value,

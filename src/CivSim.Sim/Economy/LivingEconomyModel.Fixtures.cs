@@ -760,6 +760,14 @@ public sealed partial class LivingEconomyModel
     internal Fix64 FixtureSharePublicGrain(int civ) => SharePublicGrain(civ, Math.Max(0, ShareReach(civ)));
     internal Fix64 FixtureGrainUnits(int settlementIndex) => _settlements[settlementIndex].Stores[(int)Good.Grain];
 
+    // ---- Renaissance rows (BLD-13, NUM-10, INQ-09, COM-11, ART-10): tests only -------------------------------------------------------------------
+    internal Fix64 FixtureModifier(int civ, string stat) => Modifier(civ, stat);
+    internal Fix64 FixtureCityBuildLaborFactor(int settlementIndex) => CityBuildLaborFactor(_settlements[settlementIndex]);
+    internal Fix64 FixtureInstrumentCalcFactor(int civ, string recipeId) => InstrumentCalcFactor(civ, recipeId);
+    internal Fix64 FixtureCohesionResponse(int settlementIndex) => CohesionResponse(_settlements[settlementIndex]);
+    internal Fix64 FixturePublicOpinionGain(int settlementIndex) => PublicOpinionGain(_settlements[settlementIndex]);
+    internal void FixtureSetPalaces(int settlementIndex, int palaces) => EnsureCivic(_settlements[settlementIndex]).Palaces = palaces;
+
     internal Fix64 FixtureIronLabor(int settlementIndex, string name)
     {
         for (int k = 0; k < IronSpecs.Length; k++)

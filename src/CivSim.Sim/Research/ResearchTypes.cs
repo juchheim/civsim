@@ -85,6 +85,8 @@ public struct InsightInputs
     public Fix64 HearthShare;
     /// <summary>Per-archetype scales (docs/MVP/07 sensitivity): Insight, Roles, Know-how.</summary>
     public Fix64 InsightScale, RolesScale, KnowHowScale;
+    /// <summary>ART-10 (Discovery): a patron court or Wonder stands, so the monks' (the masters') Insight carries the row's <c>art_insight</c>.</summary>
+    public bool PatronFundsMasters;
 }
 
 /// <summary>Read access to a civilization's research state, for the economy and the planner.</summary>

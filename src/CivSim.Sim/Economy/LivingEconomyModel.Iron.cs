@@ -2663,6 +2663,7 @@ public sealed partial class LivingEconomyModel
     {
         int civ = s.Civilization;
         Fix64 labor = Fix64.FromInt(spec.Labor) * Modifier(civ, "build_labor");
+        labor *= CityBuildLaborFactor(s); // BLD-13 (Discovery): a City builds faster
         if (spec.Stone) labor *= Modifier(civ, "stone_build_labor");
         if (spec.Infrastructure)
         {
