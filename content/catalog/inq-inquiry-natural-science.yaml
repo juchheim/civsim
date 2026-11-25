@@ -109,8 +109,8 @@ projects:
     era: 6
     type: M
     status: numeric
-    cost: 56000
-    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 28000 x M 1.0."
+    cost: 36000
+    cost_reason: "docs/MVP/38 §6 D9 and docs/MVP/28 §16: depth-3 non-keystone E6 project; 2x EraBase 18000 x M 1.0."
     requires: [INQ-08, NUM-11]
     effects:
       - {kind: mod, stat: mec_nrg_sea_effects, op: mult, value: 1.1, note: "MEC, NRG and SEA project effects (P)"}
