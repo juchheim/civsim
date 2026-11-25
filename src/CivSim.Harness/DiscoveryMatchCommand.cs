@@ -24,6 +24,9 @@ internal static class DiscoveryMatchCommand
     private static readonly string[] Structures =
         { "atmospheric_engine", "coke_oven", "navigation_canal", "galleon", "factory", "exchange_house", "bastion_fort", "harbor", "castle", "concentric_castle", "hospital", "botanical_garden", "learned_society", "renaissance_palace", "academy", "university" };
 
+    /// <summary>Diagnostic: the civilization whose settlements, population and research are printed every eight seasons (-1 = off). Reads only.</summary>
+    private static int _traceCiv = -1;
+
     public static int Run(string[] args)
     {
         string? packPath = null;
@@ -31,6 +34,7 @@ internal static class DiscoveryMatchCommand
         int seeds = 1, minutes = 110;
         bool grantE5 = false, grantE6 = false;
         int resumeAt = 0;
+        _traceCiv = -1;
         ChapterRules rules = ChapterRules.Discovery;
         for (int i = 0; i < args.Length; i++)
         {
@@ -44,6 +48,7 @@ internal static class DiscoveryMatchCommand
                 case "--grant-e6": grantE6 = true; break;
                 case "--mode": rules = args[++i] == "fief" ? ChapterRules.Fief : ChapterRules.Discovery; break;
                 case "--resume-at": resumeAt = int.Parse(args[++i]); break;
+                case "--trace-civ": _traceCiv = int.Parse(args[++i]); break;
                 default: Console.Error.WriteLine($"Unknown option '{args[i]}'."); return 2;
             }
         }
@@ -230,11 +235,43 @@ internal static class DiscoveryMatchCommand
                 Console.WriteLine($"  resume: snapshot at tick {runner.Tick} ({snapshotBytes:N0} bytes), checksums {match.ComputeChecksum():x16} vs {twin.ComputeChecksum():x16}");
             }
             int season = checked((int)(runner.Tick / 150L));
+            if (_traceCiv >= 0 && _traceCiv < civs && season % 8 == 0)
+            {
+                int towns = 0, people = 0, free = 0; Fix64 food = Fix64.Zero; string cohesion = "";
+                for (int s = 0; s < match.Economy.SettlementCount; s++)
+                {
+                    if (match.Economy.SettlementLite(s).Civilization != _traceCiv) continue;
+                    SettlementView v = match.Economy.Settlement(s);
+                    towns++; people += v.Population; food += v.FoodStores;
+                    if (match.Politics.IsFreeFolk(s)) free++;
+                    cohesion += $" [{s}:pop{v.Population} coh{match.Economy.SettlementCohesion(s).ToDoubleForDisplay():F2}{(match.Politics.IsFreeFolk(s) ? " FREE" : "")}]";
+                }
+                int figs = 0, grown = 0, orphan = 0;
+                for (int f = 0; f < match.Economy.FigureCount; f++)
+                {
+                    FigureView fv = match.Economy.Figure(f);
+                    if (fv.Civilization != _traceCiv) continue;
+                    figs++; if (fv.Age >= 14) grown++;
+                    if (match.Economy.SettlementLite(0).Id < 0) orphan++;
+                }
+                {
+                    const System.Reflection.BindingFlags RF = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                    var rt = typeof(ResearchSystem);
+                    var civObj = ((Array)rt.GetField("_civs", RF)!.GetValue(research)!).GetValue(_traceCiv)!;
+                    var mods = (Fix64[])civObj.GetType().GetField("ModMult")!.GetValue(civObj)!;
+                    int sc = (int)rt.GetField("_statCommons", RF)!.GetValue(research)!, se = (int)rt.GetField("_statElder", RF)!.GetValue(research)!;
+                    Console.WriteLine($"    mods: commons={mods[sc].ToDoubleForDisplay():F3} elder={mods[se].ToDoubleForDisplay():F3} eraBoon={((Fix64)civObj.GetType().GetField("EraBoonInsight")!.GetValue(civObj)!).ToDoubleForDisplay():F3} commonsPerYear={((Fix64)civObj.GetType().GetField("CommonsPerYear")!.GetValue(civObj)!).ToDoubleForDisplay():F2}");
+                }
+                Console.WriteLine($"  trace s{season} civ{_traceCiv}: figures={figs} grown={grown} towns={towns} freefolk={free} people={people} food={food.ToDoubleForDisplay():F0} done={research.DoneCount(_traceCiv)} era={research.Era(_traceCiv)} insight/yr={research.InsightPerYear(_traceCiv).ToDoubleForDisplay():F1}{cohesion}");
+            }
             for (int c = 0; c < civs; c++)
                 for (int k = 0; k < 3; k++)
                     if (seasonOf[c, k] < 0 && keys[k] >= 0 && research.IsDone(c, keys[k])) seasonOf[c, k] = season;
             end = match.EndOfMatch();
         }
+        if (_traceCiv >= 0)
+            foreach (PoliticsEvent e in match.Politics.Events)
+                if (e.Civ == _traceCiv || e.Other == _traceCiv) Console.WriteLine($"  event s{e.Tick / 150} civ{e.Civ} {e.Kind} other={e.Other} a={e.A} b={e.B}");
         if (twin is not null) Console.WriteLine($"  resume check: {(twin.ComputeChecksum() == match.ComputeChecksum() ? "IDENTICAL" : "DIVERGED")} at tick {runner.Tick}: {match.ComputeChecksum():x16} vs {twin.ComputeChecksum():x16}");
         Console.WriteLine($"seed={seed} ticks={runner.Tick} over={end.IsOver(runner.Tick)} reason={end.Reason} winner={end.Civ} final={match.ComputeChecksum():x16}");
         for (int c = 0; c < civs; c++)
