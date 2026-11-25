@@ -24,3 +24,9 @@ The curve is roughly linear below 20,000 (about 0.8 minutes per 1,000) and the u
 ## Not yet done
 
 A held-out confirmation on other seeds (slice 4 did one at 28,000; this slice fitted on the three sweep seeds only). The slowest archetypes (Grower, Warlord) sit 3 to 5 minutes above the Builder; that spread is the stock AI's, not the cost's.
+
+## Held-out confirmation of 18,000 (seeds 777 to 779, 125 minutes, grant-e5)
+
+11 of 12 civs reached KEY-7: mean 25.25 minutes from KEY-6 to KEY-7, range 20.0 to 28.75 (the fit seeds gave 24.9). The twelfth civ
+(seed 777, Warlord) never left era 2 (112 projects, no KEY-5), so it is a stalled early-game civ and not a Discovery pacing result; it is
+not counted in the mean. The 18,000 fit holds on unseen seeds.
