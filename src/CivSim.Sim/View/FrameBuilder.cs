@@ -252,7 +252,7 @@ public sealed partial class FrameBuilder
         MarkVisibility(eco, pol);
         FillTiles(eco, pol, match.Research, target);
         ReadMembers(pol);
-        FillFigures(eco, match.Research, target, season);
+        FillFigures(eco, match.Research, match.Legends, target, season);
         FillSettlements(eco, match.Research, target, season);
         FillEconomy(eco, match.Research, target, season);
         FillPlotsCampsBeacons(eco, pol, target);
@@ -267,6 +267,7 @@ public sealed partial class FrameBuilder
         FillIron(match, target);
         FillArms(match, target);
         FillBows(match, target);
+        FillLegends(match, target);
         FillFief(match, target);
         FillDiscovery(match, target);
         FillCivs(match, target);
@@ -753,9 +754,23 @@ public sealed partial class FrameBuilder
         }
     }
 
-    private void FillFigures(LivingEconomyModel eco, ResearchSystem research, MatchFrame target, int season)
+    private long[] _legendIds = Array.Empty<long>();
+
+    private void FillFigures(LivingEconomyModel eco, ResearchSystem research, CivSim.Sim.Legends.LegendSystem legends, MatchFrame target, int season)
     {
         int count = eco.FigureCount;
+        // The living Legends' ids, ascending, so the loop below (which walks figures in ascending id order) can flag them with one pointer.
+        int legendCount = 0;
+        System.Collections.Generic.IReadOnlyList<CivSim.Sim.Legends.LegendRecord> records = legends.Records;
+        for (int k = 0; k < records.Count; k++) // indexed, not foreach: a frame build allocates nothing once warm
+        {
+            CivSim.Sim.Legends.LegendRecord r = records[k];
+            if (r.DiedSeason >= 0) continue;
+            if (legendCount == _legendIds.Length) Array.Resize(ref _legendIds, Math.Max(16, legendCount * 2));
+            _legendIds[legendCount++] = r.FigureId;
+        }
+        if (legendCount > 1) Array.Sort(_legendIds, 0, legendCount);
+        int legendAt = 0;
         target.EnsureFigures(count);
         for (int s = 0; s < _settlementCount; s++)
         {
@@ -795,6 +810,8 @@ public sealed partial class FrameBuilder
             if (f.Warmth < ColdLevel) flags |= FigureFlags.Cold;
             if (warrior) flags |= FigureFlags.Warrior | FigureFlags.Armed;
             if (_sFree[s]) flags |= FigureFlags.FreeFolk;
+            while (legendAt < legendCount && _legendIds[legendAt] < f.Id) legendAt++;
+            if (legendAt < legendCount && _legendIds[legendAt] == f.Id) flags |= FigureFlags.Legend;
 
             ulong home = Hash64.Mix(unchecked((ulong)f.Id ^ SaltHome));
             int siteTile = _sTile[s];

@@ -1096,7 +1096,17 @@ public sealed partial class ResearchSystem : IResearchView
     // ---- events, hashing, snapshots -------------------------------------------------------
 
     private void Emit(byte civ, ResearchEventKind kind, int project, int a, int b)
-        => _events.Add(new ResearchEvent(_tick, civ, kind, project, a, b));
+    {
+        var e = new ResearchEvent(_tick, civ, kind, project, a, b);
+        _events.Add(e);
+        EventObserver?.Invoke(e);
+    }
+
+    /// <summary>A system that wants every research event as it happens (the Legend system reads innovators and Firsts), whatever the presentation does with <see cref="Events"/>. Not state.</summary>
+    internal Action<ResearchEvent>? EventObserver { get; set; }
+
+    /// <summary>The match seed (the Legend system draws its own random streams from it).</summary>
+    internal ulong Seed => _seed;
 
     public void Hash(ref StateHasher h)
     {

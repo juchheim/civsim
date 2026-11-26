@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
@@ -209,4 +210,16 @@ public sealed partial class LivingEconomyModel
     public int MusketsAt(int settlementIndex)
         => (uint)settlementIndex < (uint)_settlements.Count && MusketsKnown(_settlements[settlementIndex].Civilization)
             ? Stock(_settlements[settlementIndex], DiscoverySlot(DiscoveryGood.Musket)).FloorToInt() : 0;
+
+    // ---- Legends: founders (docs/MVP/40 §3) -------------------------------------------------------------------------------------------------------
+
+    /// <summary>Daughter settlements founded by fission since the last drain, as (settlement index, founding figure id). Not simulation state: the Legend system drains it every season.</summary>
+    private readonly List<(int Settlement, long Figure)> _foundings = new();
+
+    /// <summary>Moves the foundings since the last call into <paramref name="into"/> (the Legend system's season step).</summary>
+    public void DrainFounders(List<(int Settlement, long Figure)> into)
+    {
+        into.AddRange(_foundings);
+        _foundings.Clear();
+    }
 }

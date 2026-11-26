@@ -1,6 +1,6 @@
 # 40. Legends (notable people who matter, in every era)
 
-Status: **design for approval, 2026-11-26. Nothing here is built.** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
+Status: **design approved 2026-11-26; phase L1 built 2026-11-27 (see §11).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
 
 ## 1. The short version (what to accept)
 
@@ -106,3 +106,16 @@ No effect touches food, population, research cost, trade or any global stat. The
 | Mourning −3 once | keep; it makes ART-06 and MET-06 worth a project |
 | Do Legends of a civilization you do not know show in the Chronicle? | no, only known civilizations |
 | Can a Legend be killed on purpose (a raid that targets one)? | no targeting in this version; a fallen fighter is a normal death with the mourning |
+
+## 11. Phase L1 as built (2026-11-27)
+
+What L1 ships, and where it differs from the plan above.
+
+- **The engine** (`src/CivSim.Sim/Legends/LegendSystem.cs`, `LegendNames.cs`): deed scores per figure (a list sorted by figure id), the seasonal roll from its own `Pcg32` stream, the cap of 3 living Legends a settlement and 12 a civilization, generated names, a record log, `Hash`, `Write` and `Read`. It lives on `MatchModel.Legends`.
+- **Deeds wired in L1:** the **innovator** (research reports the figure who first practised a project: 10 points) and a **First** (40 more to that figure when the civilization is the first in the world), a **founder** (the oldest adult who leaves with a fission band: 60) and **long life** (1 point a year past 60). **Not yet wired:** battle, famine, Wonder, feast and teacher. The feast is only an ambient practice with no giver in the sim, and the others need attribution hooks (which fighter, which builder); they join in L1b with their own tests.
+- **Threshold 150, not 100.** The first measurement (two 125-minute matches, four civilizations each) gave 7 to 27 Legends born per civilization, 3 to 13 an hour, above the target of 2 to 6; the deeds that mattered were Firsts and Founders, and nobody lived past 60 so long life scored nothing. The threshold is now 150; the re-measurement is in the L1 report.
+- **Saved, but not hashed yet.** The log is an **optional snapshot trailer** (`LGND`, version 1) written only once there is anything to keep, before the guidance trailer, so a match with no scores writes the same bytes as before and older saves load with an empty log. The pending innovators and Firsts that research reported since the season began are saved too, because they are scored at the season's end. `MatchModel` does **not** fold the log into its checksum until L2, when the Legends start to change the match; until then no golden moves, which `The_log_is_not_part_of_the_match_checksum_in_phase_L1` and the four goldens prove. (The save went in during L1, not L2, because the frame now shows Legends and a resumed match must show the same ones: `A_resumed_save_shows_the_same_frames_as_the_straight_run` caught it.)
+- **Display (pulled forward from L5 at the owner's request):** a living Legend is flagged in the frame (`FigureFlags.Legend`), drawn **1.6 times larger** than the people around them (and so is their shadow, carried goods, knight or chariot), and the viewer's own wear a **gold billboard name plate** ("Ama · Founder") from `MatchFrame.Legend*`. The renderer is `world_builder.gd` (`_figures`, `_update_legend_plates`); `--legend-debug` flags every third figure as a "Test Legend" so the look can be photographed. Other civilizations' Legends are drawn larger when seen, with no plate.
+- **Known limits of the display:** the plate moves when the people update, not with the figure's glide, so it can lead a walking Legend by one step; the plate is a screen-size billboard that may overprint a settlement plate in a crowded view; a rider (knight, chariot) is larger but the plate sits at the rider's feet height.
+
+**Rate (L1, threshold 150, two 125-minute matches of four civilizations, `discovery-match --seeds 2 --grant-e5`):** 4 to 17 Legends born per civilization (12, 7, 5, 9 and 17, 4, 7, 6), about 2 to 8 an hour against the target of 2 to 6. Firsts and Founders dominate; no one reached 60 so long life scored nothing, and the innovator's 10 points rarely decide a Legend. The match checksums were identical with and without the system (`7d815c52d0c9d95a`, `99dd32ba8af5d07c`). The one high civilization (17) is the Builder; the re-tune belongs to L4, with the deeds still to wire.

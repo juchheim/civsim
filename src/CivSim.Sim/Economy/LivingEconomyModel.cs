@@ -5051,6 +5051,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         int originalResidents = parentResidents.Count;
         int parentWrite = 0;
         bool movedAny = false;
+        FigureState? founder = null; // the oldest adult who leaves leads the new settlement (docs/MVP/40 §3)
         for (int residentIndex = 0; residentIndex < originalResidents; residentIndex++)
         {
             FigureState figure = parentResidents[residentIndex];
@@ -5060,6 +5061,7 @@ public sealed partial class LivingEconomyModel : ISimModel
                 continue;
             }
             RecordIT6KitRelocation(parent.Id, daughter.Id, figure.Kit, Fix64.One);
+            if (figure.Age is >= 14 and < 60 && (founder is null || figure.Age > founder.Age)) founder = figure;
             figure.SettlementId = daughter.Id;
             figure.Camp = -1;
             figure.Role = 0;
@@ -5070,6 +5072,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             movedAny = true;
         }
         if (parentWrite < parentResidents.Count) parentResidents.RemoveRange(parentWrite, parentResidents.Count - parentWrite);
+        if (founder is not null) _foundings.Add((daughter.Id, founder.Id));
         if (movedAny)
         {
             InvalidateResidentDerived(parent.Id);
