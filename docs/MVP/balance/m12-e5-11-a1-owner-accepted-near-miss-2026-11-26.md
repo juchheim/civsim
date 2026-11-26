@@ -26,6 +26,8 @@ A broader AI change that values early research by expected population, fission, 
 
 The fresh review confirmed 20 of 21 losses had a Dominion deficit and 19 had a Thriving deficit. In seed `80000034`, the Warlord was already behind by season 120 in Dominion, population, and owned habitable weight, with no settlements captured or lost. The previous tested GOV-02 valuation changes produced 58/80 at bonuses 36 and 40 and 59/80 at 46; the frontier bonus screen stayed at 74%. These results do not identify a defensible low-risk adjustment. The separately claimed GOV-02 bonus-50 artifact was not independently located during this review and is not treated as fresh evidence.
 
+A third independent Astra review on 2026-11-26 again found no defensible A1 tuning change. It flagged a separate issue in the newer `4ecde52` candidate: queued physical-defense construction raised the defense-research urgency value that also guards GOV-02's calm-frontier posture bonus. That coupling is not an A1 remedy; it is corrected separately before the final current-source acceptance run. The early M10 attempt on `4ecde52` was stopped before any acceptance result and its partial log is explicitly non-acceptance evidence. The owner-approved A1 exception remains official; the 59/80 figure remains the measured result on the pinned candidate above, not a claim that a later candidate has remeasured 80 matches.
+
 ## Scope
 
 This exception applies to the pinned E5 candidate above. It does not claim A1 met the nominal 80% threshold, and it does not waive other AI or technical gates. In particular, the same candidate's campaign reported B28 defense coverage at 8/11 and B29 with eight forecasts missing at capture; those remain separate open items.

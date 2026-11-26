@@ -58,6 +58,17 @@ public class SparkPlannerTests
     }
 
     [Fact]
+    public void Queued_fortification_raises_research_urgency_without_suppressing_calm_GOV_02_posture_value()
+    {
+        Fix64 calm = Fix64.Zero;
+        Fix64 openFrontier = Fix64.FromRatio(75, 100);
+
+        Assert.Equal(Fix64.One, ResearchSpark.DefenseUrgencyForResearch(calm, isFief: true, physicalDefenseQueued: true));
+        Assert.Equal(calm, ResearchSpark.DefenseUrgencyForResearch(calm, isFief: false, physicalDefenseQueued: true));
+        Assert.Equal(Fix64.FromInt(27), ResearchSpark.PostureUnlockBonus(openFrontier, calm, Fix64.Zero));
+    }
+
+    [Fact]
     public void Bronze_fork_uses_only_feedable_routes_and_breaks_a_two_route_tie_toward_tin()
     {
         ResearchCatalog catalog = TestPack.Catalog;

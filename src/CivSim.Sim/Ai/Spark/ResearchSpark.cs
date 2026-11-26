@@ -379,9 +379,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         StrategicIntent intent = ctx.Intent;
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
-        Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
-        if (ctx.Research.Rules.IsFief && ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued))
-            defenseUrgency = Fix64.Max(defenseUrgency, Fix64.One);
+        // A queued fortification makes defense research more valuable. Keep that planning signal separate from the
+        // Strategist's actual conflict reading: a peaceful frontier should still value GOV-02's posture unlock.
+        Fix64 postureDefenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
+        Fix64 defenseUrgency = DefenseUrgencyForResearch(postureDefenseUrgency, ctx.Research.Rules.IsFief,
+            ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued));
         Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
         Fix64 foodNeedBonus = SparkTuning.FoodNeedBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
@@ -426,7 +428,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 // The posture guards compare normalized intent with FortifyAt, not Legacy-equivalent bonuses.
                 // Keep the older chapters' established valuation while correcting the Fief planner's units.
                 bonus += ctx.Own.FiefChapter
-                    ? PostureUnlockBonus(intent.FrontierValue, defenseUrgency, intent.AttackReadiness, postureBonus)
+                    ? PostureUnlockBonus(intent.FrontierValue, postureDefenseUrgency, intent.AttackReadiness, postureBonus)
                     : PostureUnlockBonus(frontier, defense, attack, postureBonus);
             }
             _value.Bonus[p] = bonus;
@@ -442,6 +444,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             return Fix64.Zero;
         return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * (bonusOverride ?? SparkTuning.PostureUnlockBonus);
     }
+
+    internal static Fix64 DefenseUrgencyForResearch(Fix64 intentUrgency, bool isFief, bool physicalDefenseQueued)
+        => isFief && physicalDefenseQueued ? Fix64.Max(intentUrgency, Fix64.One) : intentUrgency;
 
     private Fix64 LevelPostureUnlockBonus() => _spec.Level switch
     {
