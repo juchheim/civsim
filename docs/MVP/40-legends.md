@@ -1,6 +1,6 @@
 # 40. Legends (notable people who matter, in every era)
 
-Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13); L3 built 2026-11-27 (§14).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
+Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13); L3 built 2026-11-27 (§14); L4 measured 2026-11-27 (§15).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
 
 ## 1. The short version (what to accept)
 
@@ -172,3 +172,28 @@ ART-06's carved relief and MET-06's bronze statue now do what their rule text ha
 - **Tests (4 new, 22 in `LegendTests`):** no relief means the bonus ends with the Legend; a relief keeps the first, a Town has no statue for the second, and a statue in a City keeps it; a relief learned later remembers a Legend who already died; a remembered Legend spreads no skill.
 
 **Golden change (L3):** `tests/golden/bronze-v1.txt` checksum 72d63761f8b4484f -> 4d3716f8ab7e89e9. The match still ends at tick 43800 in season 267 with civ 3 first; a relief or a statue now remembers a dead Legend in the Bronze Age, so the Cohesion path differs from there. `research-v1`, `politics-v1` and `toy-v1` are unchanged. Gate: 1687 tests, four goldens, strict validation, game build.
+
+## 15. Phase L4 (2026-11-27): the sweeps
+
+**Question:** do Legends move any era's pacing or the archetype balance? **Method:** the same seeds on two builds, the last commit before Legends (`c49775d`) and the L3 build (`c18c642`), each with its own playtest pack. **No code or constants changed in L4: the numbers below say none needs to.**
+
+**E6 sweep** (`discovery-match --grant-e5`, 125 minutes, four civilizations a match, seeds 12345 to 12356: 12 matches and 48 seats a build).
+
+| | before Legends | with Legends |
+|---|---|---|
+| Builder: KEY-6 to KEY-7, minutes (finished seats) | 20.9 (11 of 12) | 20.9 (10 of 12) |
+| Grower | 26.0 (10 of 12) | 26.3 (10 of 12) |
+| Warlord | 25.1 (10 of 12) | 26.2 (8 of 12) |
+| Sage | 25.4 (9 of 12) | 25.4 (9 of 12) |
+| **All finished seats** | **24.2 (40 of 48)** | **24.6 (37 of 48)** |
+| Mean KEY-5, season | 373 | 372 |
+
+The mean KEY-6 to KEY-7 moved by 0.4 minute against the 25-minute target (D8). Seats that never finished in the window rose from 8 to 11 of 48; the difference is inside what 48 seats can show (about one chance in two of seeing it with no real effect), and the Warlord, the archetype I watched, went from 2 to 4 unfinished with a mean 1.1 minutes slower among those that finished. The first four seeds alone had looked worse (0 to 3 unfinished); pooling is why the wider sweep was run. Unfinished seats are mostly civilizations that were small or conquered (a traced example is a Grower of one or two small towns), which is not something Legends cause.
+
+**Faith & Fief sweep** (`fief-match`, natural play, 130 minutes, seeds 30006879 to 30006882: 16 seats a build). KEY-5 to KEY-6 averages **21.8 minutes before and 21.4 with Legends** over the seats that finished; three seats did not finish with Legends (a Grower that never reached KEY-5 and two late Warlords) against one before. Four seeds, so a smoke check, not a fit.
+
+**Archetype balance:** Legend against Warlord, 32 matches: **53% before and 53% after** (L2). The per-archetype times above show no archetype gaining or losing more than about a minute.
+
+**Legend rate** (the L3 build, 12 matches): per civilization over 125 minutes the mean is **8.3 to 10.8** (4.0 to 5.2 an hour) with a range of 1 to 17, inside the target of 2 to 6 an hour. The Builder is highest (5.2) and the Grower lowest (4.0). The deed points (innovator 10, First 40, founder 60, battle 30 and 20, famine 25, Wonder 60, long life 1) and the threshold (150) stay as they are.
+
+**Not measured:** natural play at the end of the Discovery chapter beyond 125 minutes; the Legend effects on a human player's choices (the effects are small, and the Chronicle and plate are what a player will notice); a hand playtest of the plate and the Legend size at close zoom beyond the debug capture. Those wait for the Discovery playtest.
