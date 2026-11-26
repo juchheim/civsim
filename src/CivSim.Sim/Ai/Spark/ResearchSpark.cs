@@ -23,7 +23,7 @@ namespace CivSim.Sim.Ai;
 public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 {
     private const ulong StreamPart = 0x535041524BUL; // "SPARK": the Settler's and Chieftain's prior picks
-    internal const int B29ReportHorizonSeasons = 120;
+    internal const int B29ReportHorizonSeasons = 180;
     private static readonly string[] FrontierDecisionPrerequisiteIds = { "MET-02", "SOC-07", "TRD-03", "NUM-03" };
     private static readonly Fix64 Third = Fix64.FromRatio(1, 3);
 
@@ -380,7 +380,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
         Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
-        Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
+        bool physicalDefenseQueued = ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued);
+        Fix64 defenseResearchUrgency = DefenseResearchUrgency(defenseUrgency, physicalDefenseQueued, ctx.Own.FiefChapter);
+        Fix64 defense = Fix64.Clamp(defenseResearchUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
         Fix64 foodNeedBonus = SparkTuning.FoodNeedBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
         Fix64 frontier = Fix64.Clamp(intent.FrontierValue, Fix64.Zero, Fix64.One) * SparkTuning.FrontierBonus;
@@ -440,6 +442,12 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             return Fix64.Zero;
         return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * (bonusOverride ?? SparkTuning.PostureUnlockBonus);
     }
+
+    internal static Fix64 DefenseResearchUrgency(Fix64 strategicUrgency, bool physicalDefenseQueued, bool fiefChapter)
+        => fiefChapter && physicalDefenseQueued ? Fix64.Max(strategicUrgency, Fix64.One) : strategicUrgency;
+
+    internal static bool HasFiefDefenseResearchPath(int ceilingEra)
+        => ceilingEra >= ChapterRules.Fief.LastResearchEra;
 
     private Fix64 LevelPostureUnlockBonus() => _spec.Level switch
     {
@@ -567,6 +575,10 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                     case EffectKind.Defense:
                         AddCapability(_defenseCapability, p, Fix64.One);
                         break;
+                    case EffectKind.Build when HasFiefDefenseResearchPath(_fc!.CeilingEra) &&
+                        IsPhysicalDefenseStructure(effect.Id):
+                        AddCapability(_defenseCapability, p, Fix64.One);
+                        break;
                     case EffectKind.Reach:
                         AddCapability(_reachCapability, p, Fix64.One);
                         break;
@@ -620,6 +632,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         if (HasAny(stat, "reach", "scout", "explor", "claim", "travel", "camp_move"))
             AddCapability(_reachCapability, project, ModSignal(effect));
     }
+
+    internal static bool IsPhysicalDefenseStructure(string? structure)
+        => structure is "thorn_barrier" or "lookout_post" or "palisade" or "hillfort" or "stone_walls"
+            or "gatehouse" or "frontier_wall_segment" or "castle" or "concentric_castle" or "bastion_fort"
+            or "coastal_battery" or "trench" or "radar_station";
 
     private void CacheActionCapability(int project, string? action)
     {

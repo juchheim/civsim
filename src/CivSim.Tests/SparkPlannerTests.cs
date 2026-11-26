@@ -15,6 +15,40 @@ public class SparkPlannerTests
 {
     private static readonly CivControl Warlord = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
 
+    [Theory]
+    [InlineData("palisade")]
+    [InlineData("hillfort")]
+    [InlineData("stone_walls")]
+    [InlineData("castle")]
+    [InlineData("concentric_castle")]
+    public void Physical_defense_build_unlocks_are_classified_as_defense_research(string structure)
+    {
+        Assert.True(ResearchSpark.IsPhysicalDefenseStructure(structure));
+        Assert.False(ResearchSpark.IsPhysicalDefenseStructure("market"));
+    }
+
+    [Fact]
+    public void Queued_physical_defense_prioritizes_research_only_in_Fief_without_signaling_conflict()
+    {
+        Fix64 frontier = Fix64.FromRatio(75, 100);
+        Fix64 strategicUrgency = Fix64.Zero;
+
+        Assert.Equal(Fix64.One, ResearchSpark.DefenseResearchUrgency(strategicUrgency,
+            physicalDefenseQueued: true, fiefChapter: true));
+        Assert.Equal(strategicUrgency, ResearchSpark.DefenseResearchUrgency(strategicUrgency,
+            physicalDefenseQueued: true, fiefChapter: false));
+        Assert.Equal(Fix64.FromInt(27), ResearchSpark.PostureUnlockBonus(frontier, strategicUrgency, Fix64.Zero));
+    }
+
+    [Fact]
+    public void Physical_defense_build_capabilities_are_available_only_to_Fief_and_later_chapters()
+    {
+        Assert.False(ResearchSpark.HasFiefDefenseResearchPath(ChapterRules.Bronze.LastResearchEra));
+        Assert.False(ResearchSpark.HasFiefDefenseResearchPath(ChapterRules.Iron.LastResearchEra));
+        Assert.True(ResearchSpark.HasFiefDefenseResearchPath(ChapterRules.Fief.LastResearchEra));
+        Assert.True(ResearchSpark.HasFiefDefenseResearchPath(ChapterRules.Discovery.LastResearchEra));
+    }
+
     [Fact]
     public void Posture_unlock_value_favors_GOV_02_only_for_open_frontiers_without_urgent_conflict()
     {
