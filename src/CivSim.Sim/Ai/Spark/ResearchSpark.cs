@@ -118,7 +118,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         {
             LastB29ReportForecastForDiagnostics = null;
         }
-        Ensure(ctx.Catalog, ctx.Research.Rules.LastResearchEra);
+        Ensure(ctx.Catalog, ctx.Research.Rules.LastResearchEra, ctx.Research.Rules.IsFief);
         ForecastCatalog fc = _fc!;
         AiResearchPort port = ctx.Research;
         var readout = new PortReadout(port);
@@ -218,7 +218,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private bool IsDefenseResearchProject(int project)
         => project >= 0 && project < _lineageCode.Length && _lineageCode[project] is "DEF" or "WAR";
 
-    private void Ensure(ResearchCatalog catalog, int ceilingEra)
+    private void Ensure(ResearchCatalog catalog, int ceilingEra, bool includeFiefDefenseBuilds)
     {
         if (_fc is not null && ReferenceEquals(_fc.Catalog, catalog) && _fc.CeilingEra == ceilingEra) return;
         _fc = new ForecastCatalog(catalog, ceilingEra);
@@ -249,7 +249,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             _frontierDecisionPrerequisites[i] = catalog.IndexOf(FrontierDecisionPrerequisiteIds[i]);
         _frontierDecisionPreviousProgress = new Fix64[_frontierDecisionPrerequisites.Length];
         _frontierDecisionProgressCaptured = false;
-        CacheCapabilities(catalog);
+        CacheCapabilities(catalog, includeFiefDefenseBuilds);
     }
 
     /// <summary>The archetype's Leaning (14 §9.1, the archetypes registry): style, and which Era Boon the civilization takes.</summary>
@@ -380,7 +380,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
         Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
-        if (ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued))
+        if (ctx.Research.Rules.IsFief && ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued))
             defenseUrgency = Fix64.Max(defenseUrgency, Fix64.One);
         Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
         Fix64 foodNeedBonus = SparkTuning.FoodNeedBonus;
@@ -530,7 +530,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     }
 
     /// <summary>Cache capability classes from structured effect fields; effect prose is deliberately not interpreted.</summary>
-    private void CacheCapabilities(ResearchCatalog catalog)
+    private void CacheCapabilities(ResearchCatalog catalog, bool includeFiefDefenseBuilds)
     {
         Array.Clear(_foodCapability);
         Array.Clear(_leanCapability);
@@ -569,7 +569,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                     case EffectKind.Defense:
                         AddCapability(_defenseCapability, p, Fix64.One);
                         break;
-                    case EffectKind.Build when IsPhysicalDefenseStructure(effect.Id):
+                    case EffectKind.Build when includeFiefDefenseBuilds && IsPhysicalDefenseStructure(effect.Id):
                         AddCapability(_defenseCapability, p, Fix64.One);
                         break;
                     case EffectKind.Reach:
