@@ -1,3 +1,4 @@
+using System;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
@@ -159,4 +160,53 @@ public sealed partial class LivingEconomyModel
         Fix64 sight = Modifier(s.Civilization, "tower_sight");
         return sight > Fix64.One ? ((sight - Fix64.One) * LookoutSight).RoundToInt() : 0;
     }
+
+    // ---- WAR-13: the musket rung ----------------------------------------------------------------------------------------------------------------
+
+    /// <summary>Muskets exist for a civilization that has the drill project, in a Discovery match.</summary>
+    internal bool MusketsKnown(int civ) => DiscoveryChain && Done(civ, "WAR-13");
+
+    /// <summary>The most muskets a settlement finishes in one season: iron is the limit, and a town does not turn its stores into guns at once.</summary>
+    internal const int MusketsPerSeason = 3;
+
+    /// <summary>
+    /// The levy's musket want (docs/MVP/38 §5.6): after WAR-13, one musket for each levy fighter (the same count the bows target, at most 40 a town), made at a forge from
+    /// wrought iron, wood and cord, in a season of enough food and from no more than half the cut wood above the reserve, at most <see cref="MusketsPerSeason"/> a season.
+    /// A musket counts against the weapons a town holds, so the crossbows and longbows it replaces are not made again as they wear out.
+    /// </summary>
+    private void DiscoveryMusketWants(SettlementState s, MetalPlan plan)
+    {
+        if (!MusketsKnown(s.Civilization) || s.FoodSecurity < LevyBowFoodFloor) return;
+        int slot = DiscoverySlot(DiscoveryGood.Musket);
+        int held = Stock(s, slot).FloorToInt();
+        int deficit = Math.Min(MusketsPerSeason, LevyBowTarget(s) - held);
+        if (deficit <= 0) return;
+        CompiledRecipe? recipe = ProducerOf(slot);
+        if (recipe is null || !RecipeAvailable(s, recipe)) return;
+        Fix64 wood = InputOf(recipe, (int)Good.Wood), iron = InputOf(recipe, IronSlot(IronGood.Wrought));
+        Fix64 spareWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve) * LevyBowWoodShare;
+        Fix64 ironInStore = IronStock(s, IronGood.Wrought) + AvailableStock(s, MetalSlot(MetalGood.Iron));
+        Fix64 make = Fix64.FromInt(deficit);
+        if (wood > Fix64.Zero) make = Fix64.Min(make, spareWood / wood);
+        if (iron > Fix64.Zero) make = Fix64.Min(make, ironInStore / iron);
+        make = Fix64.Max(Fix64.Zero, make);
+        if (make > Fix64.Zero) plan.Terminal[slot] += Stock(s, slot) + make;
+    }
+
+    /// <summary>A musket in store wears out by the registry's service life (40 seasons), like a crossbow. Discovery only.</summary>
+    private void WearMuskets(SettlementState s)
+    {
+        if (!DiscoveryChain) return;
+        int slot = DiscoverySlot(DiscoveryGood.Musket);
+        Fix64 stock = Stock(s, slot);
+        if (stock <= Fix64.Zero) return;
+        int t = _content.TradeGoodIndex("G-MUSKET");
+        int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+        if (seasons > 0) AddStock(s, slot, AgeCraftedDurableGood(s, "G-MUSKET", stock, seasons) - stock);
+    }
+
+    /// <summary>Muskets a settlement holds now (a Discovery match with WAR-13; zero otherwise).</summary>
+    public int MusketsAt(int settlementIndex)
+        => (uint)settlementIndex < (uint)_settlements.Count && MusketsKnown(_settlements[settlementIndex].Civilization)
+            ? Stock(_settlements[settlementIndex], DiscoverySlot(DiscoveryGood.Musket)).FloorToInt() : 0;
 }

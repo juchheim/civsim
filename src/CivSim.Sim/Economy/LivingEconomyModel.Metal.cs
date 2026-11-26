@@ -1480,7 +1480,7 @@ public sealed partial class LivingEconomyModel
         foreach (string id in new[]
         {
             "G-ARMS1", "G-ARMS2A", "G-ARMS2T", "G-ARMS3", "G-ARMS4", "G-ARMS5",
-            "G-WHEEL", "G-CROSSBOW", "G-LONGBOW", "G-CHARIOT", "G-ENGINE", "G-CANNON", "G-POWDER",
+            "G-WHEEL", "G-CROSSBOW", "G-LONGBOW", "G-CHARIOT", "G-ENGINE", "G-CANNON", "G-POWDER", "G-MUSKET",
         })
             if (SlotOf(id) == outputSlot) return true;
         return false;
@@ -1624,6 +1624,7 @@ public sealed partial class LivingEconomyModel
         if (Done(civ, "MET-08")) Want(MetalGood.Iron, IronChain ? IronWoodFactor(s, m) : Fix64.One);
         if (Done(civ, "MIN-06")) Want(MetalGood.Salt, Fix64.One);
         FiefBowWants(s, m, plan);
+        DiscoveryMusketWants(s, plan);
         FiefLearningWants(s, plan);
         // Food, fuel, tools and transport maintenance above keep their normal priority. Military readiness is a
         // secondary target: cover the fighting-age population with ordinary arms, then separately upgrade posts.

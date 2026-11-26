@@ -143,3 +143,4 @@ goods:
   - {id: G-PAMPHLET, name: Pamphlets and broadsheets, category: material, first_from: [COM-11], durability: durable, load: 0.05, barter: 1, introduced_era: 6}
   - {id: G-CHRONOMETER, name: Marine chronometer, category: tool, first_from: [WAY-10], durability: 120 seasons, load: 0.1, barter: 120, introduced_era: 6}
   - {id: G-TELESCOPE, name: Telescope, category: tool, first_from: [INQ-07], durability: 80 seasons, load: 0.2, barter: 50, introduced_era: 6}
+  - {id: G-MUSKET, name: Musket, category: arms, first_from: [WAR-13], durability: 40 seasons, load: 0.6, barter: 10, introduced_era: 6}

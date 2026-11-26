@@ -83,6 +83,12 @@ public static class Combat
     /// <summary>WAR-11 crossbow and longbow weapon strength (docs/MVP/balance/tools/e5_combat_oracle.py): 2.0, used by a levy with no drilling (training 1.0).</summary>
     public static readonly Fix64 BoltStrength = Fix64.FromInt(2);
 
+    /// <summary>
+    /// WAR-13 musket weapon strength (docs/MVP/balance/tools/e6_combat_oracle.py Part 4): 2.8, between a plain iron edge (2.4) and a tempered one (3.0), in a levy's
+    /// hands with training 1.0 (the drill then multiplies it). Like a bolt it ignores the shield casualty reduction.
+    /// </summary>
+    public static readonly Fix64 MusketStrength = Fix64.FromRatio(28, 10);
+
     public static Fix64 MilitiaStrength(string weapon) => E3WeaponStrength(weapon) * Fix64.FromRatio(6, 10);
     public static Fix64 ShieldCasualtyFactor(Fix64 shieldedShare)
         => Fix64.One - Fix64.FromRatio(3, 10) * Fix64.Clamp(shieldedShare, Fix64.Zero, Fix64.One);

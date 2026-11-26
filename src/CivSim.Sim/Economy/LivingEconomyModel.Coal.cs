@@ -20,6 +20,8 @@ public sealed partial class LivingEconomyModel
         Coal, Coke,
         // The glass-and-instruments chain (docs/MVP/38 §5.3, M13 WP-E6-7 slice 3): appended after coal and coke, written to Discovery snapshots only.
         Alkali, Acid, PlateGlass, Parts, Chronometer, Telescope,
+        // The musket rung of the levy's arms (docs/MVP/38 §5.6, M13 WP-E6-9 slice 2): appended after the instruments, Discovery snapshots only.
+        Musket,
         Count
     }
 
@@ -27,7 +29,7 @@ public sealed partial class LivingEconomyModel
     {
         DiscoveryGood.Coal => "G-COAL", DiscoveryGood.Coke => "G-COKE",
         DiscoveryGood.Alkali => "G-ALKALI", DiscoveryGood.Acid => "G-ACID", DiscoveryGood.PlateGlass => "G-PLATEGLASS",
-        DiscoveryGood.Parts => "G-PARTS", DiscoveryGood.Chronometer => "G-CHRONOMETER", DiscoveryGood.Telescope => "G-TELESCOPE", _ => "",
+        DiscoveryGood.Parts => "G-PARTS", DiscoveryGood.Chronometer => "G-CHRONOMETER", DiscoveryGood.Telescope => "G-TELESCOPE", DiscoveryGood.Musket => "G-MUSKET", _ => "",
     };
 
     private static int DiscoverySlotBase => BowSlotBase + (int)BowGood.Count;

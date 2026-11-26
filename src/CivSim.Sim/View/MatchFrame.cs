@@ -163,6 +163,8 @@ public sealed class MatchFrame
     /// viewer only remembers, and where a kind is not yet known to its civilization. The figures carrying bows follow these shares.
     /// </summary>
     public byte[] SettlementBowPct = Array.Empty<byte>();
+    /// <summary>One byte per settlement: the percent of its fighting-age people holding a musket (WAR-13, Discovery only; zero elsewhere). The drilled levy's look follows it.</summary>
+    public byte[] SettlementMusketPct = Array.Empty<byte>();
     /// <summary>Structure kind under construction, -1 none.</summary>
     public sbyte[] SettlementBuildKind = Array.Empty<sbyte>();
     /// <summary>Its labor done, permille.</summary>
@@ -499,6 +501,7 @@ public sealed class MatchFrame
 
     internal void EnsureSettlements(int n)
     {
+        Ensure(ref SettlementMusketPct, n);
         Ensure(ref SettlementBowPct, n * 3);      // three bytes a settlement, so it grows on its own count, not the one-a-settlement arrays'
         if (SettlementIndex.Length < n)
         {

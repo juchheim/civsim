@@ -300,6 +300,13 @@ internal static class DiscoveryMatchCommand
             goodTotals.Append($"{good}={total.ToDoubleForDisplay():F1} ");
         }
         Console.WriteLine("  goods: " + goodTotals.ToString().TrimEnd());
+        var musketsOf = new int[civs];
+        for (int s = 0; s < settlements; s++)
+        {
+            int owner = match.Economy.SettlementLite(s).Civilization;
+            if ((uint)owner < (uint)civs) musketsOf[owner] += match.Economy.MusketsAt(s);
+        }
+        Console.WriteLine("  muskets held: " + string.Join(", ", Enumerable.Range(0, civs).Select(c => $"civ{c}={musketsOf[c]}")));
         if (Environment.GetEnvironmentVariable("CIVSIM_CHAINDIAG") == "1")
         {
             const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;

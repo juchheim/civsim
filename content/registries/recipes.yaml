@@ -75,3 +75,4 @@ recipes:
   - {id: print_pamphlet, name: Print pamphlets, unlocked_by: [COM-11], structure: [print_shop], inputs: {G-PAPER: 1, G-PIGMENT: 0.02}, outputs: {G-PAMPHLET: 8}, labor: 0.4, order: 82, practice: scribe}
   - {id: make_chronometer, name: Make a chronometer, unlocked_by: [WAY-10], structure: [forge], inputs: {G-PARTS: 3, G-STEEL: 0.2}, outputs: {G-CHRONOMETER: 1}, labor: 6, order: 83, practice: craft}
   - {id: make_telescope, name: Make a telescope, unlocked_by: [INQ-07], inputs: {G-PLATEGLASS: 1, G-PARTS: 1, G-WOOD: 0.2}, outputs: {G-TELESCOPE: 1}, labor: 2, order: 84, practice: craft}
+  - {id: make_musket, name: Make a musket, unlocked_by: [WAR-13], structure: [forge], inputs: {G-WOOD: 0.5, "G-WROUGHT|G-IRON": 0.4, G-CORD: 0.1}, outputs: {G-MUSKET: 1}, labor: 0.8, order: 66, practice: craft, note: "powder and shot folded into the weapon (docs/MVP/36 §2); a Discovery levy arm (docs/MVP/38 §5.6)"}

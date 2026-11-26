@@ -115,6 +115,27 @@ def part_levy():
     print("  force, which is the intent. It needs GOV-12, so it cannot appear before the state exists.")
 
 
+def part_musket():
+    print("\n== Part 4: the musket rung (WAR-13 levy firearm, strength 2.8, ignores shields, P) against 20 shielded steel professionals")
+    infantry = e3.fmul(e5c.STEEL, e5c.PRO)
+    inf = e5c.fighters(20, infantry, 5000)
+    rows = (
+        ("undrilled iron levy (2.4)", e3.fmul(e3.fx(24, 10), e3.MILITIA), e5c.SHIELD),
+        ("drilled iron levy (2.4 x1.5)", e3.fmul(e3.fmul(e3.fx(24, 10), e3.MILITIA), e3.fx(15, 10)), e5c.SHIELD),
+        ("drilled crossbow levy (2.0 x1.5, training 1.0, bolts ignore shields)", e3.fmul(e3.fx(20, 10), e3.fx(15, 10)), None),
+        ("drilled musket levy (2.8 x1.5, training 1.0, ignores shields)", e3.fmul(e3.fx(28, 10), e3.fx(15, 10)), None),
+    )
+    for label, s, shield in rows:
+        n = None
+        for k in range(5, 120):
+            if e5c.duel(e5c.fighters(k, s), inf, None, e5c.SHIELD if shield is not None else None, trials=40)[0] >= 0.5:
+                n = k
+                break
+        print(f"  smallest {label} host that beats 20 shielded steel professionals half the time: {n}")
+    print("  Reading: a drilled musket host nearly matches the professionals man for man (23 against 20), 5 fewer than a drilled crossbow host and 15 fewer than a drilled iron one.")
+    print("  That is the intended reach of the drill, bought with iron: 0.4 wrought iron, 0.5 wood and 0.1 cord a musket, at most three a season and 40 a town, so a realm arms its levy over years.")
+
+
 def check():
     # Live constants hand-checked against Raids.cs.
     assert e5c.breach_seasons(1, WALL) == 2 and e5c.breach_seasons(3, WALL) == 1
@@ -145,3 +166,4 @@ if __name__ == "__main__":
         part_breach()
         part_storm()
         part_levy()
+        part_musket()

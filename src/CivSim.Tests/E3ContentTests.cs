@@ -86,7 +86,7 @@ public class E3ContentTests
     {
         (ContentSet set, Report report) = Validated();
         Registry recipes = set.Reg("recipes");
-        Assert.Equal(68, recipes.Records.Count); // 30 legacy recipes, 13 additive E4 recipes, 14 additive E5 recipes (pig iron was dropped in WP-E5-5; make_longbow added, docs/MVP/36) and 11 additive E6 recipes (docs/MVP/38).
+        Assert.Equal(69, recipes.Records.Count); // 30 legacy recipes, 13 additive E4 recipes, 14 additive E5 recipes (pig iron was dropped in WP-E5-5; make_longbow added, docs/MVP/36) and 12 additive E6 recipes (docs/MVP/38; make_musket added, docs/MVP/balance/m13-wp9-musket-slice2.md).
         ContentValue smelt = recipes.Find("smelt_copper")!;
         Assert.Equal(20, smelt.GetInt("order"));
         Assert.True(smelt.Get("bellows")!.BoolValue);
@@ -103,7 +103,7 @@ public class E3ContentTests
         ContentPack? pack = PackBuilder.Build(set, report);
         Assert.True(pack is not null, ContentFixture.Describe(report));
         ContentValue regs = pack!.Root.Get("registries")!;
-        Assert.Equal(68, regs.Get("recipes")!.Items.Count);
+        Assert.Equal(69, regs.Get("recipes")!.Items.Count);
         ContentValue scribe = regs.Get("roles")!.Items.Single(r => r.GetString("id") == "scribe");
         Assert.Equal("COM-05", scribe.GetString("unlocked_by"));
         Assert.NotNull(scribe.GetString("staffing"));

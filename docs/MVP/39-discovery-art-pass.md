@@ -173,7 +173,7 @@ Figure budget is unchanged: **at most 600 per civilization**; the sim stays 1:1 
 | Master mason | the E5 master mason (a P2 figure in doc 32, not built yet; build it once for both Wonders) | Palace site | P2 |
 | Colonist group | a handful of figures with bundles and tools at a beached caravel | at a new colony on founding | P2 |
 
-Notes: the drilled levy needs a `LOOK_DRILL` bit (§9): before WAR-13 the E5 crossbow, longbow and gunner figures stay; after it, the levy takes the coat-and-ranks variant. The sim has no typed musketeer role yet (doc 38 WP-E6-9 "musket rung" remaining); the wiring waits for it, as decided in §12. **No new figure mesh is needed for this:** `person_pikeman`, `person_musketeer`, `person_rifleman` and `field_gun` already exist from the WAR-13/14 levy art (doc 35 §7, `art_fief_people.gd`), so only the `LOOK_DRILL` switch is left.
+Notes: the drilled levy needs a `LOOK_DRILL` bit (§9): before WAR-13 the E5 crossbow, longbow and gunner figures stay; after it, the levy takes the coat-and-ranks variant. The sim now holds the musket (doc 38 WP-E6-9 slice 2, 2026-11-26): `MatchFrame.SettlementMusketPct` is the share of a settlement's fighters holding one, so the `LOOK_DRILL` switch can follow it; the wiring is not done. As decided in §12. **No new figure mesh is needed for this:** `person_pikeman`, `person_musketeer`, `person_rifleman` and `field_gun` already exist from the WAR-13/14 levy art (doc 35 §7, `art_fief_people.gd`), so only the `LOOK_DRILL` switch is left.
 
 ## 7. Ships, flows and the open sea
 

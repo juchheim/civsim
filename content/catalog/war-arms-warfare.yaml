@@ -168,8 +168,9 @@ projects:
     status: numeric
     requires: [WAR-12, GOV-12]
     effects:
+      - {kind: good, id: "G-MUSKET"}
       - {kind: mod, stat: levy_strength, op: mult, value: 1.5, note: "a drilled national levy with muskets; needs GOV-12 (P)"}
-      - {kind: combat, text: "Pike and musket drill is a fixed-ratio row on the existing combat tables, fitted against the F-T5 force tables (P). In the sim a civilization with WAR-13 and GOV-12 fights its levy (not its professionals or warriors) at x1.5 (e6_combat_oracle.py Part 3)."}
+      - {kind: combat, text: "Pike and musket drill is a fixed-ratio row on the existing combat tables, fitted against the F-T5 force tables (P). In the sim a civilization with WAR-13 and GOV-12 fights its levy (not its professionals or warriors) at x1.5 (e6_combat_oracle.py Part 3). A levy fighter who holds a musket (made at a forge from wrought iron, wood and cord; one per levy fighter, at most 40 a town) fights with strength 2.8 that ignores shields, and the drill multiplies it (e6_combat_oracle.py Part 4)."}
     practice: [{action: fight, share: 100}]
     flavor: "The line holds because every man knows his place."
     moment: "A column of pikemen and musketeers advances in step."
