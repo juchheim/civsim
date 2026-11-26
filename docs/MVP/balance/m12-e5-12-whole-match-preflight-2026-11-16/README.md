@@ -1,6 +1,8 @@
 # WP-E5-12 whole-match held-out preflight — 2026-11-16
 
-**State:** preparation only. The seed manifest below is fresh and unscreened. The pinned per-match runner and mock fixtures are integrated in the canonical checkout; `python3 docs/MVP/balance/tools/test_run_wp_e5_12_whole_match.py` passed 4/4. No production matches were run. This plan is not launch-ready until WP-E5-11 promotion and one clean final Release freeze exist.
+**Current status — 2026-11-26:** The user explicitly enabled all 50 numeric rows before acceptance, so a second promotion step is not required. The 80-world natural holdout remains unused and must run once against a clean, final Release freeze. The runner now adds report-only observers for power, health, arms lifecycle, institutions, siege, WP-E5-7 denominators, territory, and sea routes so the same matches also support the compatible F-T measurements. Its focused fixtures pass 4/4.
+
+**Historical 2026-11-16 preflight:** preparation only; no production matches were run at that time. The seed manifest below remains fresh and unscreened.
 
 ## Cohort
 
@@ -10,16 +12,16 @@ The reserved 2026-11-15 block is 33,000,000–33,000,079. WP-E5-7 currently rese
 
 ## Final freeze requirements
 
-WP-E5-11 must first promote all 50 rows as one change and finish the integrated Release freeze. Do not use the known `bd0f4b8…` / `5ee659bd…` diagnostic candidate or its older pack/DLLs as WP-E5-12 acceptance inputs. At freeze, record and independently recheck:
+All 50 rows are already numeric and standard Fief launches are enabled by user direction. Freeze this current integrated state; do not change catalog statuses as part of the cohort. Do not use the known `bd0f4b8…` / `5ee659bd…` diagnostic candidate or its older pack/DLLs as WP-E5-12 acceptance inputs. At freeze, record and independently recheck:
 
 - Clean committed candidate HEAD and tree SHA.
 - `content+src+game` source aggregate SHA and complete source file manifest SHA.
-- Final promoted numeric pack SHA-256.
+- Final numeric pack SHA-256.
 - Adjacent Release `CivSim.Harness.dll` and `CivSim.Sim.dll` SHA-256 values.
 - Frozen WP-E5-12 runner source SHA-256 and its required helper/tool SHA-256 values.
 - Manifest SHA above, 130-minute horizon, and no `--grant-e5` command mode.
 
-All pin fields are intentionally pending because no clean final freeze exists. Recompute them after promotion; never copy old candidate pins into the run record.
+The pins in this historical preflight are intentionally placeholders. Fill them from the clean final freeze immediately before the run; never copy old candidate pins into the run record.
 
 ## Runner audit / launch blocker
 
@@ -31,7 +33,7 @@ The WP-E5-12 whole-match runner is now integrated at `docs/MVP/balance/tools/run
 4. Writes a row for every manifest seed even after an error: `complete`, `match-ended-early`, `process-error`, `parse-error`, `replay-missing`, `replay-verification-failed`, `provenance-changed`, `runner-error`, `not-started-after-runner-error`, or `not-started-after-provenance-change`. A nonzero process exit, missing output, parse failure, changed pin, or bad replay is never dropped or replaced under this manifest.
 5. Rechecks candidate pins before and after every match and refuses the entire run if the checkout is dirty or any input/tool hash changes.
 
-The canonical wrapper is `run_wp_e5_12_whole_match.py` (SHA-256 `7527ed5a4e745cbc86e54727da844e123303786e4f8033ceeda5c37ea46fb555`); its `cohort_provenance.py` helper is `496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a`. Fixture file: `test_run_wp_e5_12_whole_match.py` (SHA-256 `4d10c84cb94cd3486238ab6cd9bc734240a5a72c942f662776e00d156ef3e829`). Do not run against this plan’s candidate placeholders; re-freeze these tool bytes with the final WP-E5-11 source and record all `final-freeze-pins.template.json` values.
+The canonical wrapper is `run_wp_e5_12_whole_match.py` (SHA-256 `fa7790a9355891b8b5716634ab5cecd86c7cf319daf4dc814613fdf4eae0d068`); its `cohort_provenance.py` helper is `496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a`. Fixture file: `test_run_wp_e5_12_whole_match.py` (SHA-256 `bfeade175ed573a86ee1dafa960b3ed0a9a049dd134dbcf90363ba0a8ee8fb52`). Recompute these pins if either tool changes.
 
 After freeze, invoke the wrapper once against a new absent output root:
 
@@ -45,7 +47,7 @@ python3 docs/MVP/balance/tools/run_wp_e5_12_whole_match.py \
   --expected-source-aggregate-sha256 "$FINAL_SOURCE_AGGREGATE" \
   --expected-pack-sha256 "$FINAL_PACK_SHA256" \
   --expected-harness-sha256 "$FINAL_HARNESS_SHA256" --expected-sim-sha256 "$FINAL_SIM_SHA256" \
-  --expected-runner-sha256 7527ed5a4e745cbc86e54727da844e123303786e4f8033ceeda5c37ea46fb555 \
+  --expected-runner-sha256 fa7790a9355891b8b5716634ab5cecd86c7cf319daf4dc814613fdf4eae0d068 \
   --expected-provenance-helper-sha256 496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a \
   --output-root "$OUTPUT_ROOT"
 ```
@@ -57,8 +59,13 @@ dotnet "$HARNESS_DLL" fief-match \
   --pack "$FINAL_PACK" \
   --seed "$SEED" \
   --minutes 130 \
-  --record-dir "$OUTPUT_ROOT/replays/$SEED"
+  --record-dir "$OUTPUT_ROOT/replays/$SEED" \
+  --fief-power-ledger --fief-health-trace --fief-arms-lifecycle-trace \
+  --fief-institution-trace --fief-siege-trace --fief-siege-strategist-trace \
+  --fief-wp7-trace --fief-territory-trace --fief-sea10-trace
 ```
+
+The 2026-11-26 closeout update adds these report-only observers to the wrapper. They let this same 80-world natural holdout measure F-T2, F-T5, F-T6, F-T7, F-T8, SEA-10, the arms-production lag, and WP-E5-7 event denominators while preserving the 130-minute replay-verified whole matches. The WP7 observer is not the paired treatment/control experiment; the F-T3 fixture, F-T4 food/capacity anchors, and WP7 paired cohort remain separate because they use different controlled inputs.
 
 Capture combined stdout/stderr to `$OUTPUT_ROOT/logs/$SEED.log`. `--record-dir` must be a new directory for every seed; do not create it before the Harness call. The runner invokes the pinned Harness replay-index command once per successful replay, using that seed's one-line manifest and the same pack, and writes the index JSON under `replay-index/$SEED.json`. Preserve raw logs/replays and record each replay’s verification status, final checksum, and index metadata. Do not infer success from an exit code alone.
 
@@ -79,7 +86,7 @@ This root was absent when this plan was prepared. Create a separate new attempt 
 
 ## Separate human gate
 
-The 80-match study does not satisfy B5-12 comprehension. After WP-E5-11 promotion and final Fief view availability, the human gate still requires eight real, uncoached participants using the same final build and the exact task/questions/scoring in `m12-e5-12-human-session-kit.md`. Keep anonymous IDs and verbatim responses; do not teach mechanics. Pass remains at least 5/8 participants demonstrating both one mill/fuel bottleneck and one faith or money effect. Simulation output cannot replace those sessions.
+The 80-match study does not satisfy B5-12 comprehension. After final Fief view availability, the human gate still requires eight real, uncoached participants using the same final build and the exact task/questions/scoring in `m12-e5-12-human-session-kit.md`. Keep anonymous IDs and verbatim responses; do not teach mechanics. Pass remains at least 5/8 participants demonstrating both one mill/fuel bottleneck and one faith or money effect. Simulation output cannot replace those sessions.
 
 ## Evidence basis
 
