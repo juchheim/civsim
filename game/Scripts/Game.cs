@@ -456,10 +456,6 @@ public partial class Game : Node3D
     /// <summary>Pretend a few people are Legends so the larger figure and the name plate can be inspected (<c>--legend-debug</c>).</summary>
     private static readonly bool LegendDebug = OS.GetCmdlineUserArgs().Contains("--legend-debug");
 
-    private static string LegendDeedWord(LegendDeed deed) => deed switch
-    {
-        LegendDeed.Innovator => "Innovator", LegendDeed.First => "First discoverer", LegendDeed.Founder => "Founder", LegendDeed.LongLife => "Elder of the folk", _ => "",
-    };
 
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
         MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null,

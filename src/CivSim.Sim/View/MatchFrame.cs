@@ -180,6 +180,8 @@ public sealed class MatchFrame
     public int[] LegendDetail = Array.Empty<int>();
     /// <summary>The generated name code; <see cref="CivSim.Sim.Legends.LegendNames.Compose"/> turns it into text.</summary>
     public int[] LegendName = Array.Empty<int>();
+    /// <summary>1 when a dead Legend's memory is kept by a relief or a statue (ART-06, MET-06), else 0.</summary>
+    public byte[] LegendRemembered = Array.Empty<byte>();
     /// <summary>Structure kind under construction, -1 none.</summary>
     public sbyte[] SettlementBuildKind = Array.Empty<sbyte>();
     /// <summary>Its labor done, permille.</summary>

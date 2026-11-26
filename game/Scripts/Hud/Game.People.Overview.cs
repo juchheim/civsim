@@ -135,6 +135,7 @@ public partial class Game
         body.AddChild(PeopleColumn(0.4f, limits, needs));
         content.AddChild(body);
         content.AddChild(BuildDiscoverySection().Panel);
+        content.AddChild(BuildLegendsSection().Panel);
 
         PeopleSection table = NewPeopleSection("Your settlements", "SettlementsTable");
         _settlementsPanel = table.Panel;
@@ -298,6 +299,7 @@ public partial class Game
         RefreshGrowthBars(frame, foodCap, housingCap);
         RefreshWellbeing(frame);
         RefreshDiscoverySection(frame);
+        RefreshLegendsSection(frame);
         RefreshSettlementsTable(frame);
     }
 

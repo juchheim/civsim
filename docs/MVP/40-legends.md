@@ -1,6 +1,6 @@
 # 40. Legends (notable people who matter, in every era)
 
-Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13); L3 built 2026-11-27 (§14); L4 measured 2026-11-27 (§15).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
+Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13); L3 built 2026-11-27 (§14); L4 measured 2026-11-27 (§15); L5 built 2026-11-27 (§16).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
 
 ## 1. The short version (what to accept)
 
@@ -197,3 +197,15 @@ The mean KEY-6 to KEY-7 moved by 0.4 minute against the 25-minute target (D8). S
 **Legend rate** (the L3 build, 12 matches): per civilization over 125 minutes the mean is **8.3 to 10.8** (4.0 to 5.2 an hour) with a range of 1 to 17, inside the target of 2 to 6 an hour. The Builder is highest (5.2) and the Grower lowest (4.0). The deed points (innovator 10, First 40, founder 60, battle 30 and 20, famine 25, Wonder 60, long life 1) and the threshold (150) stay as they are.
 
 **Not measured:** natural play at the end of the Discovery chapter beyond 125 minutes; the Legend effects on a human player's choices (the effects are small, and the Chronicle and plate are what a player will notice); a hand playtest of the plate and the Legend size at close zoom beyond the debug capture. Those wait for the Discovery playtest.
+
+## 16. Phase L5 as built (2026-11-27): the HUD
+
+View only: no simulation state, no golden. The plate and the larger figure came with L1 (§11); L5 adds what the player reads.
+
+- **Toast:** when one of the viewer's people becomes a Legend, a "A Legend is told of" toast names them and what they did, with a **Show** button that moves the camera to their settlement.
+- **Chronicle:** a line for each new Legend ("Dadomi of the Sun Folk held the field at Goldhold, and is now told of as a Legend.") and one when a Legend dies, saying whether a relief or a statue keeps their name ("A carved memory keeps their name in Goldhold.") or the settlement mourns. Both are in the People class, so they show under **Yours**.
+- **People sheet, Overview tab:** a **Legends** section lists the viewer's living Legends first, then the dead (marked "died", with "remembered in stone" or "mourned"), each with the deed in a sentence and a **Show** button for the living. It says what a Legend does (steadies a town and its fighters) and that a relief keeps one in memory, and shows a short hint when there are none yet.
+- **Deed words:** Innovator, First discoverer, Founder, Hero of the field (battle), Kept faith through famine, Builder of a Wonder, Elder of the folk (long life). The same words follow the name on the map plate.
+- **How it works:** `Game.Legends.cs` reads the frame's `Legend*` arrays (the viewer's own, newest 32; a new `LegendRemembered` byte comes from `LegendSystem.IsRemembered`) and remembers which figure ids it has already announced, so the simulation's event ring is untouched. The first frame primes the set silently, so Legends already there when a save loads are not announced again.
+- **Capture:** `--scenario=legends --legend-debug` fakes three Legends a few frames in (a founder, a First and a hero) and lets the hero die with a relief; the shots are the toasts, the Chronicle, the people sheet and the Chronicle after the death.
+- **Left for later:** a marker or glow on the map beyond the plate and size; a Chronicle line for a rival's Legend (rivals' Legends only grow larger on the map); the people sheet's per-settlement scope (it lists all of the viewer's Legends whatever scope is chosen).
