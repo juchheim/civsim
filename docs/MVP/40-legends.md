@@ -1,6 +1,6 @@
 # 40. Legends (notable people who matter, in every era)
 
-Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
+Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13); L3 built 2026-11-27 (§14).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
 
 ## 1. The short version (what to accept)
 
@@ -158,4 +158,17 @@ How the pieces talk: the economy asks an `ILegendEffects` (Cohesion points, spre
 
 **Two things found by the gate.** (1) A first version queued each founder in the economy until the season's end; a fission can happen mid-season, so a snapshot caught founders that the restored match did not have, and two resume tests (`A_restored_match_deep_in_the_Bronze_Age...`, the siege resume) failed. Founders are now scored the moment the daughter settlement exists, so there is no queue to lose. (2) Two scenario tests are written for one seed's exact trajectory and Legends moved it: the Bronze fog-fairness test moved from seed 20261022 to 20261024 (the next that fits), and the Strategist scenarios now play with the Legend effects off (`StrategistRig`), since they check decisions on a frozen situation and the effects have their own tests. No seed made the whole Strategist class pass, which is why those scenarios keep their seed and lose the effects instead.
 
-**Not built (L3):** ART-06's carved relief and MET-06's bronze statue keeping a Legend's Cohesion bonus after death; until then the +2 ends with the Legend.
+**Not built here:** ART-06's relief and MET-06's statue keeping a Legend's Cohesion bonus after death; they follow in §14.
+
+## 14. Phase L3 as built (2026-11-27): memory
+
+ART-06's carved relief and MET-06's bronze statue now do what their rule text has always said.
+
+- **Slots:** a settlement can remember as many dead Legends as it has slots. **ART-06** gives one slot in every settlement of a civilization that has it; **MET-06** gives a second in a **City** (the settlement's tier, as it stands). The first Legend to die at a settlement fills the relief, the second the statue (a death in the same season ranks in the order the Legends were made).
+- **What is kept:** the **+2 Cohesion only**, counted with the living Legends under the same cap of +4. No skill spread, no warrior training, no steady line: those belong to a living person. A remembered Legend does not count against the three-living-Legends cap.
+- **Mourning:** a Legend whose death fills a free slot is **not mourned** (no −3); that is why the two projects are worth having. A Legend who dies with no free slot is mourned as in L2.
+- **Derived, never stored:** `KeepSlots` reads the research and the tier, and the kept count at a settlement is the smaller of its slots and its dead Legends, rebuilt with the rest of the lookups after every change. So nothing new is saved or hashed, and **a relief learned after a Legend died remembers them too**; a City that loses its tier or a civilization that loses the project forgets them (the bonus follows the settlement's current owner).
+- **Seen from outside:** `LegendSystem.IsRemembered(record)` tells the display which dead Legends are remembered, for the L5 Chronicle ("remembered in stone").
+- **Tests (4 new, 22 in `LegendTests`):** no relief means the bonus ends with the Legend; a relief keeps the first, a Town has no statue for the second, and a statue in a City keeps it; a relief learned later remembers a Legend who already died; a remembered Legend spreads no skill.
+
+**Golden change (L3):** `tests/golden/bronze-v1.txt` checksum 72d63761f8b4484f -> 4d3716f8ab7e89e9. The match still ends at tick 43800 in season 267 with civ 3 first; a relief or a statue now remembers a dead Legend in the Bronze Age, so the Cohesion path differs from there. `research-v1`, `politics-v1` and `toy-v1` are unchanged. Gate: 1687 tests, four goldens, strict validation, game build.

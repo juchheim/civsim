@@ -85,7 +85,7 @@ public sealed class LegendSystem : ILegendEffects
     private readonly ulong _seed;
     private readonly LivingEconomyModel _economy;
     private readonly ResearchSystem _research;
-    private readonly int _key1;
+    private readonly int _key1, _art06, _met06;
     private readonly List<Score> _scores = new();           // sorted by figure id
     private readonly List<LegendRecord> _records = new();   // in order of becoming a Legend
     /// <summary>Settlements in famine: (settlement index, seasons under the line, people when it began), sorted by settlement; sparse.</summary>
@@ -94,6 +94,7 @@ public sealed class LegendSystem : ILegendEffects
     // Derived from the records after every change (not saved or hashed): who is a living Legend, and per settlement how many.
     private readonly List<long> _livingIds = new();   // ascending
     private int[] _livingBySettlement = Array.Empty<int>();
+    private int[] _keptBySettlement = Array.Empty<int>();    // dead Legends a relief or a statue still remembers there (docs/MVP/40 §5)
 
     public LegendSystem(ulong seed, LivingEconomyModel economy, ResearchSystem research)
     {
@@ -101,6 +102,8 @@ public sealed class LegendSystem : ILegendEffects
         _economy = economy;
         _research = research;
         _key1 = research.Catalog.IndexOf("KEY-1");
+        _art06 = research.Catalog.IndexOf("ART-06");
+        _met06 = research.Catalog.IndexOf("MET-06");
         research.EventObserver = OnResearchEvent;
         economy.LegendEffects = this;
     }
@@ -266,9 +269,51 @@ public sealed class LegendSystem : ILegendEffects
         {
             if (r.DiedSeason >= 0) continue;
             if (_economy.TryFigure(r.FigureId, out FigureView who)) { r.Settlement = who.SettlementId; continue; }
+            // A settlement that keeps this Legend's memory (a free relief or statue slot, docs/MVP/40 §5) does not mourn; the bonus stays.
+            bool kept = FreeKeepSlots(r.Settlement) > 0;
             r.DiedSeason = season;
-            _economy.NoteMourning(r.Settlement, MourningPoints);
+            if (!kept) _economy.NoteMourning(r.Settlement, MourningPoints);
         }
+    }
+
+    /// <summary>
+    /// How many dead Legends a settlement can still keep (docs/MVP/40 §5): ART-06's carved relief keeps one in every settlement of a civilization that has it, and MET-06's bronze statue a
+    /// second in a City. Read from the records, the research and the tier as they stand, so nothing is stored and a relief learned after a Legend died remembers them too.
+    /// </summary>
+    private int KeepSlots(int settlement)
+    {
+        if ((uint)settlement >= (uint)_economy.SettlementCount) return 0;
+        int civ = _economy.SettlementLite(settlement).Civilization;
+        if (civ < 0) return 0;
+        int slots = 0;
+        if (_art06 >= 0 && _research.IsDone(civ, _art06)) slots++;
+        if (_met06 >= 0 && _research.IsDone(civ, _met06) && _economy.Tier(settlement) == SettlementTier.City) slots++;
+        return slots;
+    }
+
+    private int DeadAt(int settlement)
+    {
+        int n = 0;
+        foreach (LegendRecord r in _records) if (r.DiedSeason >= 0 && r.Settlement == settlement) n++;
+        return n;
+    }
+
+    private int FreeKeepSlots(int settlement) => KeepSlots(settlement) - DeadAt(settlement);
+
+    /// <summary>
+    /// Whether this dead Legend's memory is kept by a relief or a statue: the first to die at a settlement fills the relief, the second the statue (a death in the same season is
+    /// ranked in the order the Legends were made, as <see cref="MarkDeaths"/> takes them).
+    /// </summary>
+    public bool IsRemembered(LegendRecord record)
+    {
+        if (record.DiedSeason < 0) return false;
+        int rank = 0;
+        foreach (LegendRecord r in _records)
+        {
+            if (r == record || r.DiedSeason < 0 || r.Settlement != record.Settlement) continue;
+            if (r.DiedSeason < record.DiedSeason || r.DiedSeason == record.DiedSeason && _records.IndexOf(r) < _records.IndexOf(record)) rank++;
+        }
+        return rank < KeepSlots(record.Settlement);
     }
 
     /// <summary>The one-time Cohesion dip, in points, when a Legend dies.</summary>
@@ -282,9 +327,9 @@ public sealed class LegendSystem : ILegendEffects
         _livingIds.Clear();
         int top = 0;
         foreach (LegendRecord r in _records)
-            if (r.DiedSeason < 0 && r.Settlement + 1 > top) top = r.Settlement + 1;
-        if (_livingBySettlement.Length < top) _livingBySettlement = new int[top];
-        else Array.Clear(_livingBySettlement);
+            if (r.Settlement + 1 > top) top = r.Settlement + 1;
+        if (_livingBySettlement.Length < top) { _livingBySettlement = new int[top]; _keptBySettlement = new int[top]; }
+        else { Array.Clear(_livingBySettlement); Array.Clear(_keptBySettlement); }
         foreach (LegendRecord r in _records)
         {
             if (r.DiedSeason >= 0) continue;
@@ -292,12 +337,25 @@ public sealed class LegendSystem : ILegendEffects
             if ((uint)r.Settlement < (uint)_livingBySettlement.Length) _livingBySettlement[r.Settlement]++;
         }
         _livingIds.Sort();
+        // The memory a relief or a statue keeps: as many of a settlement's dead Legends as it has slots (docs/MVP/40 §5).
+        for (int i = 0; i < _keptBySettlement.Length; i++)
+        {
+            if (_livingBySettlement[i] == 0 && !HasDeadAt(i)) continue;
+            _keptBySettlement[i] = Math.Min(KeepSlots(i), DeadAt(i));
+        }
+    }
+
+    private bool HasDeadAt(int settlement)
+    {
+        foreach (LegendRecord r in _records) if (r.DiedSeason >= 0 && r.Settlement == settlement) return true;
+        return false;
     }
 
     public bool IsLivingLegend(long figureId) => _livingIds.BinarySearch(figureId) >= 0;
 
     public int CohesionPoints(int settlement)
-        => (uint)settlement < (uint)_livingBySettlement.Length ? Math.Min(CohesionPointsCap, CohesionPointsEach * _livingBySettlement[settlement]) : 0;
+        => (uint)settlement < (uint)_livingBySettlement.Length
+            ? Math.Min(CohesionPointsCap, CohesionPointsEach * (_livingBySettlement[settlement] + _keptBySettlement[settlement])) : 0;
 
     public bool SpreadsSkill(int settlement) => (uint)settlement < (uint)_livingBySettlement.Length && _livingBySettlement[settlement] > 0;
 

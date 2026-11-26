@@ -431,4 +431,86 @@ public sealed class LegendTests
         Assert.True(steady >= plain, $"a steadied line fights at least as long ({steady} against {plain} rounds in total)");
         Assert.True(steady > plain, "and longer in some of the fights");
     }
+
+    // ---- L3: memory ---------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>Makes <paramref name="count"/> adults of the Legend's settlement into Legends too, so a settlement has several to lose.</summary>
+    private static List<long> MoreLegends(MatchModel match, SimRunner runner, long first, int home, int count)
+    {
+        var ids = new List<long> { first };
+        for (int i = 0; i < match.Economy.FigureCount && ids.Count < count + 1; i++)
+        {
+            FigureView f = match.Economy.Figure(i);
+            if (f.Civilization == 0 && f.SettlementId == home && !ids.Contains(f.Id) && f.Age is >= 18 and <= 40) ids.Add(f.Id);
+        }
+        foreach (long id in ids.Skip(1)) match.Legends.NoteDeed(id, LegendDeed.First, 1000, 1);
+        for (int i = 0; i < 40 && ids.Any(id => !match.Legends.IsLegend(id)); i++) runner.Advance(150);
+        return ids.Where(match.Legends.IsLegend).ToList();
+    }
+
+    private static LegendRecord Record(MatchModel match, long id) => match.Legends.Records.Single(r => r.FigureId == id);
+
+    [Fact]
+    public void Without_a_relief_a_dead_Legends_bonus_ends_with_them()
+    {
+        (MatchModel match, SimRunner runner, long legend, int home) = WithLegend();
+        Assert.True(match.Economy.KillFigure(legend));
+        runner.Advance(150 * 2);
+        Assert.False(match.Legends.IsRemembered(Record(match, legend)));
+        Assert.Equal(2 * match.Legends.LivingInSettlement(home), match.Legends.CohesionPoints(home));
+    }
+
+    [Fact]
+    public void ART06s_relief_keeps_one_dead_Legends_bonus_in_the_settlement_and_a_statue_in_a_City_keeps_a_second()
+    {
+        (MatchModel match, SimRunner runner, long first, int home) = WithLegend();
+        Grant(runner, match, "ART-06");
+        List<long> legends = MoreLegends(match, runner, first, home, 2);
+        Assert.True(legends.Count >= 3, "three Legends in the home settlement");
+        int living = match.Legends.LivingInSettlement(home);
+
+        Assert.True(match.Economy.KillFigure(legends[0]));
+        runner.Advance(150 * 2);
+        Assert.True(match.Legends.IsRemembered(Record(match, legends[0])), "the first to die fills the relief");
+        Assert.Equal(Math.Min(LegendSystem.CohesionPointsCap, 2 * (match.Legends.LivingInSettlement(home) + 1)), match.Legends.CohesionPoints(home));
+
+        Assert.True(match.Economy.KillFigure(legends[1]));
+        runner.Advance(150 * 2);
+        Assert.False(match.Legends.IsRemembered(Record(match, legends[1])), "one relief a settlement; a Town has no statue");
+        Assert.True(match.Legends.IsRemembered(Record(match, legends[0])));
+
+        // MET-06's bronze statue in a City remembers a second.
+        Grant(runner, match, "MET-06");
+        match.Economy.FixtureSetTier(home, 2);
+        runner.Advance(150 * 2);
+        Assert.True(match.Legends.IsRemembered(Record(match, legends[1])), "a statue in a City keeps the second");
+        Assert.True(match.Legends.CohesionPoints(home) <= LegendSystem.CohesionPointsCap);
+        Assert.True(living >= 2);
+    }
+
+    [Fact]
+    public void A_relief_learned_after_a_Legend_died_remembers_them_too()
+    {
+        (MatchModel match, SimRunner runner, long legend, int home) = WithLegend();
+        Assert.True(match.Economy.KillFigure(legend));
+        runner.Advance(150 * 2);
+        int before = match.Legends.CohesionPoints(home);
+        Assert.False(match.Legends.IsRemembered(Record(match, legend)));
+
+        Grant(runner, match, "ART-06");
+        runner.Advance(150 * 2);
+        Assert.True(match.Legends.IsRemembered(Record(match, legend)));
+        Assert.True(match.Legends.CohesionPoints(home) >= before + 2 || match.Legends.CohesionPoints(home) == LegendSystem.CohesionPointsCap);
+    }
+
+    [Fact]
+    public void A_remembered_Legend_gives_no_skill_spread_and_no_warrior_effects()
+    {
+        (MatchModel match, SimRunner runner, long legend, int home) = WithLegend();
+        Grant(runner, match, "ART-06");
+        Assert.True(match.Economy.KillFigure(legend));
+        runner.Advance(150 * 2);
+        if (match.Legends.LivingInSettlement(home) == 0) Assert.False(match.Legends.SpreadsSkill(home), "the relief keeps the Cohesion only");
+        Assert.False(match.Legends.IsLivingLegend(legend));
+    }
 }
