@@ -2482,6 +2482,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         ReadRaidResponses(r);
         _events.Clear();
         RefreshSettlements();
-        ApplyEconomyInputs();
+        // Fief snapshot v50 carries the exact posture-derived fission threshold. Recomputing it
+        // here can change a restored checkpoint when the saved value is newer than the last
+        // Politics update; older snapshot versions still derive it from their posture.
+        if (!_economy.FiefChain || _economy.FiefSnapshotVersionForRestore < 50)
+            ApplyEconomyInputs();
     }
 }

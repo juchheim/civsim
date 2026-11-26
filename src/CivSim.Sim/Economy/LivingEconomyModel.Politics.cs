@@ -411,6 +411,9 @@ public sealed partial class LivingEconomyModel
             }
         Array.Clear(s.Structures);
         Array.Clear(s.Stores);
+        s.DomesticSmallStock = Fix64.Zero;
+        s.DomesticCattle = Fix64.Zero;
+        s.DomesticPigs = Fix64.Zero;
         if (s.FiefGoods is { } bows) Array.Clear(bows);
         if (s.DiscoveryGoods is { } discovery) Array.Clear(discovery);
         s.EngineUnits = Fix64.Zero;
@@ -429,6 +432,7 @@ public sealed partial class LivingEconomyModel
         if (s.Civic is not null) s.Civic = new CivicState { Seceded = s.Civic.Seceded };
         s.FissionPending = false;
         s.FireLit = false;
+        s.FireKeeperId = -1;
     }
 
     /// <summary>Figures of a settlement as (id, age, female, wounded) in ascending id order, for building a party.</summary>

@@ -23,7 +23,7 @@ namespace CivSim.Sim.Ai;
 public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 {
     private const ulong StreamPart = 0x535041524BUL; // "SPARK": the Settler's and Chieftain's prior picks
-    internal const int B29ReportHorizonSeasons = 120;
+    internal const int B29ReportHorizonSeasons = 180;
     private static readonly string[] FrontierDecisionPrerequisiteIds = { "MET-02", "SOC-07", "TRD-03", "NUM-03" };
     private static readonly Fix64 Third = Fix64.FromRatio(1, 3);
 
@@ -118,7 +118,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         {
             LastB29ReportForecastForDiagnostics = null;
         }
-        Ensure(ctx.Catalog, ctx.Research.Rules.LastResearchEra);
+        Ensure(ctx.Catalog, ctx.Research.Rules.LastResearchEra, ctx.Research.Rules.IsFief);
         ForecastCatalog fc = _fc!;
         AiResearchPort port = ctx.Research;
         var readout = new PortReadout(port);
@@ -218,7 +218,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     private bool IsDefenseResearchProject(int project)
         => project >= 0 && project < _lineageCode.Length && _lineageCode[project] is "DEF" or "WAR";
 
-    private void Ensure(ResearchCatalog catalog, int ceilingEra)
+    private void Ensure(ResearchCatalog catalog, int ceilingEra, bool includeFiefDefenseBuilds)
     {
         if (_fc is not null && ReferenceEquals(_fc.Catalog, catalog) && _fc.CeilingEra == ceilingEra) return;
         _fc = new ForecastCatalog(catalog, ceilingEra);
@@ -249,7 +249,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             _frontierDecisionPrerequisites[i] = catalog.IndexOf(FrontierDecisionPrerequisiteIds[i]);
         _frontierDecisionPreviousProgress = new Fix64[_frontierDecisionPrerequisites.Length];
         _frontierDecisionProgressCaptured = false;
-        CacheCapabilities(catalog);
+        CacheCapabilities(catalog, includeFiefDefenseBuilds);
     }
 
     /// <summary>The archetype's Leaning (14 §9.1, the archetypes registry): style, and which Era Boon the civilization takes.</summary>
@@ -379,7 +379,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
         StrategicIntent intent = ctx.Intent;
         bool[]? closure = fc.Catalog.ClosureOf(_start.Era);
         Fix64 defenseBonus = DefenseResearchBonusOverrideForDiagnostics ?? SparkTuning.DefenseBonus;
-        Fix64 defenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
+        // A queued fortification makes defense research more valuable. Keep that planning signal separate from the
+        // Strategist's actual conflict reading: a peaceful frontier should still value GOV-02's posture unlock.
+        Fix64 postureDefenseUrgency = _defenseUrgencyForValuationOverrideForDiagnostics ?? intent.DefenseUrgency;
+        Fix64 defenseUrgency = DefenseUrgencyForResearch(postureDefenseUrgency, ctx.Research.Rules.IsFief,
+            ctx.Own.Settlements.Any(static settlement => settlement.PhysicalDefenseQueued));
         Fix64 defense = Fix64.Clamp(defenseUrgency, Fix64.Zero, Fix64.One) * defenseBonus;
         Fix64 foodNeedBonus = SparkTuning.FoodNeedBonus;
         Fix64 attack = Fix64.Clamp(intent.AttackReadiness, Fix64.Zero, Fix64.One) * SparkTuning.AttackBonus;
@@ -424,7 +428,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                 // The posture guards compare normalized intent with FortifyAt, not Legacy-equivalent bonuses.
                 // Keep the older chapters' established valuation while correcting the Fief planner's units.
                 bonus += ctx.Own.FiefChapter
-                    ? PostureUnlockBonus(intent.FrontierValue, defenseUrgency, intent.AttackReadiness, postureBonus)
+                    ? PostureUnlockBonus(intent.FrontierValue, postureDefenseUrgency, intent.AttackReadiness, postureBonus)
                     : PostureUnlockBonus(frontier, defense, attack, postureBonus);
             }
             _value.Bonus[p] = bonus;
@@ -440,6 +444,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
             return Fix64.Zero;
         return Fix64.Clamp(frontierValue, Fix64.Zero, Fix64.One) * (bonusOverride ?? SparkTuning.PostureUnlockBonus);
     }
+
+    internal static Fix64 DefenseUrgencyForResearch(Fix64 intentUrgency, bool isFief, bool physicalDefenseQueued)
+        => isFief && physicalDefenseQueued ? Fix64.Max(intentUrgency, Fix64.One) : intentUrgency;
 
     private Fix64 LevelPostureUnlockBonus() => _spec.Level switch
     {
@@ -528,7 +535,7 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
     }
 
     /// <summary>Cache capability classes from structured effect fields; effect prose is deliberately not interpreted.</summary>
-    private void CacheCapabilities(ResearchCatalog catalog)
+    private void CacheCapabilities(ResearchCatalog catalog, bool includeFiefDefenseBuilds)
     {
         Array.Clear(_foodCapability);
         Array.Clear(_leanCapability);
@@ -565,6 +572,9 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
                         AddCapability(_combatCapability, p, Fix64.One);
                         break;
                     case EffectKind.Defense:
+                        AddCapability(_defenseCapability, p, Fix64.One);
+                        break;
+                    case EffectKind.Build when includeFiefDefenseBuilds && IsPhysicalDefenseStructure(effect.Id):
                         AddCapability(_defenseCapability, p, Fix64.One);
                         break;
                     case EffectKind.Reach:
@@ -634,6 +644,11 @@ public sealed class ResearchSpark : IResearchSpark, IResearchStepListener
 
     private static Fix64 ModSignal(EffectDef effect)
         => Fix64.Half + Fix64.Clamp(Fix64.Abs(effect.Value), Fix64.Zero, Fix64.One) / 2;
+
+    internal static bool IsPhysicalDefenseStructure(string? structure)
+        => structure is "thorn_barrier" or "lookout_post" or "palisade" or "hillfort" or "stone_walls"
+            or "gatehouse" or "frontier_wall_segment" or "castle" or "concentric_castle" or "bastion_fort"
+            or "coastal_battery" or "trench" or "radar_station";
 
     private static bool HasAny(string? value, params string[] terms)
     {

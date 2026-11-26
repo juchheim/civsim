@@ -329,7 +329,7 @@ public sealed class FiefSiegeBalanceExposureTests
         FiefSiegeTerminalTrace.Append(output, Seed, rig.Match.Politics.Season, rig.Match.Economy,
             Array.Empty<FiefSiegeTerminalExposure>());
 
-        Assert.Equal($"fief-siege-terminal seed={Seed} season={rig.Match.Politics.Season} exposure=none reason=no_siege_investment_observed\n",
+        Assert.Equal($"fief-siege-terminal seed={Seed} season={rig.Match.Politics.Season} exposure=none reason=no_siege_investment_observed{Environment.NewLine}",
             output.ToString());
     }
 

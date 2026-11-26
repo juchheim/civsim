@@ -1375,7 +1375,21 @@ public sealed partial class LivingEconomyModel
     // ---- hashing and snapshots ------------------------------------------------------------------
 
     private static bool HasIronState(MetalState m)
-        => m.IronGoods is not null || m.FiefGoods.Length > 0 || m.IronWorks is not null || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0 || m.IronWait != 0 || m.IronShelf is not null;
+        => HasAnyGoods(m.IronGoods) || HasAnyGoods(m.FiefGoods) || HasAnyWork(m.IronWorks) || m.IronBuildKind >= 0 || m.IronTerraces is { Count: > 0 } || m.IronSoldiersSupplied > 0 || m.IronFacing is { Count: > 0 } || m.IronFaith is not null || m.IronPledgeTo != 0 || m.IronWait != 0 || m.IronShelf is not null;
+
+    private static bool HasAnyGoods(Fix64[]? goods)
+    {
+        if (goods is null) return false;
+        foreach (Fix64 amount in goods) if (amount != Fix64.Zero) return true;
+        return false;
+    }
+
+    private static bool HasAnyWork(int[]? works)
+    {
+        if (works is null) return false;
+        foreach (int count in works) if (count != 0) return true;
+        return false;
+    }
 
     /// <summary>Iron structure kinds that existed when the first Iron checksums were fixed; later kinds are hashed only while non-zero so a match that builds none keeps its checksum.</summary>
     private const int IronKindsFirst = (int)IronStructure.Press + 1;

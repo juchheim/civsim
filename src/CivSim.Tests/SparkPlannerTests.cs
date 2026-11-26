@@ -15,6 +15,26 @@ public class SparkPlannerTests
 {
     private static readonly CivControl Warlord = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
 
+    [Theory]
+    [InlineData("thorn_barrier")]
+    [InlineData("lookout_post")]
+    [InlineData("palisade")]
+    [InlineData("hillfort")]
+    [InlineData("stone_walls")]
+    [InlineData("gatehouse")]
+    [InlineData("frontier_wall_segment")]
+    [InlineData("castle")]
+    [InlineData("concentric_castle")]
+    [InlineData("bastion_fort")]
+    [InlineData("coastal_battery")]
+    [InlineData("trench")]
+    [InlineData("radar_station")]
+    public void Physical_defense_build_unlocks_are_classified_as_defense_research(string structure)
+    {
+        Assert.True(ResearchSpark.IsPhysicalDefenseStructure(structure));
+        Assert.False(ResearchSpark.IsPhysicalDefenseStructure("market"));
+    }
+
     [Fact]
     public void Posture_unlock_value_favors_GOV_02_only_for_open_frontiers_without_urgent_conflict()
     {
@@ -35,6 +55,17 @@ public class SparkPlannerTests
             Fix64.Zero, Fix64.FromInt(54)));
         Assert.Equal(Fix64.Zero, ResearchSpark.PostureUnlockBonus(Fix64.FromRatio(39, 100), Fix64.Zero,
             Fix64.Zero, Fix64.FromInt(54)));
+    }
+
+    [Fact]
+    public void Queued_fortification_raises_research_urgency_without_suppressing_calm_GOV_02_posture_value()
+    {
+        Fix64 calm = Fix64.Zero;
+        Fix64 openFrontier = Fix64.FromRatio(75, 100);
+
+        Assert.Equal(Fix64.One, ResearchSpark.DefenseUrgencyForResearch(calm, isFief: true, physicalDefenseQueued: true));
+        Assert.Equal(calm, ResearchSpark.DefenseUrgencyForResearch(calm, isFief: false, physicalDefenseQueued: true));
+        Assert.Equal(Fix64.FromInt(27), ResearchSpark.PostureUnlockBonus(openFrontier, calm, Fix64.Zero));
     }
 
     [Fact]
