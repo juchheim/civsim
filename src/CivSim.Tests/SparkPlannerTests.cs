@@ -15,6 +15,26 @@ public class SparkPlannerTests
 {
     private static readonly CivControl Warlord = CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced);
 
+    [Theory]
+    [InlineData("thorn_barrier")]
+    [InlineData("lookout_post")]
+    [InlineData("palisade")]
+    [InlineData("hillfort")]
+    [InlineData("stone_walls")]
+    [InlineData("gatehouse")]
+    [InlineData("frontier_wall_segment")]
+    [InlineData("castle")]
+    [InlineData("concentric_castle")]
+    [InlineData("bastion_fort")]
+    [InlineData("coastal_battery")]
+    [InlineData("trench")]
+    [InlineData("radar_station")]
+    public void Physical_defense_build_unlocks_are_classified_as_defense_research(string structure)
+    {
+        Assert.True(ResearchSpark.IsPhysicalDefenseStructure(structure));
+        Assert.False(ResearchSpark.IsPhysicalDefenseStructure("market"));
+    }
+
     [Fact]
     public void Posture_unlock_value_favors_GOV_02_only_for_open_frontiers_without_urgent_conflict()
     {
