@@ -41,6 +41,16 @@ const IRON_PLANKS := 8      # WOD-08 Frame & Crosscut Saws
 const IRON_GLASS := 16      # CER-07 Glassblowing
 const IRON_MUSKETS := 32    # WAR-13 Pike & Musket Drill: pikemen and musketeers
 const IRON_RIFLES := 64     # WAR-14 Rifles & Artillery: riflemen and the field gun
+# the Discovery chapter's small looks (docs/MVP/39 section 9), view only
+const IRON_SCOPE := 128     # INQ-07 Telescope: a brass dome beside the learned society
+const IRON_GLAZING := 256   # CER-11 plate glass: a glass lean-to on the garden
+const IRON_PAMPHLETS := 512 # COM-11 newspapers: a broadsheet board by the print shop
+const IRON_ENCLOSE := 1024  # AGR-12 four-course farming: hedged plots
+const IRON_TURNPIKE := 2048 # TRN-10 turnpikes: a toll gate
+const IRON_FLEETS := 4096   # HNT-12 offshore fleets: a lugger at the harbor and a bank at sea
+const IRON_CANE := 8192     # FOD-10 sugar: cane fields
+const IRON_CROPS := 16384   # FOR-10 the Columbian Exchange: new staples
+const IRON_CHRONO := 32768  # WAY-10 chronometer: a navigator on the quay
 
 const FLAG_RIVER := 1
 const FLAG_LAKE := 2
@@ -110,6 +120,9 @@ var disc_lanes := PackedInt32Array()        # Discovery ocean lanes, four ints e
 var disc_capital_tile := -1               # the viewer's capital tile: where a colony's tether leads (docs/MVP/39 §7.3)
 var disc_society_staffed := false          # the viewer's learned society has a scholar at work / its exchange house is staffed (docs/MVP/39 §8.1)
 var disc_exchange_staffed := false
+var disc_chronometer := false             # the viewer's realm holds a chronometer / a telescope / has resident embassies (bit c = civilization c)
+var disc_telescope := false
+var disc_embassy_mask := 0
 var fief_active := false                # whether this frame carries the Fief-only settlement readout
 var iron_work_ids: Array = []          # Iron works kinds in the order of each settlement's "ironWorks" counts (crane, windlass_well, ... castle, ...)
 var core_district_ids: Array = []       # CoreDistrict names in the order used by each settlement's coreOuter rows
@@ -169,6 +182,9 @@ func discovery_settlement(s: Dictionary) -> Dictionary:
 		"engines": int(s.get("discEngines", 0)),
 		"ovens": int(s.get("discOvens", 0)),
 		"factory_coverage_raw": int(s.get("discFactoryCoverage", 0)),
+		"soot_raw": int(s.get("discSoot", 0)),
+		"canal": bool(s.get("discCanal", false)),
+		"fleet": bool(s.get("discFleet", false)),
 	}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
@@ -196,6 +212,15 @@ func bow_pct(home: int, kind: int) -> int:
 		return 0
 	var bows = settlements[home].get("bows")
 	return int(bows[kind]) if bows is Array or bows is PackedInt32Array else 0
+
+## The share, in percent, of a settlement's fighters holding a musket (WAR-13, Discovery): what the frame says it holds, so the drilled levy's look follows the stock and
+## not just the project. `--looks-debug` pretends every settlement holds some, so the musketeer can be inspected.
+func musket_pct(home: int) -> int:
+	if LOOKS_DEBUG:
+		return 30
+	if home < 0 or home >= settlements.size():
+		return 0
+	return int(settlements[home].get("muskets", 0))
 
 ## The bow mesh a civilization's fighters carry, from the bows its visible settlements hold: the crossbow when crossbows lead, else the longbow (which also stands
 ## for the war bow of Archery Warfare); empty when none holds a bow.
@@ -268,6 +293,9 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	disc_capital_tile = int(d.get("discCapitalTile", -1))
 	disc_society_staffed = bool(d.get("discSocietyStaffed", false))
 	disc_exchange_staffed = bool(d.get("discExchangeStaffed", false))
+	disc_chronometer = bool(d.get("discChronometer", false))
+	disc_telescope = bool(d.get("discTelescope", false))
+	disc_embassy_mask = int(d.get("discEmbassyMask", 0))
 	tick = int(d.tick)
 	year = int(d.year)
 	season = int(d.seasonOfYear)
@@ -315,7 +343,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	iron_looks = _int_data(d.ironLooks, 1) if d.has("ironLooks") else PackedInt32Array()
 	if LOOKS_DEBUG:
 		iron_looks.resize(8)
-		iron_looks.fill(127)
+		iron_looks.fill(65535)
 	tributes = _int_data(d.tributes, 2) if d.has("tributes") else PackedInt32Array()
 	leagues = _int_data(d.leagues, 1) if d.has("leagues") else PackedInt32Array()
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()

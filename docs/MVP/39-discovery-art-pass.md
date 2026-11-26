@@ -1,6 +1,6 @@
 # 39 — Discovery (E6): the art pass
 
-Status: draft spec, 2026-11-21. Nothing here is built. The renderer has no E6 art and the sim has no `DiscoveryFrame` yet (doc 38 WP-E6-11). Numbers marked (P) are proposals to tune in the dev gallery. The nine owner questions were all decided on 2026-11-21 (§12); no open questions remain.
+Status (2026-11-27): **built and mostly wired.** Every P0 and P1 mesh and most P2 meshes exist (`art_disc_*.gd`); the age's industry, forts, civic buildings, ships' lanes, colonies, the soot, the navigation canal with its barge, the harbor's lugger, bank and navigator, the staff and the small cues are placed from the frame (`DiscoveryFrame` and nine new `IronFrame` look bits), each only where the sim holds the thing. What is **not** wired is listed in §13 with the reason (mostly: the simulation holds no such state yet). Acceptance results are in §13. The original spec follows; where it says "not built" or "not wired", §13 is current.
 
 Sources: [38](38-discovery-age.md) (design, §8 view layer, WP-E6-5 to -9 slice reports), the typed E6 rows in `content/registries` and `content/catalog` on `codex/e6-discovery` (worktree `civsim-e6`: 10 structures, 12 goods, 3 roles, 4 activities, 11 recipes), [32](32-e5-art-pass.md) (the E5 art pass this one copies), [31a](31a-staged-core-and-building-budget.md) (where buildings may stand), [08 §3 and §13](08-ui-and-world-display.md) (era look and generic kit), and the kit in `game/Renderer/LowPoly3D/Scripts/art_*.gd` on `main`.
 
@@ -326,3 +326,56 @@ The renderer never reads sim state directly; it reads the frame. Doc 38 §3.3 sa
 **Still open:** nothing.
 
 **Wiring (2026-11-22, `codex/e6-discovery`):** the engine, coke oven and factory are placed in a Discovery match (`core_layout.gd` `_outer`, which also fills `world_builder.disc_works` for `M7DiscoveryRig.sync`), driven by four per-town values from `DiscoveryFrame` (`discCoal`, `discEngines`, `discOvens`, `discFactoryCoverage`) rather than the `discWorks`/`discWorkState` arrays proposed in §9 (the structure counts already travel in `ironWorks`). Working means coal in store (engine, oven) or power coverage (factory). Everything else in §3 to §9 is still unwired. Coal pits are wired too: a worked coal seam draws `coal_mine_body` (rig: wheel and smoke) or `coal_mine_idle` when spent; flooded is not drawn (the sim has no flooding). The bastion fort is wired in the Citadel slot (stages, garrison cue, cracked/breach/ruin on the siege integrity track). Ocean lanes are wired from the frame's visible deep-ocean trade routes (tokens are decoration, wrecks are not wired); the stock AI's routes rarely cross deep water, so they are mostly empty in natural play. Colonies are wired (content, strained and blockaded states with the tether); foundings, the independent flag and the galleon on station are not. The learned society, exchange house, Renaissance Palace (stages) and botanical garden are wired with staffing-driven idle states. The galleon is drawn at the quay of a harbor town that holds one (a still ship; station states are not wired). Staff cues (engineers, operatives, botanist) stand at their works; role-by-role walking figures are not wired.
+
+## 13. Built, wired and acceptance (2026-11-27)
+
+### What is now in the game
+
+| Piece | Source of truth | Where |
+|---|---|---|
+| Coal pit, atmospheric engine, coke oven, factory, bastion fort (stages and siege states), botanical garden, learned society, exchange house, Renaissance Palace (stages), galleon at the quay | `DiscoveryFrame` and `ironWorks` | `core_layout.gd`, `world_builder.gd`, `discovery_rig.gd` (earlier slices) |
+| **Pit crew** (two miners at a worked pit), **engineers, operatives, botanist** at their works | worked pit; staff counts | `world_builder.gd`, `core_layout.gd` |
+| **Soot stain** beside a working factory or coke oven, sized by the soot the town holds | `DiscoveryFrame.Soot` | `core_layout.gd`, mesh `soot_stain` |
+| **Navigation canal** from a town that has dug one to the nearest worked pit 3 or more tiles away: stone-faced tiles with a lock every third, and a **coal barge with a bargeman** moving along it | `DiscoveryFrame.Canal`, worked pits | `world_builder.gd` (`_navigation_canals`), `discovery_rig.gd` |
+| **Lugger and fishing bank** at a harbor town that sends a fleet to sea | new `DiscoveryFrame.Fleet` (the sim's `OffshoreFleet`) | `world_builder.gd` |
+| **Navigator** on the quay while the realm holds a chronometer; **observatory** beside a staffed learned society while it holds a telescope | new `DiscoveryFrame.ChronometerHeld`, `TelescopeHeld`, look bit `LookScope` | `world_builder.gd`, `core_layout.gd` |
+| **Greenhouse** on a staffed garden (CER-11), **news board** at a print shop (COM-11), **merchants** at a staffed exchange house, **master masons** on the Palace site | look bits `LookGlazing`, `LookPamphlets`; `ExchangeStaffed`; the build state | `core_layout.gd` |
+| **Embassy flag** in a guest's colour on the capital's Heart for each resident embassy (DIP-09) | new `DiscoveryFrame.EmbassyMask` (`ResidentEmbassy`) | `core_layout.gd` |
+| **Drilled levy**: people armed with a musket draw as musketeers, by the share of the town's fighters who hold one | `MatchFrame.SettlementMusketPct` (the `LOOK_DRILL` of §9) | `world_builder.gd` (`_arms_mesh`) |
+| Ocean lanes, colonies (content, strained, blockaded) with tether | frame routes; `DiscoveryFrame.Colony` | `lane_overlay.gd`, `colony_overlay.gd` (earlier slices) |
+
+The four-course fields already carry their hedges inside the `field_four_*` mesh, so no separate hedge placement is needed.
+
+### Not wired, and why
+
+| Piece | Blocked on |
+|---|---|
+| Flooded coal pit and its marks (A-13) | the sim has no flooding |
+| Wreck marker | the sim has no voyage-loss event to show |
+| Colony independence flag and founding Moment | the sim has no independence state or founding event |
+| Rival KEY-7 banner (A-14) | the sim holds no per-rival timer |
+| Galleon on-station anchor glyph (A-17) | no anchor mesh yet (the crew flag `GalleonCrewed` is in the frame) |
+| Institution marks for dormant and blocked works (A-4) | the frame carries no per-work dormant or blocked state |
+| Toll gate, turnpike, coach and coachman | the frame carries no turnpike tiles |
+| Sugar-cane fields, the Columbian Exchange crops, the extra cargo meshes (coal, coke, glass, parts, acid, alkali, pamphlets, instruments, sugar, cod) | no worked-cane tile or staple in the frame; no quay or cart stock to draw them on |
+| Under-construction meshes (`coal_mine_site`, `factory_site`) | the layout does not yet show a Discovery work going up |
+
+### Acceptance run (A-1 to A-17)
+
+| ID | Result |
+|---|---|
+| A-1 | **Partial.** The gallery (`--scenario=discovery-gallery`, 36 shots) photographs every P0 and P1 item in its states in daylight; night lighting is not captured. |
+| A-2 | **Pass.** At overview zoom (`disc-all`) the star fort, engine house, factory, coal pit and the two ships are told apart in a still. |
+| A-3 | **Pass.** `check_core_layout.py` passes on a Discovery town with the engine, oven, factory and garden: no overlaps, outer works clear of plots. The checker had treated every outer work as a tier of one "fief" chain and flagged any two; it now treats them as independent (a monastery with an arsenal would have tripped it too). |
+| A-4 | **Open.** Working, idle, cold and staffed states read; dormant and blocked marks are not wired (above). |
+| A-5 | **Over budget on a loaded machine; rerun needed.** One town with every E6 item on (`--dev-disc-works --dev-harbor`) against the same Discovery match without them: frame time +9% (31.9 to 29.2 fps) and +22% (31.3 to 25.7 fps) in two rounds while the machine's load average was 6 to 15 on 10 cores. The spec's rule is that the first run sets the budget, so this is it: **+9% to +22%, to be re-measured quiet**. The smoke columns stay capped (24). |
+| A-6 | **Not measured.** The new people are at most about a dozen a town (two miners a pit, two engineers, three operatives, one botanist, two merchants, two masons); the per-civilization cap is the baseline's. |
+| A-7 | **Pass by inspection.** Every Discovery path sits behind `discovery_active` and the meshes are built on first use (`ensure_discovery`), so Bronze, Iron and Fief build none of them. (Legends, which show in every chapter, are the one deliberate cross-chapter addition: doc 40.) |
+| A-8 | **Pass by inspection.** Each new picture is gated on the sim holding the thing: miners on a worked pit, soot beside a working factory or oven, the canal on the sim's canal flag, the lugger on the fleet flag, the navigator on a held chronometer, the observatory on a held telescope and a staffed society, the greenhouse on a staffed garden, merchants on a staffed exchange, masons on a Palace being built, flags on resident embassies. |
+| A-9 | **Pass (fixed).** The tile card's "KEY-6 ..%" clause was shown in a Discovery match because Discovery also runs the Fief frame; it is now Faith & Fief's alone. The top-bar tooltip and the Discovery section were already gated. |
+| A-10 | **Built, not re-photographed** (`lane_overlay.gd` draws dashed arcs; coastal routes stay dotted). |
+| A-11 | **Pass by construction.** Lanes come from the frame's own visible routes. |
+| A-12 | **Partial.** Content, strained and blockaded wired; independence is not (above). |
+| A-13, A-14, A-17 | **Open** (above). |
+| A-15 | **Pass by inspection.** The bastion stages follow the siege integrity track; the sim test shows one cannon needs 3 seasons against a bastion and 2 against a tower wall. |
+| A-16 | **Pass.** The stain appears only beside a working factory or oven and its size follows the soot the town holds (photographed in `disc-town`). |

@@ -56,6 +56,7 @@ static func build(kit) -> void:
 			kinds.append((band + phase) % 4)
 		kit.meshes["field_four_%d" % phase] = _field(kit, kinds, 2001 + phase)
 	kit.meshes["hedge_line"] = _hedge_line(kit)
+	kit.meshes["soot_stain"] = _soot_stain(kit)
 	kit.meshes["field_cane"] = _cane_field(kit, false)
 	kit.meshes["field_cane_cut"] = _cane_field(kit, true)
 	kit.meshes["fishing_bank"] = _bank(kit)
@@ -218,6 +219,21 @@ static func _hedge_line(kit) -> ArrayMesh:
 	b.tag = FOLIAGE
 	b.blob(Vector3(0.05, 0.07, 0.0), Vector3(0.026, 0.03, 0.026), 6, 3, HEDGE_LIGHT, 0.15, HEDGE)
 	b.tag = PLAIN
+	return b.commit()
+
+# ------------------------------------------------------------------ soot
+
+const SOOT_DARK := Color("#26231f")
+const SOOT_PALE := Color("#38332d")
+
+## Soot (docs/MVP/39 §5, A-16): a warm grey-black stain on the ground, four overlapping blotches about one tile across at scale 1, flat on the ground. It is a local state
+## beside a working factory or coke oven, scaled by the soot the town holds (`soot_raw` of the frame): the renderer sizes it, and it shrinks as the soot falls.
+static func _soot_stain(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2095)
+	b.tag = PLAIN
+	for d in [[0.0, 0.0, 0.46, SOOT_DARK], [0.22, 0.12, 0.3, SOOT_PALE], [-0.2, -0.14, 0.28, SOOT_PALE], [0.06, -0.28, 0.22, SOOT_DARK]]:
+		var r: float = d[2]
+		b.prism(Vector3(float(d[0]), 0.002, float(d[1])), r, r * 0.96, 0.0015, 14, d[3], d[3])
 	return b.commit()
 
 # ------------------------------------------------------------------ navigation canal and turnpike

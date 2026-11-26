@@ -98,4 +98,75 @@ public sealed class DiscoveryFrameTests
         }
         Assert.Equal(plain.ComputeChecksum(), framed.ComputeChecksum());
     }
+
+    // ---- the art pass's data (docs/MVP/39 §13) -------------------------------------------------------------------------------------------------
+
+    private static MatchModel NumericMatch(params string[] projects)
+    {
+        var pack = TestPack.WithNumeric(projects.Prepend("KEY-6").ToArray());
+        return MatchModel.Create(Seed, pack, World.Value, Balanced, default, rules: ChapterRules.Discovery);
+    }
+
+    private static void Grant(SimRunner runner, MatchModel match, params string[] projects)
+    {
+        foreach (string project in projects)
+        {
+            runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, match.Research.Catalog.IndexOf(project), 0, 0));
+            runner.Advance(2);
+        }
+    }
+
+    [Fact]
+    public void A_harbor_town_of_a_civilization_with_HNT12_is_flagged_as_sending_a_fleet_and_a_town_without_a_harbor_is_not()
+    {
+        MatchModel match = NumericMatch("HNT-12");
+        var runner = new SimRunner(match);
+        runner.Advance(5);
+        int own = Home(match, 0);
+        MatchFrame none = Frame(match, 0);
+        Assert.Equal(0, none.Discovery.Fleet[Slot(none, own)]);
+
+        Grant(runner, match, "KEY-5", "KEY-6", "HNT-12");
+        MatchFrame noHarbor = Frame(match, 0);
+        Assert.Equal(0, noHarbor.Discovery.Fleet[Slot(noHarbor, own)]);
+
+        match.Economy.FixtureSetIronWork(own, "harbor", 1);
+        MatchFrame fleet = Frame(match, 0);
+        Assert.Equal(1, fleet.Discovery.Fleet[Slot(fleet, own)]);
+    }
+
+    [Fact]
+    public void The_realm_block_says_whether_a_chronometer_and_a_telescope_are_held()
+    {
+        MatchModel match = NumericMatch();
+        var runner = new SimRunner(match);
+        runner.Advance(5);
+        int own = Home(match, 0);
+        DiscoveryFrame before = Frame(match, 0).Discovery;
+        Assert.False(before.ChronometerHeld);
+        Assert.False(before.TelescopeHeld);
+
+        match.Economy.FixtureAddDiscoveryGood(own, "G-CHRONOMETER", Fix64.One);
+        match.Economy.FixtureAddDiscoveryGood(own, "G-TELESCOPE", Fix64.One);
+        DiscoveryFrame after = Frame(match, 0).Discovery;
+        Assert.True(after.ChronometerHeld);
+        Assert.True(after.TelescopeHeld);
+        Assert.False(Frame(match, 1).Discovery.ChronometerHeld, "another civilization's realm block is its own");
+    }
+
+    [Fact]
+    public void The_small_look_bits_follow_the_projects_a_civilization_has_learned()
+    {
+        MatchModel match = NumericMatch("INQ-07", "CER-11", "COM-11", "AGR-12", "HNT-12");
+        var runner = new SimRunner(match);
+        runner.Advance(5);
+        Assert.Equal(0, Frame(match, 0).Iron.CivLooks[0] & (IronFrame.LookScope | IronFrame.LookGlazing | IronFrame.LookPamphlets | IronFrame.LookEnclose | IronFrame.LookFleets));
+
+        Grant(runner, match, "KEY-5", "KEY-6", "INQ-07", "CER-11", "COM-11", "AGR-12", "HNT-12");
+        int looks = Frame(match, 0).Iron.CivLooks[0];
+        foreach (int bit in new[] { IronFrame.LookScope, IronFrame.LookGlazing, IronFrame.LookPamphlets, IronFrame.LookEnclose, IronFrame.LookFleets })
+            Assert.True((looks & bit) != 0, $"look bit {bit}");
+        Assert.Equal(0, Frame(match, 1).Iron.CivLooks[1] & IronFrame.LookScope);
+        Assert.Equal(0, looks & IronFrame.LookCane);
+    }
 }

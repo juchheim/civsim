@@ -327,7 +327,9 @@ public partial class Game
                         if (s < frame.Fief.Scholars.Length && s < frame.Fief.ScholarInsightHeads.Length && s < frame.Fief.Key6Permille.Length)
                         {
                             double insightHeads = frame.Fief.ScholarInsightHeads[s] / 4294967296.0;
-                            extra += $"\nUniversity scholars {frame.Fief.Scholars[s]} · research contribution {insightHeads:0.#} Insight heads · KEY-6 {frame.Fief.Key6Permille[s] / 10.0:0.#}%";
+                            // KEY-6 is the Faith & Fief chapter's end; a Discovery match has long passed it, so the clause is Fief's alone (docs/MVP/39 A-9)
+                            extra += $"\nUniversity scholars {frame.Fief.Scholars[s]} · research contribution {insightHeads:0.#} Insight heads" +
+                                (_session?.Mode == CivSim.Sim.Research.ChapterMode.Fief ? $" · KEY-6 {frame.Fief.Key6Permille[s] / 10.0:0.#}%" : "");
                         }
                         if (s < frame.Fief.BuildGuidance.Length && !string.IsNullOrEmpty(frame.Fief.BuildGuidance[s]))
                             extra += $"\nBuild: {frame.Fief.BuildGuidance[s]}";

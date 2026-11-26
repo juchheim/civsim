@@ -31,6 +31,8 @@ public sealed partial class FrameBuilder
         {
             ("HUS-09", IronFrame.LookCamels), ("COM-08", IronFrame.LookRelays), ("WOD-07", IronFrame.LookBarrels), ("WOD-08", IronFrame.LookPlanks),
             ("CER-07", IronFrame.LookGlass), ("WAR-13", IronFrame.LookMusketDrill), ("WAR-14", IronFrame.LookRifles),
+            ("INQ-07", IronFrame.LookScope), ("CER-11", IronFrame.LookGlazing), ("COM-11", IronFrame.LookPamphlets), ("AGR-12", IronFrame.LookEnclose),
+            ("TRN-10", IronFrame.LookTurnpike), ("HNT-12", IronFrame.LookFleets), ("FOD-10", IronFrame.LookCane), ("FOR-10", IronFrame.LookCrops), ("WAY-10", IronFrame.LookChrono),
         };
         foreach ((string project, int bit) in looks)
         {

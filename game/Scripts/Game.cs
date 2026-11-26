@@ -673,6 +673,7 @@ public partial class Game : Node3D
             settlement["supplyShortage"] = supplyShortage;
             // the share, in percent, of its fighters holding a crossbow, a longbow and the war bow (docs/MVP/36): the figures carrying bows follow it
             settlement["bows"] = new int[] { frame.SettlementBowPct[i * 3], frame.SettlementBowPct[i * 3 + 1], frame.SettlementBowPct[i * 3 + 2] };
+            settlement["muskets"] = i < frame.SettlementMusketPct.Length ? frame.SettlementMusketPct[i] : 0; // the drilled levy's look follows the muskets a town holds (docs/MVP/38 §5.6, 39 §6)
             // The Iron chapter's works at this settlement (counts per kind, in the order of "ironWorkIds"), the soldiers posted, and the build under way.
             if (frame.Iron.Active && frame.Iron.WorkKinds > 0 && (i + 1) * frame.Iron.WorkKinds <= frame.Iron.Works.Length)
             {
@@ -718,6 +719,9 @@ public partial class Game : Node3D
                 settlement["discEngines"] = i < frame.Discovery.Engines.Length ? (int)frame.Discovery.Engines[i] : 0;
                 settlement["discOvens"] = i < frame.Discovery.Ovens.Length ? (int)frame.Discovery.Ovens[i] : 0;
                 settlement["discFactoryCoverage"] = i < frame.Discovery.FactoryCoverage.Length ? frame.Discovery.FactoryCoverage[i] : 0L;
+                settlement["discSoot"] = i < frame.Discovery.Soot.Length ? frame.Discovery.Soot[i] : 0L;
+                settlement["discCanal"] = i < frame.Discovery.Canal.Length && frame.Discovery.Canal[i] != 0;
+                settlement["discFleet"] = i < frame.Discovery.Fleet.Length && frame.Discovery.Fleet[i] != 0;
             }
 #if DEBUG
             if (i == forcedWorkAt)
@@ -751,13 +755,14 @@ public partial class Game : Node3D
                 {
                     var discWorks = new int[IronWorkKindCount()];
                     if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(discWorks, 0);
-                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort", "botanical_garden" })
+                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "print_shop", "harbor" })
                         if (IronKindIndex(id) is >= 0 and int discAt) discWorks[discAt] = 1;
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;
                     settlement["discFactoryCoverage"] = 1L << 32;
                     settlement["discEngineers"] = 2;
                     settlement["discOperatives"] = 3;
+                    settlement["discSoot"] = 6L << 32; settlement["discCanal"] = true; settlement["discFleet"] = true;
                     settlement["discColony"] = HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
                 }
                 if (forcedWorks || forcedSite > 0)
@@ -1066,6 +1071,9 @@ public partial class Game : Node3D
             ["discCapitalTile"] = frame.Discovery.CapitalTile,
             ["discSocietyStaffed"] = frame.Discovery.SocietyStaffed,
             ["discExchangeStaffed"] = frame.Discovery.ExchangeStaffed,
+            ["discChronometer"] = frame.Discovery.ChronometerHeld,
+            ["discTelescope"] = frame.Discovery.TelescopeHeld,
+            ["discEmbassyMask"] = frame.Discovery.EmbassyMask,
             ["roadMeta"] = roadMeta,
             ["roadTiles"] = roadTiles,
             ["plots"] = plots,

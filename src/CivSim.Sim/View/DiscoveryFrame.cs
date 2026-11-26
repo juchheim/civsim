@@ -15,9 +15,15 @@ public sealed class DiscoveryFrame
     /// <summary>1 where the thing stands or works: canal, factory, colony (Colony is a state instead: 0 none, 1 content, 2 strained, 3 blockaded), staffed garden, learned society, bastion fort, crewed galleon, exchange house.</summary>
     public byte[] Canal = Array.Empty<byte>(), Factory = Array.Empty<byte>(), Colony = Array.Empty<byte>(), GardenStaffed = Array.Empty<byte>(),
         Society = Array.Empty<byte>(), Bastion = Array.Empty<byte>(), GalleonCrewed = Array.Empty<byte>(), ExchangeHouse = Array.Empty<byte>();
+    /// <summary>1 where the town sends an offshore fishing fleet to sea (HNT-12, a harbor): a lugger lies at its quay and a bank shows at sea (docs/MVP/39 §5, §7.1).</summary>
+    public byte[] Fleet = Array.Empty<byte>();
 
     /// <summary>The viewer's own civilization: ocean reach, a staffed exchange, joint-stock and insurance open, a staffed society, colonies held, KEY-7 progress in permille.</summary>
     public bool OceanReach, ExchangeStaffed, JointStockOpen, InsuranceOpen, SocietyStaffed;
+    /// <summary>The viewer's realm holds a marine chronometer (a navigator stands on its quays) and a telescope (a brass dome beside its learned society).</summary>
+    public bool ChronometerHeld, TelescopeHeld;
+    /// <summary>Bit <c>c</c> set when the viewer has a resident embassy (DIP-09) with civilization <c>c</c>: a flag in its colour flies over the viewer's capital.</summary>
+    public int EmbassyMask;
     /// <summary>
     /// Ocean lanes (docs/MVP/39 §7.2): the visible trade routes whose trip crosses deep ocean, which only a SEA-12 ship can sail. Tiles of the two harbor towns, the seller's
     /// civilization and the route's volume in permille. Taken from the frame's own route list, so a lane is listed only where the route is, and never reveals land.
@@ -44,6 +50,6 @@ public sealed class DiscoveryFrame
         CoalLitres = new long[size]; FactoryCoverage = new long[size]; Soot = new long[size];
         Engines = new byte[size]; Ovens = new byte[size]; Operatives = new byte[size]; Engineers = new byte[size];
         Canal = new byte[size]; Factory = new byte[size]; Colony = new byte[size]; GardenStaffed = new byte[size];
-        Society = new byte[size]; Bastion = new byte[size]; GalleonCrewed = new byte[size]; ExchangeHouse = new byte[size];
+        Society = new byte[size]; Bastion = new byte[size]; GalleonCrewed = new byte[size]; ExchangeHouse = new byte[size]; Fleet = new byte[size];
     }
 }

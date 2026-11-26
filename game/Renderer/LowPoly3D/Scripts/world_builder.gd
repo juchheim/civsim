@@ -2187,6 +2187,10 @@ func _shot_mesh(civ: int) -> String:
 ## longbow and the war bow (docs/MVP/36), and a person's own roll against those shares, best first, picks theirs (the longbow figure also stands for the war bow of
 ## Archery Warfare). Otherwise iron arms (WAR-08) give the soldier, and last the spear.
 func _arms_mesh(civ: int, seed: float, home: int) -> String:
+	# the drilled levy (WAR-13, docs/MVP/39 section 6): a person's own roll against the share of the town's fighters who hold a musket makes them a musketeer in a
+	# coat and cross-belts; the share is the stock the sim holds, so a town with no muskets draws none, and Faith & Fief (no muskets) is unchanged
+	if civ >= 0 and w.has_iron_look(civ, M7WorldData.IRON_MUSKETS) and fposmod(seed * 5.17 + 0.61, 1.0) < float(w.musket_pct(home)) / 100.0:
+		return "person_musketeer"
 	if civ >= 0 and seed >= 0.7 and w.has_look(civ, M7WorldData.LOOK_GUNPOWDER):
 		return _shot_mesh(civ)
 	# a drilled army (docs/MVP/35 section 7): with rifles most armed people are riflemen; with pike and musket drill the band under the shot is pike
@@ -2532,6 +2536,23 @@ func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_o
 				var gnp := c0 + dir * 1.5 + tangent * 0.34
 				props.add("galleon", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y)) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(gnp.x, -0.02, gnp.y)),
 					Color(cc.r, cc.g, cc.b, seed))
+			if w.discovery_active:
+				var disc_h := w.discovery_settlement(s)
+				# HNT-12 (docs/MVP/39 §5, §7.1): a town that sends a fleet to sea has a lugger at its quay and a bank out on the water where the fleet fishes; WAY-10: a navigator
+				# stands on the quay while the realm holds a chronometer. Each is drawn only where the sim holds it (the frame's fleet flag, the realm's chronometer).
+				if bool(disc_h.get("fleet", false)):
+					kit.ensure_discovery()
+					var lp := c0 + dir * 1.5 - tangent * 0.34
+					props.add("lugger", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y)) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(lp.x, -0.02, lp.y)),
+						Color(cc.r, cc.g, cc.b, seed))
+					var bp2 := c0 + dir * 2.7 + tangent * 0.1
+					var bt2 := w.tile_at(bp2)
+					if bt2 >= 0 and w.is_water(bt2):
+						props.add("fishing_bank", Transform3D(Basis(Vector3.UP, seed * TAU), Vector3(bp2.x, -0.015, bp2.y)), Color(cc.r, cc.g, cc.b, seed))
+				if w.disc_chronometer and w.discovery_active:
+					kit.ensure_discovery()
+					var np := c0 + dir * 0.7 + tangent * 0.13
+					props.add("person_navigator", Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y)), Vector3(np.x, 0.02, np.y)), Color(float(int(s.civ)) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			var enemy := w.blockaders_of(int(s.get("index", -1)))
 			for k in enemy.size():
 				var civ_b := int(enemy[k])
@@ -2698,8 +2719,13 @@ func _deposits() -> void:
 			var pit_civ: int = int(camps[t][0]) if camps.has(t) else (w.owner[t] if t < w.owner.size() else -1)
 			var pit_cc := M7MeshBuilder.lin(M7WorldData.civ_color(pit_civ) if pit_civ >= 0 else Color("#9c8466"), 0.5)
 			props.add("coal_mine_idle" if spent else "coal_mine_body", _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
+			if not spent:
+				# the pit's crew (docs/MVP/39 §6): two sooty miners at the shaft head while it is worked
+				for mk in 2:
+					var mp := pit_p + Vector2(0.17 + 0.06 * mk, 0.1 - 0.13 * mk) * (pit_scale / 1.35)
+					props.add("person_miner", _xf(mp, w.height_at(mp), yaw + 1.7 * mk, 1.0), Color(float(maxi(pit_civ, 0)) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			disc_mines.append({"kind": "coal_mine", "pos": Vector3(pit_p.x, w.height_at(pit_p), pit_p.y), "yaw": yaw, "scale": pit_scale,
-				"state": "idle" if spent else "work", "seed": "coal%d" % t})
+				"state": "idle" if spent else "work", "seed": "coal%d" % t, "tile": t})
 			continue
 		var mesh := mine_mesh_name(kind, g, camp_head)
 		if not kit.meshes.has(mesh + tall):
@@ -2722,10 +2748,74 @@ func _deposits() -> void:
 			props.add(mesh + tall, _xf(p, w.height_at(p), yaw, display_scale), Color(cc.r, cc.g, cc.b, seed))
 			continue
 		props.add(mesh + tall, _xf(p, w.height_at(p), yaw, display_scale), Color(1, 1, 1, seed))
+	_navigation_canals()
+
+## TRN-11 (docs/MVP/39 §5): a town that has dug a navigation canal has one running out to the nearest worked coal pit three or more tiles away, a stone-faced channel with a
+## towpath and a lock every third tile, and a coal barge poled along it by a bargeman (the discovery rig moves it). Drawn only for a town the sim says has the canal and a pit that is
+## being worked; the canal is a chain of tiles walked greedily toward the pit, and a tile of water gets no channel.
+func _navigation_canals() -> void:
+	if not w.discovery_active:
+		return
+	for sd in w.settlements:
+		if not bool(w.discovery_settlement(sd).get("canal", false)):
+			continue
+		var home := int(sd.get("tile", -1))
+		if home < 0:
+			continue
+		var best: Dictionary = {}
+		var best_d := 1e9
+		for m in disc_mines:
+			if String(m.get("kind", "")) != "coal_mine" or String(m.get("state", "")) != "work" or not m.has("tile"):
+				continue
+			var d := w.tile_center(home).distance_to(w.tile_center(int(m.tile)))
+			if d >= 2.6 and d < best_d:
+				best_d = d
+				best = m
+		if best.is_empty():
+			continue
+		kit.ensure_discovery()
+		var goal := w.tile_center(int(best.tile))
+		var chain: Array = []
+		var at := home
+		for step in 14:
+			var next := -1
+			var nd := 1e9
+			for i in 6:
+				var nb: int = w.neighbour(at, i)
+				if nb < 0:
+					continue
+				var dd := w.tile_center(nb).distance_to(goal)
+				if dd < nd:
+					nd = dd
+					next = nb
+			if next < 0 or next == at or next == int(best.tile):
+				break
+			chain.append(next)
+			at = next
+		if chain.is_empty():
+			continue
+		var points: Array = [Vector3(w.tile_center(home).x, w.height_at(w.tile_center(home)) + 0.012, w.tile_center(home).y)]
+		var prev := home
+		for ci in chain.size():
+			var tile: int = chain[ci]
+			var c2 := w.tile_center(tile)
+			var from_c := w.tile_center(prev)
+			var to_c := w.tile_center(chain[ci + 1]) if ci + 1 < chain.size() else goal
+			var dir := (to_c - from_c).normalized()
+			if w.is_land(tile):
+				var lock: bool = ci % 3 == 2
+				props.add("canal_nav_lock" if lock else "canal_nav_straight", _xf(c2, w.height_at(c2), atan2(-dir.y, dir.x), 1.0), Color(1, 1, 1, 0.5))
+			points.append(Vector3(c2.x, w.height_at(c2) + 0.012, c2.y))
+			prev = tile
+		points.append(Vector3(goal.x, w.height_at(goal) + 0.012, goal.y))
+		disc_mines.append({"kind": "barge", "path": points, "state": "work", "seed": "barge%d" % home, "pos": points[0]})
 
 ## What the deposit props depend on: the e3 overlay (kind, worked bit) and each mining camp's tile, civilization and mine head.
 func _deposit_digest() -> int:
 	var h := hash(w.e3_overlay_bytes) * 31 + deposit_placement_signature
+	if w.discovery_active:
+		for sd in w.settlements:
+			h = h * 31 + (1 if bool(w.discovery_settlement(sd).get("canal", false)) else 0)
 	for cd in w.camp_details:
 		if int(cd[2]) == 1:
 			h = int((h * 31 + int(cd[0]) * 17 + int(cd[1]) * 3 + int(cd[7])) & 0x7fffffff)

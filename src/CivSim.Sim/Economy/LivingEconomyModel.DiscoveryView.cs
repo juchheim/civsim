@@ -5,7 +5,7 @@ namespace CivSim.Sim.Economy;
 /// <summary>A read-only snapshot of a Discovery town for the view: what stands, what works and what it gives (raw Q32.32 where a quantity).</summary>
 public readonly record struct DiscoveryTownReadout(
     long CoalLitres, int Engines, int Ovens, bool Canal, bool Factory, long FactoryCoverage, int Operatives, int Engineers, long Soot,
-    bool Colony, bool GardenStaffed, bool SocietyHere, bool Bastion, bool GalleonCrewed, bool ExchangeHere);
+    bool Colony, bool GardenStaffed, bool SocietyHere, bool Bastion, bool GalleonCrewed, bool ExchangeHere, bool Fleet = false);
 
 public sealed partial class LivingEconomyModel
 {
@@ -21,7 +21,7 @@ public sealed partial class LivingEconomyModel
             CoalStock(settlementIndex).Raw, EngineCount(s), IronWorksCount(s, IronStructure.CokeOven), IronWorksCount(s, IronStructure.NavigationCanal) > 0,
             FactoryCount(s) > 0, FactoryCoverage(s).Raw, OperativesHeld(s), EngineersHeld(s), SootAt(s.SiteTile).Raw,
             IsColony(s), GardenStaffed(s), IronWorksCount(s, IronStructure.LearnedSociety) > 0, BastionFortBuilt(settlementIndex),
-            CrewedGalleon(settlementIndex), IronWorksCount(s, IronStructure.ExchangeHouse) > 0);
+            CrewedGalleon(settlementIndex), IronWorksCount(s, IronStructure.ExchangeHouse) > 0, OffshoreFleet(s));
     }
 
     /// <summary>The site tile of a civilization's capital (where its colonies' tethers lead), or -1 with none; Discovery only.</summary>

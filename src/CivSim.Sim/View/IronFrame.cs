@@ -16,7 +16,10 @@ public sealed class IronFrame
 
     // ---- per civilization: small-prop looks of the Iron Age that the 16 bits of MatchFrame.CivLooks have no room for ----
     public const int LookCamels = 1, LookRelays = 2, LookBarrels = 4, LookPlanks = 8, LookGlass = 16, LookMusketDrill = 32, LookRifles = 64;
-    /// <summary>One int per civilization: bits of <c>Look*</c> for the projects it has completed (HUS-09, COM-08, WOD-07, WOD-08, CER-07, WAR-13, WAR-14). Zero outside the Iron chapter.</summary>
+    // The Discovery chapter's small looks (docs/MVP/39 §9), per civilization, view only: the telescope (INQ-07), glazed windows (CER-11), pamphlets (COM-11), enclosure (AGR-12),
+    // the turnpike (TRN-10), offshore fleets (HNT-12), sugar cane (FOD-10), the Columbian Exchange crops (FOR-10) and the chronometer (WAY-10).
+    public const int LookScope = 128, LookGlazing = 256, LookPamphlets = 512, LookEnclose = 1024, LookTurnpike = 2048, LookFleets = 4096, LookCane = 8192, LookCrops = 16384, LookChrono = 32768;
+    /// <summary>One int per civilization: bits of <c>Look*</c> for the projects it has completed (HUS-09, COM-08, WOD-07, WOD-08, CER-07, WAR-13, WAR-14, then in Discovery INQ-07, CER-11, COM-11, AGR-12, TRN-10, HNT-12, FOD-10, FOR-10, WAY-10). Zero outside the Iron chapter.</summary>
     public int[] CivLooks = Array.Empty<int>();
 
     // ---- per settlement: actual stock behind settlement props, separate from the project looks above ----

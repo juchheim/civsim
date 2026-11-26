@@ -407,6 +407,15 @@ public partial class Game
                 Step(() => ToggleChronicle(true), 0.8f);
                 Shot("legends-4-chronicle-after-death");
                 break;
+            case "disc-town":
+                // a Discovery town at three distances (use --discovery-playtest --research-era=6 --dev-disc-works --dev-harbor --looks-debug): the works, soot, canal, harbor cues
+                Step(() => { FrameCapital(); ZoomTo(7.0f); }, 2.5f);
+                Shot("disc-town-a");
+                Step(() => ZoomTo(4.2f), 1.2f);
+                Shot("disc-town-b");
+                Step(() => { _yawTarget = Mathf.DegToRad(150.0f); ZoomTo(4.2f); }, 1.4f);
+                Shot("disc-town-c");
+                break;
             case "tools":
                 Step(() => { FrameCapital(); ZoomTo(2.0f); }, 2.0f);
                 Step(() => _session!.SetPaused(true), 0.3f);

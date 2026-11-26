@@ -15,6 +15,7 @@ class_name M7DiscoveryRig
 extends RefCounted
 
 const MAX_COLUMNS := 24
+const BARGE_SPEED := 0.09          # world units per second along the canal (a slow, patient barge)
 const WHEEL_SPEED := 1.4           # radians per second of the winding wheel
 const BEAM_PERIOD := 4.0           # seconds per rock of the engine's beam
 const BEAM_SWING := 0.15           # radians either side of level
@@ -26,6 +27,7 @@ var smoke_factory: Callable
 var holder: Node3D
 var wheels: Array = []             # {node, base, hub, rot, spin}
 var beams: Array = []              # {node, pivot, rot, scale, phase}
+var barges: Array = []             # {node, man, path, length, phase}: a coal barge and its bargeman poled along a navigation canal
 var columns: Array = []            # {smoke, work}
 var soot_material: ShaderMaterial  # the shared smoke shader with its colour set near-black (it ignores a particle's own colour)
 var steam_material: ShaderMaterial # and the same set white
@@ -86,6 +88,7 @@ func _clear() -> void:
 	parent.add_child(holder)
 	wheels.clear()
 	beams.clear()
+	barges.clear()
 	columns.clear()
 
 ## Rebuilds the moving parts for a list of works. `works` entries: {kind, pos: Vector3, yaw: float, scale: float, state: String}.
@@ -132,6 +135,23 @@ func sync(works: Array) -> void:
 			"coke_oven":
 				if working:
 					_column(pos + rot * (Power.COKE_SMOKE * scale), 0.08, 18, 6.0, false, scale)
+			"barge":
+				var pts: Array = w.path
+				if working and pts.size() >= 2:
+					var length := 0.0
+					for i in pts.size() - 1:
+						length += (pts[i + 1] as Vector3).distance_to(pts[i] as Vector3)
+					if length > 0.01:
+						var barge := MeshInstance3D.new()
+						barge.mesh = b.kit.get_mesh("barge_coal")
+						barge.material_override = b.mats.prop
+						barge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+						holder.add_child(barge)
+						var man := MeshInstance3D.new()
+						man.mesh = b.kit.get_mesh("person_bargeman")
+						man.material_override = b.mats.prop
+						holder.add_child(man)
+						barges.append({"node": barge, "man": man, "path": pts, "length": length, "phase": float(absi(String(w.get("seed", 0)).hash()) % 100) / 100.0})
 
 func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: bool, scale: float, dark: bool = true, material: ShaderMaterial = null) -> void:
 	if columns.size() >= MAX_COLUMNS:
@@ -151,6 +171,19 @@ func _column(at: Vector3, lift: float, amount: int, lifetime: float, is_steam: b
 	holder.add_child(smoke)
 	columns.append({"smoke": smoke})
 
+## Where a point `distance` along a polyline is, and which way the line runs there.
+static func _along(pts: Array, distance: float) -> Array:
+	var left := distance
+	for i in pts.size() - 1:
+		var a: Vector3 = pts[i]
+		var c: Vector3 = pts[i + 1]
+		var seg := a.distance_to(c)
+		if left <= seg or i == pts.size() - 2:
+			var t := clampf(left / maxf(seg, 0.0001), 0.0, 1.0)
+			return [a.lerp(c, t), (c - a).normalized()]
+		left -= seg
+	return [pts[0], Vector3.RIGHT]
+
 ## Turns the wheels and rocks the beams for `seconds` of render time (the render tick * 0.1 in a match, the wall clock in the gallery).
 func update(seconds: float) -> void:
 	for wh in wheels:
@@ -158,6 +191,16 @@ func update(seconds: float) -> void:
 		var s: float = wh.scale
 		var angle := seconds * WHEEL_SPEED * float(wh.spin)
 		(wh.node as MeshInstance3D).transform = Transform3D(rot * Basis.from_scale(Vector3.ONE * s) * Basis(Vector3.BACK, angle), (wh.pos as Vector3) + rot * ((wh.hub as Vector3) * s))
+	for bg in barges:
+		var u := fposmod(seconds * BARGE_SPEED / float(bg.length) + float(bg.phase), 2.0)
+		var forward := u <= 1.0
+		var frac := u if forward else 2.0 - u
+		var at: Array = _along(bg.path, frac * float(bg.length))
+		var dir: Vector3 = at[1] if forward else -(at[1] as Vector3)
+		var yaw := atan2(dir.x, dir.z)
+		var pos2: Vector3 = at[0]
+		(bg.node as MeshInstance3D).transform = Transform3D(Basis(Vector3.UP, yaw), pos2)
+		(bg.man as MeshInstance3D).transform = Transform3D(Basis(Vector3.UP, yaw), pos2 + Basis(Vector3.UP, yaw) * Vector3(0.0, 0.03, -0.07))
 	for bm in beams:
 		var rot2: Basis = bm.rot
 		var s2: float = bm.scale

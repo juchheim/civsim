@@ -240,6 +240,14 @@ func _foot(mesh_name: String) -> Array:
 				Vector2(a.size.x, a.size.z) * 0.5]
 	return _hd[mesh_name]
 
+## People standing at a building's door facing away from the hearth (the staff cue of docs/MVP/39 §4): `n` figures in a row `reach` out from the building's centre.
+func _door_figures(mesh: String, p: Vector2, n: int, reach: float) -> void:
+	var toward := atan2((_c0 - p).x, (_c0 - p).y)
+	for k in n:
+		var off: Vector3 = M7WorldBuilder.rot_y(toward) * Vector3((k - (n - 1) * 0.5) * 0.07, 0.0, reach)
+		var q := Vector2(p.x + off.x, p.y + off.z)
+		wb.props.add(mesh, wb._xf(q, w.height_at(q), toward + PI, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+
 func _tint(k: int) -> Color:
 	return Color(_cc.r, _cc.g, _cc.b, M7WorldData.hash01(_t, k, 6))
 
@@ -768,11 +776,15 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 			var xh = _whole([Q.CIVIC] + big, "exchange_house", "exchange_house" if w.disc_exchange_staffed else "exchange_house_idle", 1.6)
 			if xh != null:
 				wb.civic_sites.append({"kind": "exchange_house", "p": xh[1], "y": w.height_at(xh[1]), "yaw": _face(xh[1]), "civ": _civ, "seed": _seed, "tile": _t})
+				if w.disc_exchange_staffed:
+					_door_figures("person_merchant", xh[1], 2, 0.3)   # a merchant or two at the door while the house is staffed
 		if w.iron_works(s, "renaissance_palace") > 0 or (build_id == "renaissance_palace" and build_pm > 0):
 			var palace_stage := clampi(1 + build_pm * 3 / 1000, 1, 4) if build_id == "renaissance_palace" and build_pm > 0 else 4
 			var palace = _whole([Q.WONDER_A, Q.WONDER_C, Q.WONDER_B] + big, "renaissance_palace", "renaissance_palace_%d" % palace_stage, 0.9)
 			if palace != null:
 				wb.civic_sites.append({"kind": "renaissance_palace", "p": palace[1], "y": w.height_at(palace[1]), "yaw": _face(palace[1]), "civ": _civ, "seed": _seed, "tile": _t})
+				if build_id == "renaissance_palace" and build_pm > 0:
+					_door_figures("person_master_mason", palace[1], 2, 0.34)   # masons on the site while it goes up (the E5 Wonders' masons are the same figure)
 	if build_pm > 0 and build_id in ["academy", "theatre_arena", "bathhouse"]:
 		_whole(big, "site", site_mesh, 1.3)
 
@@ -1535,6 +1547,12 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 				if dplaced != null:
 					taken[int(dplaced[0])] = true
 					var dp: Vector2 = dplaced[1]
+					# soot (docs/MVP/39 §5, A-16): a ground stain only beside a working factory or coke oven, sized by the soot the town holds, so it fades as the soot falls
+					if dworking and (dwork == "factory" or dwork == "coke_oven"):
+						var soot := float(int(disc.get("soot_raw", 0))) / 4294967296.0
+						if soot > 0.05:
+							var stain := (0.95 if dwork == "factory" else 0.6) * clampf(0.35 + soot * 0.12, 0.35, 1.4)
+							wb.props.add("soot_stain", wb._xf(dp, w.height_at(dp) + 0.003, 0.0, stain), tint)
 					# the staff cue (docs/MVP/39 §4): the people the sim says are in post stand at the door, never more than it holds
 					var staff_mesh := ""
 					var staff_n := 0
@@ -1553,6 +1571,28 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 						wb.props.add(staff_mesh, wb._xf(spp, w.height_at(spp), atan2((_c0 - dp).x, (_c0 - dp).y) + PI, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 					wb.disc_works.append({"kind": dwork, "pos": Vector3(dp.x, w.height_at(dp), dp.y), "yaw": atan2((_c0 - dp).x, (_c0 - dp).y), "scale": float(dw[3]),
 						"state": "work" if dworking else "idle", "seed": "%s%d" % [dwork, si]})
+			# the small cues the age's projects leave (docs/MVP/39 §4.10): each stands only where the sim holds its thing and the realm knows the project
+			var cues := []
+			if w.iron_works(s, "learned_society") > 0 and w.disc_society_staffed and w.disc_telescope and w.has_iron_look(_civ, M7WorldData.IRON_SCOPE):
+				cues.append(["observatory", 1.1])
+			if w.iron_works(s, "botanical_garden") > 0 and bool(disc.get("garden_staffed", false)) and w.has_iron_look(_civ, M7WorldData.IRON_GLAZING):
+				cues.append(["greenhouse", 1.25])
+			if w.iron_works(s, "print_shop") > 0 and w.has_iron_look(_civ, M7WorldData.IRON_PAMPHLETS):
+				cues.append(["news_board", 1.0])
+			for cue in cues:
+				var cplaced = _fief_outer_site(outer_fief_sites, taken, String(cue[0]), String(cue[0]), float(cue[1]), tint)
+				if cplaced != null:
+					taken[int(cplaced[0])] = true
+			# DIP-09 (docs/MVP/39 §4.10): a flag in a guest's colour on the Heart of the capital for each resident embassy
+			if w.disc_capital_tile == _t and w.disc_embassy_mask != 0:
+				var ek := 0
+				for guest in 8:
+					if ((w.disc_embassy_mask >> guest) & 1) == 0:
+						continue
+					var fp := _c0 + Vector2(-0.17 + 0.09 * ek, 0.13)
+					var fcc := M7MeshBuilder.lin(M7WorldData.civ_color(guest), 0.5)
+					wb.props.add("embassy_flag", wb._xf(fp, w.height_at(fp), 0.0, 1.0), Color(fcc.r, fcc.g, fcc.b, 0.5))
+					ek += 1
 		var build_k := int(s.get("ironBuildKind", -1))
 		var build_id := String(w.iron_work_ids[build_k]) if build_k >= 0 and build_k < w.iron_work_ids.size() else ""
 		if w.iron_works(s, "monastery") > 0:

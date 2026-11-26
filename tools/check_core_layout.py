@@ -225,7 +225,9 @@ def check(path, quiet=False, frame_path=None):
                 problems.append(f"{label}: housed {district_ids[district]} building {kind} is not whole on sim tile {tile}")
         tiers = {}
         for it in items:
-            if it.get("chain"):
+            # "fief" is the outer works' pseudo-chain (monastery, arsenal, and the Discovery engine, oven, factory and garden): each is its own building, not a tier of one
+            # chain, so a town may stand several of them (docs/MVP/39 A-3). Real chains (perimeter, gate, sacred, ...) still show one tier.
+            if it.get("chain") and it["chain"] != "fief":
                 tiers.setdefault(it["chain"], set()).add(it["tier"])
         for chain, ts in sorted(tiers.items()):
             if len(ts) > 1:
