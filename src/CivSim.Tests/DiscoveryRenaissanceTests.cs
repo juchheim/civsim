@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CivSim.Sim.Ai;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Research;
@@ -11,7 +12,7 @@ namespace CivSim.Tests;
 
 /// <summary>
 /// The five Discovery rows that had no system (M13 WP-E6-7 slice 7, docs/MVP/38 §5.3 and §5.4): BLD-13 city build speed, NUM-10 instrument calculation,
-/// INQ-09 Newtonian physics, COM-11 newspapers and ART-10 patronage. Each is exactly 1 outside a Discovery match and without its own project.
+/// INQ-09 Newtonian physics, COM-11 newspapers, ART-10 patronage and INQ-07's tower sight. Each is exactly 1 outside a Discovery match and without its own project.
 /// </summary>
 public class DiscoveryRenaissanceTests
 {
@@ -146,6 +147,69 @@ public class DiscoveryRenaissanceTests
         fief.Economy.FixtureSetIronWork(0, "print_shop", 1);
         Assert.Equal(Fix64.One, fief.Economy.FixtureCohesionResponse(0));
         Assert.Equal(Fix64.Zero, fief.Economy.FixturePublicOpinionGain(0));
+    }
+
+    // ---- INQ-07 ----------------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void INQ07_adds_a_towers_sight_only_where_a_tower_stands_and_the_telescope_is_known()
+    {
+        BronzeFixture with = Town(1, "INQ-07");
+        Assert.Equal(Fix64.FromInt(2), with.Economy.FixtureModifier(0, "tower_sight"));
+        Assert.Equal(0, with.Economy.TowerSight(0)); // no tower yet
+
+        with.Economy.FixtureSetStructureCount(0, "lookout_post", 1);
+        Assert.Equal(3, with.Economy.TowerSight(0)); // a lookout's 3 tiles, doubled: 3 more
+
+        BronzeFixture gate = Town(1, "INQ-07");
+        gate.Economy.FixtureSetIronWork(0, "gatehouse", 1);
+        Assert.Equal(3, gate.Economy.TowerSight(0));
+        BronzeFixture castle = Town(1, "INQ-07");
+        castle.Economy.FixtureSetIronWork(0, "castle", 1);
+        Assert.Equal(3, castle.Economy.TowerSight(0));
+
+        BronzeFixture noTelescope = Town(1);
+        noTelescope.Economy.FixtureSetStructureCount(0, "lookout_post", 1);
+        Assert.Equal(0, noTelescope.Economy.TowerSight(0));
+    }
+
+    [Fact]
+    public void INQ07_tower_sight_is_zero_in_Fief_and_for_a_bad_index()
+    {
+        BronzeFixture fief = FiefTown(1, "INQ-07");
+        fief.Economy.FixtureSetStructureCount(0, "lookout_post", 1);
+        Assert.Equal(0, fief.Economy.TowerSight(0));
+        Assert.Equal(0, fief.Economy.TowerSight(-1));
+        Assert.Equal(0, fief.Economy.TowerSight(10_000));
+    }
+
+    [Fact]
+    public void INQ07_widens_the_belief_map_around_a_tower_town()
+    {
+        MatchModel Make(bool tower)
+        {
+            var world = WorldGenerator.Generate(Seed);
+            EconomyArchetype[] balanced = { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
+            var pack = TestPack.WithNumeric("KEY-6", "INQ-07");
+            MatchModel match = MatchModel.Create(Seed, pack, world, balanced, new[] { CivControl.Ai(Difficulty.Warlord, EconomyArchetype.Balanced), default, default, default },
+                rules: ChapterRules.Discovery);
+            var runner = new SimRunner(match);
+            foreach (string project in new[] { "KEY-5", "KEY-6", "INQ-07" })
+            {
+                runner.Submit(new Command(runner.Tick, 0, CommandKind.CompleteProject, match.Research.Catalog.IndexOf(project), 0, 0));
+                runner.Advance(2);
+            }
+            if (tower)
+            {
+                int home = Enumerable.Range(0, match.Economy.SettlementCount).First(i => match.Economy.SettlementLite(i).Civilization == 0);
+                match.Economy.FixtureSetStructureCount(home, "lookout_post", 1);
+            }
+            runner.Advance(150 * 2);
+            return match;
+        }
+        MatchModel plain = Make(false), towered = Make(true);
+        int Explored(MatchModel m) { var map = m.Ai!.SeatOf(0)!.Belief.Map; int n = 0; for (int t = 0; t < map.TileCount; t++) if (map.IsExplored(t)) n++; return n; }
+        Assert.True(Explored(towered) > Explored(plain), "a telescope tower town sees more of the map");
     }
 
     // ---- ART-10 ----------------------------------------------------------------------------------------------------------------------------------

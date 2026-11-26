@@ -578,7 +578,7 @@ public sealed partial class FrameBuilder
         if (_omniscient) return;
         int routine = BeliefRules.RoutineSight(pol.ReachOf(_viewer));
         for (int s = 0; s < _settlementCount; s++)
-            if (IsOwn(s) && _sPop[s] > 0) MarkDisk(_sTile[s], routine);
+            if (IsOwn(s) && _sPop[s] > 0) MarkDisk(_sTile[s], routine + eco.TowerSight(s));
         for (int i = 0; i < pol.CampCount; i++)
         {
             var camp = pol.Camp(i);

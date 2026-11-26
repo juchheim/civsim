@@ -935,10 +935,55 @@ public partial class Game
     {
         MissingPrerequisite(def, out int missing, out bool hidden);
         if (missing >= 0) return _catalog!.Projects[missing].Name;
-        if (hidden) return "a project you haven't found yet";
+        if (hidden) return $"a project you haven't found yet ({HiddenPrerequisiteReason(def)})";
         foreach (Gate gate in def.Gates) if (gate.Kind != GateKind.Seen) return UiText.GateText(_catalog!, gate).Replace("Needs ", "").ToLowerInvariant();
         return "something more";
     }
+
+    /// <summary>
+    /// Why the project <paramref name="def"/> is waiting on a prerequisite the player cannot see yet, in words that say what to do. The first hidden
+    /// prerequisite decides it: a project stays hidden while it belongs to a later age, while two or more of its own prerequisites are missing
+    /// (finish the visible ones first), or, when at most one is missing, because a [Seen] gate is unmet (your people have not seen the resource).
+    /// </summary>
+    private string HiddenPrerequisiteReason(ProjectDef def)
+    {
+        foreach (int r in def.Requires)
+        {
+            if (StateOf(r) != ProjectState.Hidden || IsRevealed(r)) continue;
+            return HiddenReason(_catalog!.Projects[r]);
+        }
+        return "keep researching to find it";
+    }
+
+    private string HiddenReason(ProjectDef hidden)
+    {
+        int era = _current?.FocusEra ?? 0;
+        if (hidden.Era > era) return $"it belongs to the {UiText.AgeName(hidden.Era)}, which has not arrived";
+        var waiting = new List<string>();
+        int unseen = 0;
+        foreach (int r in hidden.Requires)
+        {
+            ProjectState s = StateOf(r);
+            if (s is ProjectState.Completed or ProjectState.Dormant) continue;
+            if (s == ProjectState.Hidden && !IsRevealed(r)) unseen++;
+            else waiting.Add(_catalog!.Projects[r].Name);
+        }
+        if (waiting.Count + unseen >= 2)
+        {
+            if (waiting.Count > 0) return $"it is two steps away; research {JoinNames(waiting)} first";
+            return "it is two or more steps away; keep researching to find it";
+        }
+        foreach (Gate gate in hidden.Gates)
+            if (gate.Kind == GateKind.Seen)
+            {
+                string text = UiText.GateText(_catalog!, gate);
+                return $"it waits until {char.ToLowerInvariant(text[0])}{text.Substring(1)}";
+            }
+        return "keep researching to find it";
+    }
+
+    private static string JoinNames(List<string> names)
+        => names.Count <= 1 ? (names.Count == 1 ? names[0] : "") : names.Count == 2 ? $"{names[0]} and {names[1]}" : $"{names[0]}, {names[1]} and more";
 
     private static void SetChip(PanelContainer chip, string text, UiGlyph glyph, Color tint)
     {
@@ -1196,7 +1241,12 @@ public partial class Game
         UiKit.SetVisible(_needsAnyList!, anyUsed > 0);
 
         var note = new StringBuilder();
-        if (hiddenRequired > 0) note.Append(hiddenRequired == 1 ? "1 more you haven't discovered yet.\n" : $"{hiddenRequired} more you haven't discovered yet.\n");
+        if (hiddenRequired > 0)
+        {
+            note.Append(hiddenRequired == 1 ? "1 more you haven't discovered yet" : $"{hiddenRequired} more you haven't discovered yet");
+            string why = HiddenPrerequisiteReason(def);
+            note.Append(why.Length > 0 ? $": {why}.\n" : ".\n");
+        }
         if (def.RequiresAny.Length > 0 && anyUsed == 0) note.Append("Another route you haven't discovered yet.\n");
         int focusCiv = Math.Max(0, frame.FocusCiv);
         foreach (Gate gate in def.Gates)

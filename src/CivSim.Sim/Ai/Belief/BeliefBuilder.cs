@@ -57,6 +57,8 @@ public sealed class BeliefBuilder : IBeliefBuilder
 
     // Scratch, rebuilt every update (never state).
     private readonly List<int> _own = new();
+    /// <summary>The telescope's extra sight at each own settlement (INQ-07), parallel to <see cref="_own"/>; all zero outside a Discovery match.</summary>
+    private readonly List<int> _ownTowerSight = new();
     private bool[] _seenNow = Array.Empty<bool>(), _visited = Array.Empty<bool>();
     private int[] _stamp = Array.Empty<int>();
     private int _stampValue;
@@ -134,8 +136,9 @@ public sealed class BeliefBuilder : IBeliefBuilder
 
         // ---- own settlements, sight ranges, own parties that arrived --------------------------------------
         _own.Clear();
+        _ownTowerSight.Clear();
         for (int s = 0; s < total; s++)
-            if (pol.SettlementCivOf(s) == civ && !pol.IsFreeFolk(s)) _own.Add(s);
+            if (pol.SettlementCivOf(s) == civ && !pol.IsFreeFolk(s)) { _own.Add(s); _ownTowerSight.Add(eco.TowerSight(s)); }
         int reach = pol.ReachOf(civ);
         int routine = BeliefRules.RoutineSight(reach);
         Array.Clear(_visited, 0, _visited.Length);
@@ -148,7 +151,7 @@ public sealed class BeliefBuilder : IBeliefBuilder
         // ---- the map: routine sight around own settlements ---------------------------------------------------
         _stampValue = _stampValue == int.MaxValue ? 1 : _stampValue + 1;
         Array.Clear(_claims);
-        foreach (int s in _own) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(s), routine, season, countClaims: true);
+        for (int i = 0; i < _own.Count; i++) SeeDisk(belief.Map, pol.Territory, pol.SettlementTileOf(_own[i]), routine + _ownTowerSight[i], season, countClaims: true);
         ExploreWithScouts(belief, pol);
         UpdateKnownDeposits(belief.Civ, belief.Map, world.Generated, pol, res, season);
         if (world.Economy.FiefChain)
@@ -545,8 +548,9 @@ public sealed class BeliefBuilder : IBeliefBuilder
 
     private int NearestOwn(PoliticsSystem pol, int tile, int width)
     {
+        // A telescope tower (INQ-07) sees farther, so the distance to a settlement that has one is shortened by its extra sight.
         int best = int.MaxValue;
-        foreach (int s in _own) best = Math.Min(best, HexGrid.Distance(pol.SettlementTileOf(s), tile, width));
+        for (int i = 0; i < _own.Count; i++) best = Math.Min(best, Math.Max(0, HexGrid.Distance(pol.SettlementTileOf(_own[i]), tile, width) - _ownTowerSight[i]));
         return best;
     }
 

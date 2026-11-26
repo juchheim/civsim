@@ -12,6 +12,7 @@ namespace CivSim.Sim.Economy;
 /// <item>INQ-09 (<c>mec_nrg_sea_effects</c> x1.1): every MEC, NRG and SEA project effect is a tenth stronger (see <see cref="NewtonLift"/>).</item>
 /// <item>COM-11 (<c>cohesion_event_response</c> x1.5, <c>gov_effects</c> x1.1): in a settlement with a print shop Cohesion closes on its target faster and the GOV terms count a tenth more.</item>
 /// <item>ART-10 (<c>legend_chance</c> x2, <c>art_insight</c> x1.1, +1 Beacon): while a patron stands, see <see cref="PatronStands"/>.</item>
+/// <item>INQ-07 (<c>tower_sight</c> x2): a settlement with a lookout post or a tower-bearing work sees farther, see <see cref="TowerSight"/>.</item>
 /// </list>
 /// </summary>
 public sealed partial class LivingEconomyModel
@@ -133,4 +134,29 @@ public sealed partial class LivingEconomyModel
 
     /// <summary>Whether a patron funds the civilization's masters this season: the research side lifts the monks' Insight by the row's <c>art_insight</c> only then.</summary>
     public bool PatronFundsMasters(int civ) => PatronStands(civ);
+
+    // ---- INQ-07: the telescope ------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>A lookout post's sight in tiles (docs/MVP/10 and 13 §2.1: "+3 sight"); the telescope's <c>tower_sight</c> multiplier scales it.</summary>
+    private const int LookoutSight = 3;
+
+    /// <summary>A settlement holds a lookout post or a work with towers: the gatehouse, a castle, a concentric castle or a bastion fort.</summary>
+    private bool HasSightTower(SettlementState s)
+        => s.Structures[(int)Structure.Lookout] > 0 || IronWorksCount(s, IronStructure.Gatehouse) > 0 || IronWorksCount(s, IronStructure.Castle) > 0
+           || IronWorksCount(s, IronStructure.ConcentricCastle) > 0 || IronWorksCount(s, IronStructure.BastionFort) > 0;
+
+    /// <summary>
+    /// The extra tiles a settlement sees once its civilization has the telescope: a tower's <see cref="LookoutSight"/> times the row's <c>tower_sight</c> minus one,
+    /// so x2 doubles the tower's reach (+3 tiles). The sight a tower gives before the telescope is not modelled (the belief's routine sight is a flat reach + 3,
+    /// docs/MVP/14 §3.1), so this is the telescope's increment only: 0 without INQ-07, without a tower, in a seceded settlement, and outside a Discovery match.
+    /// The belief builder (what the AI sees) and the frame builder (the player's fog) both add it to the settlement's routine sight.
+    /// </summary>
+    public int TowerSight(int settlementIndex)
+    {
+        if (!DiscoveryChain || (uint)settlementIndex >= (uint)_settlements.Count) return 0;
+        SettlementState s = _settlements[settlementIndex];
+        if (s.Civic is { Seceded: true } || !Done(s.Civilization, "INQ-07") || !HasSightTower(s)) return 0;
+        Fix64 sight = Modifier(s.Civilization, "tower_sight");
+        return sight > Fix64.One ? ((sight - Fix64.One) * LookoutSight).RoundToInt() : 0;
+    }
 }
