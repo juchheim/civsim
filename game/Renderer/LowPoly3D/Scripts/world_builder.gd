@@ -625,6 +625,37 @@ func _material_for(mesh_name: String) -> Material:
 static func rot_y(a: float) -> Basis:
 	return Basis(Vector3.UP, a)
 
+## One billboard name plate over each Legend the game named (docs/MVP/40 §6). Rebuilt with every people update; there are only a few.
+func _update_legend_plates() -> void:
+	if legend_node == null:
+		legend_node = Node3D.new()
+		legend_node.name = "LegendPlates"
+		root.add_child(legend_node)
+	for child in legend_node.get_children():
+		legend_node.remove_child(child)
+		child.queue_free()
+	for mark in legend_marks:
+		var text := String(w.legends.get(mark[0], ""))
+		if text == "":
+			continue
+		var p: Vector2 = mark[1]
+		var label := Label3D.new()
+		label.text = text
+		label.font_size = 28
+		label.outline_size = 10
+		label.pixel_size = 0.00055
+		label.modulate = Color(1.0, 0.86, 0.42)
+		label.outline_modulate = Color(0.035, 0.025, 0.02, 1.0)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.fixed_size = true
+		label.no_depth_test = true
+		label.shaded = false
+		label.double_sided = true
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.render_priority = 14
+		label.position = Vector3(p.x, float(mark[2]) + LEGEND_PLATE_LIFT * LEGEND_SCALE, p.y)
+		legend_node.add_child(label)
+
 func _xf(p2: Vector2, y: float, a: float, s: float) -> Transform3D:
 	return Transform3D(rot_y(a).scaled(Vector3(s, s, s)), Vector3(p2.x, y, p2.y))
 
@@ -2807,7 +2838,14 @@ func _place_figure(mx: int, my: int, home: int, face: float) -> Array:
 static func _glide_custom(palette: int, mode_offset: int, seed: float, dy: float, offset: Vector2) -> Color:
 	return Color(float(palette + mode_offset) + seed * 0.98, dy, offset.x, offset.y)
 
+const LEGEND_SCALE := 1.6      # a Legend is this much larger than the people around them
+const LEGEND_PLATE_LIFT := 0.19  # the plate floats this far above a Legend's feet, before the Legend's own scale
+
+var legend_node: Node3D
+var legend_marks: Array = []
+
 func _figures() -> void:
+	legend_marks = []
 	var n := 0
 	for fi in range(0, w.figures.size(), 11):
 		var mx := w.figures[fi]
@@ -2854,6 +2892,10 @@ func _figures() -> void:
 				boat_strength = 1.0
 				boat_tier = w.sea_tier[civ]
 		var y := maxf(w.height_at(p), 0.0)
+		# a living Legend (FigureFlags.Legend, docs/MVP/40) stands larger than the people around them and carries a name plate when the game gave one
+		var fs := LEGEND_SCALE if (fl & 2048) != 0 and not regional_lod else 1.0
+		if fs > 1.0:
+			legend_marks.append([id, p, y])
 		if boat_strength > 0.0:
 			y += 0.006 * boat_strength
 		var offset := Vector2.ZERO
@@ -2881,8 +2923,8 @@ func _figures() -> void:
 			var riding := act == 17 or act == 18 or act == 19 or debug_knight
 			var knight_tile: int = w.tile_at(p)
 			if riding and knight_tile >= 0 and _open_ground(knight_tile):
-				props.add("person_knight", _xf(p, y, face, 1.0), custom)
-				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+				props.add("person_knight", _xf(p, y, face, fs), custom)
+				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4 * fs), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 				knight_probe = p
 				n += 1
 				continue
@@ -2893,8 +2935,8 @@ func _figures() -> void:
 			var on_wheels := (raiding and seed < 0.7) or (M7WorldData.LOOKS_DEBUG and (fi / 11) % 5 == 0)
 			var here_tile: int = w.tile_at(p)
 			if on_wheels and here_tile >= 0 and _open_ground(here_tile):
-				props.add("person_chariot", _xf(p, y, face, 1.0), custom)
-				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+				props.add("person_chariot", _xf(p, y, face, fs), custom)
+				props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 2.4 * fs), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 				chariot_probe = p
 				n += 1
 				continue
@@ -2944,13 +2986,13 @@ func _figures() -> void:
 			props.add("person_boat_%d" % boat_tier, _xf(p, y - 0.006 * boat_strength, face, boat_strength), custom)
 			y += 0.014 * boat_strength
 			boat_probe = p
-		props.add(mesh, _xf(p, y, face, 1.0), custom)
+		props.add(mesh, _xf(p, y, face, fs), custom)
 		var carry := (fl >> 16) & 15
 		if TIER_DEBUG and carry == 0:
 			carry = 1 + (fi / 11) % 8
 		if carry > 0 and carry < M7MeshKit.CARRY_NAMES.size() and age == 1 and act != 13 and act != 14:
-			props.add("person_carry_" + M7MeshKit.CARRY_NAMES[carry], _xf(p, y, face, 1.0), custom)
-		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, 1.0), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
+			props.add("person_carry_" + M7MeshKit.CARRY_NAMES[carry], _xf(p, y, face, fs), custom)
+		props.add("shadow_disc", _xf(p, y + 0.001, 0.0, fs), Color(offset.x, dy, offset.y, float(mode_offset / 16)))
 		n += 1
 	# people who just left: stay where they stood for one glide and fade out
 	if not regional_lod:
@@ -2968,6 +3010,7 @@ func _figures() -> void:
 			props.add("person_plain", _xf(gp, gy, gseed * TAU, 1.0), _glide_custom(gtint, 32, gseed, 0.0, Vector2.ZERO))
 			props.add("shadow_disc", _xf(gp, gy + 0.001, 0.0, 1.0), Color(0.0, 0.0, 0.0, 2.0))
 	stats.figures = n
+	_update_legend_plates()
 	if "--perf-debug" in OS.get_cmdline_user_args():
 		var moved := 0
 		var added := 0

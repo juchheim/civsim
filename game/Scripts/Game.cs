@@ -8,6 +8,7 @@ using System.Threading;
 using CivSim.Sim.Core;
 using CivSim.Sim.Content;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Legends;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
 using CivSim.Sim.Research;
@@ -452,6 +453,14 @@ public partial class Game : Node3D
 
     internal static string WoodBandName(int band) => band switch { 0 => "depleted (under 5 L)", 1 => "low (5–14 L)", 2 => "medium (15–24 L)", _ => "dense (25 L or more)" };
 
+    /// <summary>Pretend a few people are Legends so the larger figure and the name plate can be inspected (<c>--legend-debug</c>).</summary>
+    private static readonly bool LegendDebug = OS.GetCmdlineUserArgs().Contains("--legend-debug");
+
+    private static string LegendDeedWord(LegendDeed deed) => deed switch
+    {
+        LegendDeed.Innovator => "Innovator", LegendDeed.First => "First discoverer", LegendDeed.Founder => "Founder", LegendDeed.LongLife => "Elder of the folk", _ => "",
+    };
+
     private static Godot.Collections.Dictionary BuildFramePayload(MatchFrame frame, WorldView world, bool includeWorld,
         MatchFrame? previous = null, IdLink? figureLink = null, IdLink? herdLink = null,
         int figureLimit = 0, SimulationSession? session = null)
@@ -463,6 +472,7 @@ public partial class Game : Node3D
         var relocated = new List<int>();
         int renderedFigureCount = figureLimit > 0 ? Math.Min(frame.FigureCount, figureLimit) : frame.FigureCount;
         var figures = new int[renderedFigureCount * figureStride];
+        var legendNames = new Godot.Collections.Dictionary();
         for (int i = 0; i < renderedFigureCount; i++)
         {
             int o = i * figureStride;
@@ -492,7 +502,12 @@ public partial class Game : Node3D
             }
             figures[o + 9] = px;
             figures[o + 10] = py;
+            if (LegendDebug && i % 3 == 1) { figures[o + 5] |= (int)FigureFlags.Legend; legendNames[figures[o + 8]] = "Test Legend"; }
         }
+        // The viewer's living Legends, by figure id: "Ama · Founder" (docs/MVP/40 §6). The renderer draws a plate for each flagged figure that has one.
+        for (int k = 0; k < frame.LegendCount; k++)
+            if (frame.LegendDied[k] < 0)
+                legendNames[(int)(frame.LegendFigure[k] & 0x3fffffff)] = LegendNames.Compose(frame.LegendName[k]) + " · " + LegendDeedWord((LegendDeed)frame.LegendDeed[k]);
 
         // People who left (or relocated) this publish stay where they stood for one glide and fade out.
         int removedCount = previous is not null && figureLink is not null ? figureLink.RemovedCount : 0;
@@ -1028,6 +1043,7 @@ public partial class Game : Node3D
             ["forestFill"] = forestFill,
             ["supplyFlows"] = supplyFlows,
             ["figures"] = figures,
+            ["legends"] = legendNames,
             ["renderedFigureCount"] = renderedFigureCount,
             ["ghosts"] = ghosts,
             ["herds"] = herds,

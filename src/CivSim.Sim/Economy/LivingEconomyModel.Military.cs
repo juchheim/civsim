@@ -10,7 +10,7 @@ public sealed partial class LivingEconomyModel
     private static readonly string[] ShareableMilitaryGoods =
     {
         "G-ARMS5", "G-ARMS4", "G-ARMS3", "G-ARMS2T", "G-ARMS2A", "G-ARMS1",
-        "G-CROSSBOW", "G-LONGBOW", "G-BOW", "G-CHARIOT", "G-ENGINE",
+        "G-CROSSBOW", "G-LONGBOW", "G-BOW", "G-CHARIOT", "G-ENGINE", "G-MUSKET",
     };
 
     private const int MilitaryInputBufferBatches = 5;
@@ -669,6 +669,8 @@ public sealed partial class LivingEconomyModel
             int bowStock = Stock(settlement, SlotOf("G-CROSSBOW")).FloorToInt() + Stock(settlement, SlotOf("G-LONGBOW")).FloorToInt();
             return Math.Max(0, LevyBowTarget(settlement) - bowStock);
         }
+        if (good == "G-MUSKET")
+            return MusketsKnown(civ) ? Math.Max(0, LevyBowTarget(settlement) - stock.FloorToInt()) : 0;
         if (good == "G-BOW")
         {
             if (!Done(civ, "WAR-03") || (FiefChain && Done(civ, "WAR-11"))) return 0;
@@ -700,6 +702,7 @@ public sealed partial class LivingEconomyModel
             return Math.Min(stock, Math.Max(0, MilitaryArmsReserveTarget(settlement) - (TotalIssuedWeaponStock(settlement) - stock)));
         if (good is "G-CROSSBOW" or "G-LONGBOW")
             return Math.Min(stock, Math.Max(0, LevyBowTarget(settlement) - Stock(settlement, SlotOf(good == "G-CROSSBOW" ? "G-LONGBOW" : "G-CROSSBOW")).FloorToInt()));
+        if (good == "G-MUSKET") return Math.Min(stock, LevyBowTarget(settlement));
         if (good == "G-BOW") return Math.Min(stock, LevyBowTarget(settlement));
         if (good == "G-CHARIOT") return Math.Min(stock, Population(settlement.Id) / 50);
         if (good == "G-ENGINE") return Math.Min(stock, Math.Min(2, (settlement.Metal?.IronSoldiersSupplied ?? 0) / 4));
@@ -716,6 +719,7 @@ public sealed partial class LivingEconomyModel
             int civ = settlement.Civilization;
             if (good is "G-CROSSBOW" or "G-LONGBOW" && (!FiefChain || !Done(civ, "WAR-11"))) continue;
             if (good == "G-BOW" && !Done(civ, "HNT-06")) continue;
+            if (good == "G-MUSKET" && !MusketsKnown(civ)) continue;
             int slot = SlotOf(good);
             if (slot != NoSlot) total += Stock(settlement, slot).FloorToInt();
         }

@@ -1855,6 +1855,31 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     }
 
     /// <summary>First blood between the meeting parties (13 §3.1): two small parties fight until one breaks.</summary>
+    /// <summary>The Legend system, when the match has one (set by the match; not state). Battles tell it who won them (docs/MVP/40 §3).</summary>
+    internal CivSim.Sim.Legends.LegendSystem? Legends { get; set; }
+
+    /// <summary>
+    /// A battle's victors score the Battle deed: every survivor of the winning side, and the strongest of them more. Only a real fight counts (there were fighters on both sides and
+    /// somebody fell or was hurt), so an undefended settlement taken without a blow earns nothing. <paramref name="first"/> is the side the result calls the attacker.
+    /// </summary>
+    internal void NoteBattleDeeds(IReadOnlyList<Fighter> first, IReadOnlyList<Fighter> second, BattleResult r, int place)
+    {
+        if (Legends is null || r.Winner == BattleWinner.StandOff || first.Count == 0 || second.Count == 0) return;
+        if (r.AttackerDead.Count + r.AttackerWounded.Count + r.DefenderDead.Count + r.DefenderWounded.Count == 0) return;
+        bool firstWon = r.Winner == BattleWinner.Attacker;
+        IReadOnlyList<Fighter> winners = firstWon ? first : second;
+        List<long> dead = firstWon ? r.AttackerDead : r.DefenderDead;
+        long best = -1;
+        Fix64 bestStrength = Fix64.Zero;
+        foreach (Fighter f in winners)
+        {
+            if (dead.Contains(f.Id)) continue;
+            Legends.NoteDeed(f.Id, CivSim.Sim.Legends.LegendDeed.Battle, CivSim.Sim.Legends.LegendSystem.BattlePoints, place);
+            if (best < 0 || f.Strength > bestStrength) { best = f.Id; bestStrength = f.Strength; }
+        }
+        if (best >= 0) Legends.NoteDeed(best, CivSim.Sim.Legends.LegendDeed.Battle, CivSim.Sim.Legends.LegendSystem.BattleBestBonus, place);
+    }
+
     private void Skirmish(int a, int b)
     {
         int sa = NearestSettlement(a, b), sb = NearestSettlement(b, a);
@@ -1866,6 +1891,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         BattleResult r = Combat.Fight(partyA, partyB, setup, _seed, SkirmishStream ^ (ulong)(a * 16 + b) ^ (ulong)_season);
         ApplyCasualties(r.AttackerDead, r.AttackerWounded, "skirmish");
         ApplyCasualties(r.DefenderDead, r.DefenderWounded, "skirmish");
+        NoteBattleDeeds(partyA, partyB, r, sa);
         Skirmishes++;
         int hurtA = r.AttackerDead.Count + r.AttackerWounded.Count, hurtB = r.DefenderDead.Count + r.DefenderWounded.Count;
         _events.Add(new PoliticsEvent(_tick, (byte)a, PoliticsEventKind.Skirmish, b, hurtA, hurtB));
@@ -1919,16 +1945,19 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
             int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
             int warBows = _research.IsDone(civ, _p.Hnt06) && _research.IsDone(civ, _p.War03) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
-            if (crossbows + longbows + warBows == 0) continue;
+            int muskets = _economy.MusketsAt(settlement);
+            if (muskets + crossbows + longbows + warBows == 0) continue;
             var records = new List<LivingEconomyModel.FighterRecord>();
             _economy.ListFightingAge(settlement, records);
             int able = dead;
             foreach (var r in records) if (!r.Wounded) able++;
             int room = able;
+            int ofMuskets = Math.Min(muskets, room); room -= ofMuskets;
             int ofCrossbows = Math.Min(crossbows, room); room -= ofCrossbows;
             int ofLongbows = Math.Min(longbows, room); room -= ofLongbows;
             int ofWarBows = Math.Min(warBows, room);
             Fix64 fallenCount = Fix64.FromInt(dead), all = Fix64.FromInt(able);
+            if (ofMuskets > 0) _economy.LoseArms(settlement, "G-MUSKET", fallenCount * Fix64.FromInt(ofMuskets) / all);
             if (ofCrossbows > 0) _economy.LoseArms(settlement, "G-CROSSBOW", fallenCount * Fix64.FromInt(ofCrossbows) / all);
             if (ofLongbows > 0) _economy.LoseArms(settlement, "G-LONGBOW", fallenCount * Fix64.FromInt(ofLongbows) / all);
             if (ofWarBows > 0) _economy.LoseArms(settlement, "G-BOW", fallenCount * Fix64.FromInt(ofWarBows) / all);
@@ -2058,6 +2087,8 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
         int crossbows = war11 ? _economy.GoodStock(settlement, "G-CROSSBOW").FloorToInt() : 0;
         int longbows = war11 ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
         int warBows = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
+        // WAR-13 (Discovery): a musket, strength 2.8 that ignores shields, arms one levy fighter (docs/MVP/38 §5.6, e6_combat_oracle.py Part 4). The drill then multiplies it.
+        int muskets = _economy.MusketsAt(settlement);
         int soldiersLeft = 0;
         foreach (var r in records) if (r.Soldier && !r.Wounded) soldiersLeft++;
         Fix64 warBowStrength = Fix64.FromRatio(18, 10) * (_research.IsDone(civ, _p.War03) ? Fix64.FromRatio(15, 10) : Fix64.One);
@@ -2093,6 +2124,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             if (arsenicalArms > 0) choice.Consider(5, Combat.E3WeaponStrength("arsenical"), Combat.ShieldCasualtyFactor(Fix64.One), regularTraining);
             if (crossbows > 0) choice.Consider(6, Combat.BoltStrength, Fix64.One, levyTraining, bolt: true, levyBow: true);
             if (longbows > 0) choice.Consider(7, Combat.BoltStrength, Fix64.One, levyTraining, levyBow: true);
+            if (muskets > 0) choice.Consider(10, Combat.MusketStrength, Fix64.One, levyTraining, bolt: true, levyBow: true);
             if (warBows > 0) choice.Consider(8, warBowStrength, Fix64.One, regularTraining);
             if (copperArms > 0) choice.Consider(9, Combat.E3WeaponStrength("copper"), Fix64.One, regularTraining);
             weaponStrength = choice.WeaponStrength;
@@ -2111,6 +2143,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 case 7: longbows--; issued = issued with { Longbow = issued.Longbow + 1 }; break;
                 case 8: warBows--; issued = issued with { WarBow = issued.WarBow + 1 }; break;
                 case 9: copperArms--; issued = issued with { Copper = issued.Copper + 1 }; break;
+                case 10: muskets--; issued = issued with { Musket = issued.Musket + 1 }; break;
             }
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;

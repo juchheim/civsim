@@ -918,7 +918,7 @@ public sealed partial class LivingEconomyModel
         CivicBuild building = c.BuildKind;
         PayCivic(s, building);
         AddBuilt(c, building);
-        if (building == CivicBuild.Ziggurat) _wondersBuilt.Add((s.Civilization, "BLD-08"));
+        if (building == CivicBuild.Ziggurat) { _wondersBuilt.Add((s.Civilization, "BLD-08")); NoteWonderBuilder(s); }
         c.BuildKind = CivicBuild.None;
         c.BuildProgress = Fix64.Zero;
     }

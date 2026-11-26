@@ -92,6 +92,7 @@ var tributes := PackedInt32Array()       # stride 2: overlord civ, subject civ
 var leagues := PackedInt32Array()        # one civilization bit mask per league
 var road_meta := PackedInt32Array()      # stride 4: settlement index, start, length, bridged (paved roads to the capital, TRN-07)
 var road_tiles := PackedInt32Array()     # flat tile list, -1 = a tile of someone else's road that is not in sight
+var legends := {}                       # figure id (low 30 bits) -> plate text, for the viewer's living Legends (docs/MVP/40)
 var figures := PackedInt32Array()       # stride 11: x, y, civ, age, activity, flags, tool rung, settlement, id, prev x, prev y (-1 = new)
 var state_bytes := PackedByteArray()    # RGBA8 per tile: owner+1, claim, visibility (0/128/255), claimant+1
 var overlay_bytes := PackedByteArray()  # RGBA8 per tile: food, forecast, method rung, method fallback
@@ -320,6 +321,7 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	road_meta = _int_data(d.roadMeta, 4) if d.has("roadMeta") else PackedInt32Array()
 	road_tiles = _int_data(d.roadTiles, 1) if d.has("roadTiles") else PackedInt32Array()
 	figures = _int_data(d.figures, 11)
+	legends = d.legends if d.has("legends") else {}
 	ghosts = _int_data(d.ghosts, 8) if d.has("ghosts") else PackedInt32Array()
 	state_bytes = d.stateBytes if d.has("stateBytes") else PackedByteArray()
 	overlay_bytes = d.overlayBytes if d.has("overlayBytes") else PackedByteArray()

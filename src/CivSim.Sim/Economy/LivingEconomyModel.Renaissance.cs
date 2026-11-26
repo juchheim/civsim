@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
@@ -158,5 +160,89 @@ public sealed partial class LivingEconomyModel
         if (s.Civic is { Seceded: true } || !Done(s.Civilization, "INQ-07") || !HasSightTower(s)) return 0;
         Fix64 sight = Modifier(s.Civilization, "tower_sight");
         return sight > Fix64.One ? ((sight - Fix64.One) * LookoutSight).RoundToInt() : 0;
+    }
+
+    // ---- WAR-13: the musket rung ----------------------------------------------------------------------------------------------------------------
+
+    /// <summary>Muskets exist for a civilization that has the drill project, in a Discovery match.</summary>
+    internal bool MusketsKnown(int civ) => DiscoveryChain && Done(civ, "WAR-13");
+
+    /// <summary>The most muskets a settlement finishes in one season: iron is the limit, and a town does not turn its stores into guns at once.</summary>
+    internal const int MusketsPerSeason = 3;
+
+    /// <summary>
+    /// The levy's musket want (docs/MVP/38 §5.6): after WAR-13, one musket for each levy fighter (the same count the bows target, at most 40 a town), made at a forge from
+    /// wrought iron, wood and cord, in a season of enough food and from no more than half the cut wood above the reserve, at most <see cref="MusketsPerSeason"/> a season.
+    /// A musket counts against the weapons a town holds, so the crossbows and longbows it replaces are not made again as they wear out.
+    /// </summary>
+    private void DiscoveryMusketWants(SettlementState s, MetalPlan plan)
+    {
+        if (!MusketsKnown(s.Civilization) || s.FoodSecurity < LevyBowFoodFloor) return;
+        int slot = DiscoverySlot(DiscoveryGood.Musket);
+        int held = Stock(s, slot).FloorToInt();
+        int deficit = Math.Min(MusketsPerSeason, LevyBowTarget(s) - held);
+        if (deficit <= 0) return;
+        CompiledRecipe? recipe = ProducerOf(slot);
+        if (recipe is null || !RecipeAvailable(s, recipe)) return;
+        Fix64 wood = InputOf(recipe, (int)Good.Wood), iron = InputOf(recipe, IronSlot(IronGood.Wrought));
+        Fix64 spareWood = Fix64.Max(Fix64.Zero, s.Stores[(int)Good.Wood] - WoodReserve) * LevyBowWoodShare;
+        Fix64 ironInStore = IronStock(s, IronGood.Wrought) + AvailableStock(s, MetalSlot(MetalGood.Iron));
+        Fix64 make = Fix64.FromInt(deficit);
+        if (wood > Fix64.Zero) make = Fix64.Min(make, spareWood / wood);
+        if (iron > Fix64.Zero) make = Fix64.Min(make, ironInStore / iron);
+        make = Fix64.Max(Fix64.Zero, make);
+        if (make > Fix64.Zero) plan.Terminal[slot] += Stock(s, slot) + make;
+    }
+
+    /// <summary>A musket in store wears out by the registry's service life (40 seasons), like a crossbow. Discovery only.</summary>
+    private void WearMuskets(SettlementState s)
+    {
+        if (!DiscoveryChain) return;
+        int slot = DiscoverySlot(DiscoveryGood.Musket);
+        Fix64 stock = Stock(s, slot);
+        if (stock <= Fix64.Zero) return;
+        int t = _content.TradeGoodIndex("G-MUSKET");
+        int seasons = t >= 0 ? _content.TradeGoods[t].ServiceSeasons : 0;
+        if (seasons > 0) AddStock(s, slot, AgeCraftedDurableGood(s, "G-MUSKET", stock, seasons) - stock);
+    }
+
+    /// <summary>Muskets a settlement holds now (a Discovery match with WAR-13; zero otherwise).</summary>
+    public int MusketsAt(int settlementIndex)
+        => (uint)settlementIndex < (uint)_settlements.Count && MusketsKnown(_settlements[settlementIndex].Civilization)
+            ? Stock(_settlements[settlementIndex], DiscoverySlot(DiscoveryGood.Musket)).FloorToInt() : 0;
+
+    // ---- Legends: founders (docs/MVP/40 §3) -------------------------------------------------------------------------------------------------------
+
+    /// <summary>Daughter settlements founded by fission since the last drain, as (settlement index, founding figure id). Not simulation state: the Legend system drains it every season.</summary>
+    private readonly List<(int Settlement, long Figure)> _foundings = new();
+
+    /// <summary>Moves the foundings since the last call into <paramref name="into"/> (the Legend system's season step).</summary>
+    public void DrainFounders(List<(int Settlement, long Figure)> into)
+    {
+        into.AddRange(_foundings);
+        _foundings.Clear();
+    }
+
+    /// <summary>Tells the Legend system of a deed done by one figure (figure id, <see cref="CivSim.Sim.Legends.LegendDeed"/>, points, detail). Wired by the match; not state.</summary>
+    internal Action<long, int, int, int>? LegendDeedObserver { get; set; }
+
+    /// <summary>Whether a settlement is a Free Folk camp (a refugee or seceded group that belongs to no civilization's Legends).</summary>
+    public bool IsFreeFolkSettlement(int settlementIndex)
+        => (uint)settlementIndex < (uint)_settlements.Count && IsFreeFolk(_settlements[settlementIndex]);
+
+    /// <summary>A Wonder was raised in <paramref name="s"/>: its most skilled adult scores the Wonder deed (docs/MVP/40 §3).</summary>
+    private void NoteWonderBuilder(SettlementState s)
+    {
+        if (LegendDeedObserver is null) return;
+        long best = -1;
+        int bestSkill = -1;
+        foreach (FigureState f in Residents(s.Id))
+        {
+            if (f.Age is < 14 or >= 60) continue;
+            int skill = 0;
+            foreach (byte level in f.SkillLevels) skill += level;
+            if (skill > bestSkill || skill == bestSkill && f.Id < best) { best = f.Id; bestSkill = skill; }
+        }
+        if (best >= 0) LegendDeedObserver(best, 6, 60, s.Id);
     }
 }

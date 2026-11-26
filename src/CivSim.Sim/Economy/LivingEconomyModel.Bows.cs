@@ -172,6 +172,7 @@ public sealed partial class LivingEconomyModel
                 if (seasons > 0)
                     AddStock(s, BowSlot(good), AgeCraftedDurableGood(s, BowGoodId(good), stock, seasons) - stock);
             }
+        WearMuskets(s);
         Fix64 idle = s.Stores[(int)Good.Bow] - Fix64.One;
         if (idle > Fix64.Zero) RetireStoredTool(s, Good.Bow, idle / LevyBowServiceSeasons);
         WearSpectacles(s);

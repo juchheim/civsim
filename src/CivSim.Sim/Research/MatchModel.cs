@@ -5,6 +5,7 @@ using CivSim.Sim.Ai;
 using CivSim.Sim.Content;
 using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
+using CivSim.Sim.Legends;
 using CivSim.Sim.Numerics;
 using CivSim.Sim.Politics;
 using CivSim.Sim.World;
@@ -37,6 +38,9 @@ public sealed class MatchModel : ISimModel
         research.Guidance = Guidance;
         politics.Guidance = Guidance;
         source.FreeFolk = politics;
+        Legends = new LegendSystem(research.Seed, economy, research);
+        politics.Legends = Legends;
+        economy.LegendDeedObserver = (figure, deed, points, detail) => Legends.NoteDeed(figure, (LegendDeed)deed, points, detail);
     }
 
     private const uint ModeTrailerMagic = 0x52544843; // "CHTR" little-endian
@@ -50,6 +54,8 @@ public sealed class MatchModel : ISimModel
     public CivilizationGuidance Guidance { get; }
     /// <summary>The AI civilizations' minds; null when every civilization is on the Council.</summary>
     public AiSystem? Ai { get; }
+    /// <summary>The Legends of the match (docs/MVP/40). Phase L1: scored, recorded and saved (an optional snapshot trailer), but not yet hashed into the match checksum or read by any system but the frame.</summary>
+    public LegendSystem Legends { get; }
 
     /// <summary>
     /// A standard four-civilization match on the world generated from <paramref name="seed"/>. Civilization 0 is the
@@ -151,6 +157,7 @@ public sealed class MatchModel : ISimModel
             foreach ((int civ, string project) in _wonders) Research.AwardWonderBuilt(civ, Research.Catalog.IndexOf(project));
             Research.OnSeasonEnd(tick);
             Politics.OnSeasonEnd(tick);
+            Legends.OnSeasonEnd((int)(tick / ResearchSystem.SeasonTicks));
             Economy.InvalidateIronOreSupplierAssignments();
             Ai?.OnSeasonEnd(tick);
         }
@@ -182,6 +189,7 @@ public sealed class MatchModel : ISimModel
             writer.Write(ModeTrailerVersion);
             writer.Write((byte)Rules.Mode);
         }
+        Legends.WriteOptionalTrailer(writer);
         Guidance.WriteOptionalTrailer(writer);
     }
 
@@ -196,6 +204,7 @@ public sealed class MatchModel : ISimModel
             if (reader.ReadUInt32() != ModeTrailerMagic || reader.ReadInt32() != ModeTrailerVersion || reader.ReadByte() != (byte)Rules.Mode)
                 throw new InvalidDataException("The snapshot was not written by a match of this chapter mode.");
         }
+        Legends.ReadOptionalTrailer(reader);
         Guidance.ReadOptionalTrailer(reader);
     }
 }

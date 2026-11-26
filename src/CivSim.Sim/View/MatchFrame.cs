@@ -163,6 +163,23 @@ public sealed class MatchFrame
     /// viewer only remembers, and where a kind is not yet known to its civilization. The figures carrying bows follow these shares.
     /// </summary>
     public byte[] SettlementBowPct = Array.Empty<byte>();
+    /// <summary>One byte per settlement: the percent of its fighting-age people holding a musket (WAR-13, Discovery only; zero elsewhere). The drilled levy's look follows it.</summary>
+    public byte[] SettlementMusketPct = Array.Empty<byte>();
+
+    // ---- Legends (docs/MVP/40 §6): the viewer's own, newest last, at most LegendCap of them ----------------------------------------------------
+    public const int LegendCap = 32;
+    /// <summary>How many of the viewer's civilization's Legends the arrays below hold.</summary>
+    public int LegendCount;
+    public long[] LegendFigure = Array.Empty<long>();
+    public int[] LegendSettlement = Array.Empty<int>();
+    public int[] LegendBorn = Array.Empty<int>();
+    /// <summary>The season the Legend died, or -1 while they live.</summary>
+    public int[] LegendDied = Array.Empty<int>();
+    /// <summary>The deed (<see cref="CivSim.Sim.Legends.LegendDeed"/>) that made them.</summary>
+    public byte[] LegendDeed = Array.Empty<byte>();
+    public int[] LegendDetail = Array.Empty<int>();
+    /// <summary>The generated name code; <see cref="CivSim.Sim.Legends.LegendNames.Compose"/> turns it into text.</summary>
+    public int[] LegendName = Array.Empty<int>();
     /// <summary>Structure kind under construction, -1 none.</summary>
     public sbyte[] SettlementBuildKind = Array.Empty<sbyte>();
     /// <summary>Its labor done, permille.</summary>
@@ -499,6 +516,7 @@ public sealed class MatchFrame
 
     internal void EnsureSettlements(int n)
     {
+        Ensure(ref SettlementMusketPct, n);
         Ensure(ref SettlementBowPct, n * 3);      // three bytes a settlement, so it grows on its own count, not the one-a-settlement arrays'
         if (SettlementIndex.Length < n)
         {

@@ -46,6 +46,8 @@ public enum FigureFlags : ushort
     Away = 512,
     /// <summary>Belongs to a Free Folk settlement (neutral grey, docs/MVP/08 §4.1).</summary>
     FreeFolk = 1024,
+    /// <summary>A living Legend (docs/MVP/40): the renderer draws them larger, and the viewer's own wear a name plate.</summary>
+    Legend = 2048,
 }
 
 /// <summary>

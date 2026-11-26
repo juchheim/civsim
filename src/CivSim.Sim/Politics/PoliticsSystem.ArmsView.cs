@@ -24,10 +24,11 @@ public readonly record struct SettlementArms(
     int Steel, int Iron, int Tin, int Arsenical, int Copper,
     int Chariots, int ChariotCrew, int Engines, int AttackStrength,
     int StockCrucible = 0, int Crucible = 0, int StockCrossbow = 0, int Crossbow = 0,
-    int StockLongbow = 0, int Longbow = 0, int StockWarBow = 0, int WarBow = 0, int BaseOnly = 0);
+    int StockLongbow = 0, int Longbow = 0, int StockWarBow = 0, int WarBow = 0, int BaseOnly = 0,
+    int StockMusket = 0, int Musket = 0);
 
 internal readonly record struct ArmsIssueSummary(int Crucible, int Steel, int Iron, int Tin, int Arsenical, int Copper,
-    int Crossbow, int Longbow, int WarBow, int ChariotCrew);
+    int Crossbow, int Longbow, int WarBow, int ChariotCrew, int Musket = 0);
 
 public sealed partial class PoliticsSystem
 {
@@ -88,11 +89,12 @@ public sealed partial class PoliticsSystem
         int stockLongbow = _economy.FiefChain && _research.IsDone(civ, _p.War11) ? _economy.GoodStock(settlement, "G-LONGBOW").FloorToInt() : 0;
         int stockWarBow = _research.IsDone(civ, _p.Hnt06) ? _economy.GoodStock(settlement, "G-BOW").FloorToInt() : 0;
         int issuedNonBase = issued.Crucible + issued.Steel + issued.Iron + issued.Tin + issued.Arsenical + issued.Copper +
-            issued.Crossbow + issued.Longbow + issued.WarBow;
+            issued.Crossbow + issued.Longbow + issued.WarBow + issued.Musket;
         return new SettlementArms(fighters, wounded, warriors, soldiers,
             stockSteel, stockIron, stockTin, stockArsenical, stockCopper, steel, iron, tin, arsenical, copper,
             chariots, issued.ChariotCrew, engines, (strength * Fix64.FromInt(100) + Fix64.Half).FloorToInt(),
             stockCrucible, issued.Crucible, stockCrossbow, issued.Crossbow, stockLongbow, issued.Longbow,
-            stockWarBow, issued.WarBow, System.Math.Max(0, fighters - issuedNonBase));
+            stockWarBow, issued.WarBow, System.Math.Max(0, fighters - issuedNonBase),
+            _economy.MusketsAt(settlement), issued.Musket);
     }
 }
