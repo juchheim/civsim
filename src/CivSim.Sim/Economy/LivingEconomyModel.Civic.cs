@@ -1266,6 +1266,7 @@ public sealed partial class LivingEconomyModel
         Fix64 t = Fix64.FromInt(_civic.Base);
         Fix64 govTerms = Fix64.Zero; // the GOV projects' share of the target, which COM-11 lifts a tenth in a print-shop town
         if (HasClockTowerWithin(s)) t += Fix64.FromInt(2);
+        t += Fix64.FromInt(LegendCohesionPoints(s)); // living Legends (docs/MVP/40 §4): +2 each, at most +4
         if (!conquered)
         {
             if (s.Structures[(int)Structure.Hearth] > 0) t += Fix64.FromInt(5);

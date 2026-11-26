@@ -1,6 +1,6 @@
 # 40. Legends (notable people who matter, in every era)
 
-Status: **design approved 2026-11-26; phase L1 built 2026-11-27 (see §11).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
+Status: **design approved 2026-11-26; phases L1 and L1b built 2026-11-27 (§11, §12); L2 built 2026-11-27 (§13).** Decided by the owner on 2026-11-26: Legends have **game effects**, and they exist in **every era** (from the first keystone on). Every number is provisional (P) and is fitted in the phases of §9 before it is typed.
 
 ## 1. The short version (what to accept)
 
@@ -127,3 +127,35 @@ What L1 ships, and where it differs from the plan above.
 - **Wonder** (60): the most skilled adult (the highest sum of skill levels, then the lower id) of the settlement that raised a Ziggurat or an Iron Wonder, told to the Legend system the moment the Wonder completes (`LegendDeedObserver`).
 - **Dropped:** **feast** (a feast is an ambient practice in the sim: no figure gives it) and **teacher** (the sim does not record who taught a method). Both stay in the catalog rule text ("feast-givers become Legends") as a promise that a later feast action can keep.
 - **Rate after L1b (two 125-minute matches, same seeds):** 9, 15, 9, 11 and 19, 5, 8, 9 Legends born per civilization (about 2.4 to 9 an hour, 5 on average); Firsts and Founders still dominate, famine now adds 0 to 2, battle and Wonder about one in a match each (the stock AI rarely fights or builds a Wonder in 125 minutes). The match checksums are again identical (`7d815c52d0c9d95a`, `99dd32ba8af5d07c`). The Builder at 19 is the high one; L4 re-tunes with the sweeps.
+
+## 13. Phase L2 as built (2026-11-27): the effects
+
+A living Legend now changes the match, exactly as §4 said and nothing more.
+
+| Effect | Where | How |
+|---|---|---|
+| **Cohesion** | `CohesionTarget` (Civic.cs) | +2 points for each living Legend in the settlement, at most +4, as one more term beside the clock tower and the hearth. |
+| **Skill spread** | `SkillSpreadWork` in both practice steps | the adults of a settlement with a living Legend gain skill practice x1.1; the Legend does not. |
+| **Warrior** | `PoliticsSystem.Fighters` | a living Legend who is an adult and no paid soldier fights at weapon x1.5 (in place of the warrior's x1.3, never both); soldiers and elders are unchanged. |
+| **Steady line** | `Combat.Fight` (`Fighter.Steady`, `Combat.SteadyLineBonus`) | a group with a living Legend breaks 10 points later (a 40% break becomes 50%). Every site that rebuilds a fighter from a stored id (expeditions, sieges, occupations, levies) goes through `FighterOf`, so a Legend steadies a raid party as well as a home guard. |
+| **Mourning** | `LegendSystem.MarkDeaths` -> `NoteMourning` | when a Legend dies their settlement's Cohesion drops 3 points once (`AdjustCohesion` by 3 x 0.006), and the usual seasonal pace closes it. |
+| **Patronage** | `LegendChanceFactor` | ART-10's x2 on the chance was wired in L1 and is unchanged. |
+
+How the pieces talk: the economy asks an `ILegendEffects` (Cohesion points, spreads skill, is a living Legend) that `LegendSystem` implements from lookups rebuilt after every change to the records (so they are derived, never saved). The effects reach the economy a season late: the Legend system closes the season after the economy has built its Cohesion targets, so a new Legend counts from the next season.
+
+**The log is now part of the match checksum** (`MatchModel.ComputeChecksum` adds `Legends.Hash` once it holds anything, so a match that never scored keeps its old checksum), and the snapshot trailer from L1 carries it, so a resumed match continues with the same Legends.
+
+**Measured before the goldens were refreshed**
+- **Pacing:** the same two seeds of the E6 sweep (125 minutes, four civilizations) put KEY-6 to KEY-7 within a few minutes of the L1b numbers for the Builder, Grower and Sage, with no systematic direction (Builder 76 and 81 seasons before, 89 and 75 after; Grower 114 and 127 before, 113 and 116 after; Sage 83 and 96 before, 87 and 86 after). The Warlord of seed 12345 reached KEY-5 30 seasons later and did not finish in the window; on seed 12346 it was 3 seasons earlier. One seed pair is noise at that size; the L4 sweeps look again.
+- **Archetypes:** Legend against Warlord, 32 matches on the same seeds: **53% before and 53% after** (Legacy 2568 against 2560 before, 2581 against 2550 after); raids launched, owned land and KEY-1 minutes unchanged. The bar is at least 45% (B31).
+- **Legend rate:** about 4 to 16 a civilization over 125 minutes (the L1b range); the Warlord makes the fewest (4 to 6), since Firsts and Founders are the main deeds.
+
+**Golden changes (explained once, here and in the commit):**
+- `tests/golden/research-v1.txt`: final cb6fd7b2b6ebfd06 -> 8243a9f72aba5291, digest 4f81921d3d755818 -> 69da0f91a8b8eb66.
+- `tests/golden/politics-v1.txt`: final 5d3ebe260a0f55b5 -> 8dff024561450efe, digest 36a42d944dde196c -> 8002412cf628ef95.
+- `tests/golden/bronze-v1.txt`: 43650 ticks, season 266, civ 1 -> 43800 ticks, season 267, civ 3 (checksum a3d8468a78c8e6b9, set by the musket commit, is now 72d63761f8b4484f): the match runs one season longer and a different civilization finishes first, the visible result of Legends changing Cohesion and skill. `toy-v1` is unchanged (it has no research and so no Legends).
+- `content-pack.txt` is unchanged (no content moved).
+
+**Two things found by the gate.** (1) A first version queued each founder in the economy until the season's end; a fission can happen mid-season, so a snapshot caught founders that the restored match did not have, and two resume tests (`A_restored_match_deep_in_the_Bronze_Age...`, the siege resume) failed. Founders are now scored the moment the daughter settlement exists, so there is no queue to lose. (2) Two scenario tests are written for one seed's exact trajectory and Legends moved it: the Bronze fog-fairness test moved from seed 20261022 to 20261024 (the next that fits), and the Strategist scenarios now play with the Legend effects off (`StrategistRig`), since they check decisions on a frozen situation and the effects have their own tests. No seed made the whole Strategist class pass, which is why those scenarios keep their seed and lose the effects instead.
+
+**Not built (L3):** ART-06's carved relief and MET-06's bronze statue keeping a Legend's Cohesion bonus after death; until then the +2 ends with the Legend.

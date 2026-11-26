@@ -211,17 +211,7 @@ public sealed partial class LivingEconomyModel
         => (uint)settlementIndex < (uint)_settlements.Count && MusketsKnown(_settlements[settlementIndex].Civilization)
             ? Stock(_settlements[settlementIndex], DiscoverySlot(DiscoveryGood.Musket)).FloorToInt() : 0;
 
-    // ---- Legends: founders (docs/MVP/40 §3) -------------------------------------------------------------------------------------------------------
-
-    /// <summary>Daughter settlements founded by fission since the last drain, as (settlement index, founding figure id). Not simulation state: the Legend system drains it every season.</summary>
-    private readonly List<(int Settlement, long Figure)> _foundings = new();
-
-    /// <summary>Moves the foundings since the last call into <paramref name="into"/> (the Legend system's season step).</summary>
-    public void DrainFounders(List<(int Settlement, long Figure)> into)
-    {
-        into.AddRange(_foundings);
-        _foundings.Clear();
-    }
+    // ---- Legends: deeds told by the economy (docs/MVP/40 §3) ---------------------------------------------------------------------------------------
 
     /// <summary>Tells the Legend system of a deed done by one figure (figure id, <see cref="CivSim.Sim.Legends.LegendDeed"/>, points, detail). Wired by the match; not state.</summary>
     internal Action<long, int, int, int>? LegendDeedObserver { get; set; }
@@ -245,4 +235,37 @@ public sealed partial class LivingEconomyModel
         }
         if (best >= 0) LegendDeedObserver(best, 6, 60, s.Id);
     }
+
+    // ---- Legends: effects (docs/MVP/40 §4) --------------------------------------------------------------------------------------------------------
+
+    /// <summary>What living Legends do to the economy, answered by the Legend system (null in a match without one). Read-only; not state.</summary>
+    internal ILegendEffects? LegendEffects { get; set; }
+
+    /// <summary>The Cohesion points the living Legends of a settlement add to its target (docs/MVP/40 §4).</summary>
+    private int LegendCohesionPoints(SettlementState s) => LegendEffects?.CohesionPoints(s.Id) ?? 0;
+
+    /// <summary>The work that counts toward a figure's skill: 10% more for the adults around a living Legend, never for the Legend themselves (docs/MVP/40 §4).</summary>
+    private Fix64 SkillSpreadWork(FigureState figure, Fix64 work)
+    {
+        if (LegendEffects is null || !LegendEffects.SpreadsSkill(figure.SettlementId) || LegendEffects.IsLivingLegend(figure.Id)) return work;
+        return work * Fix64.FromRatio(11, 10);
+    }
+
+    /// <summary>A Legend died: the settlement mourns, a one-time dip of <paramref name="points"/> Cohesion points that closes at the settlement's usual seasonal pace.</summary>
+    public void NoteMourning(int settlementIndex, int points)
+    {
+        if ((uint)settlementIndex >= (uint)_settlements.Count || points <= 0) return;
+        AdjustCohesion(settlementIndex, -CohesionPerPoint * Fix64.FromInt(points));
+    }
+}
+
+/// <summary>The effects of living Legends on the economy (docs/MVP/40 §4), implemented by the Legend system.</summary>
+internal interface ILegendEffects
+{
+    /// <summary>Cohesion points a settlement's living Legends add to its target: 2 each, at most 4.</summary>
+    int CohesionPoints(int settlement);
+    /// <summary>Whether a living Legend lives in the settlement, so its adults practise 10% faster.</summary>
+    bool SpreadsSkill(int settlement);
+    /// <summary>Whether the figure is a living Legend.</summary>
+    bool IsLivingLegend(long figureId);
 }

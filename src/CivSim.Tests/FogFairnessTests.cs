@@ -90,8 +90,8 @@ public class FogFairnessTests
         // sight, and where the observer has no Tin access yet. That depends on the economy's pacing, so the seed is re-picked when pacing changes:
         // 20261019 stopped fitting with the slower E0-E3 pacing (docs/MVP/28 section 16: every rival's force is in sight by the time its Mandate unlocks);
         // 20261021 and 20261022 stopped fitting with the build and material changes of 2026-11-10 (16b4c01), after which a queued but not yet unlocked
-        // Palisade held the build slot and starved the foundation (fixed by yielding to the foundation, LockedDefenseQueueTests). Seed 20261022 fits again.
-        const ulong bronzeSeed = 20261022;
+        // Palisade held the build slot and starved the foundation (fixed by yielding to the foundation, LockedDefenseQueueTests). Seed 20261022 fit again. Legends (docs/MVP/40) moved every trajectory, so it moved to 20261024, the next seed that fits.
+        const ulong bronzeSeed = 20261024;
         MatchModel match = FogFairnessHarness.NewMatch(controls, bronzeSeed);
         var runner = new SimRunner(match);
 

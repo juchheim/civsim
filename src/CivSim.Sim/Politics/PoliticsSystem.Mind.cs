@@ -286,7 +286,7 @@ public sealed partial class PoliticsSystem
             {
                 long id = levy.Members[i];
                 if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id)) continue;
-                party.Add(new Fighter(id, levy.Strengths[i]));
+                party.Add(FighterOf(id, levy.Strengths[i]));
                 ids.Add(id);
             }
         }
@@ -421,7 +421,7 @@ public sealed partial class PoliticsSystem
             {
                 long id = levy.Members[i];
                 if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id)) continue;
-                force.Add(new Fighter(id, levy.Strengths[i])); ids.Add(id); strength += levy.Strengths[i];
+                force.Add(FighterOf(id, levy.Strengths[i])); ids.Add(id); strength += levy.Strengths[i];
             }
         }
         Fix64 defence = Fix64.Zero;
@@ -528,7 +528,7 @@ public sealed partial class PoliticsSystem
         for (int i = 0; i < e.Members.Count; i++)
         {
             if (!_economy.TryFigure(e.Members[i], out _) || _economy.IsWounded(e.Members[i])) continue;
-            list.Add(new Fighter(e.Members[i], e.Strengths[i]));
+            list.Add(FighterOf(e.Members[i], e.Strengths[i]));
             ids.Add(e.Members[i]);
         }
         return list;
@@ -673,7 +673,7 @@ public sealed partial class PoliticsSystem
         Fix64 defenderStrength = Weapon(e.TargetCiv, out _) * Fix64.FromRatio(6, 10);
         var defenders = new List<Fighter>(records.Count);
         foreach (LivingEconomyModel.FighterRecord record in records)
-            if (!record.Wounded) defenders.Add(new Fighter(record.Id, defenderStrength));
+            if (!record.Wounded) defenders.Add(FighterOf(record.Id, defenderStrength));
         Weapon(e.Civ, out bool ranged);
         RaidOutcome outcome = Raids.Resolve(raiders, defenders, Defenses.None, ranged, _seed,
             RaidStream ^ 0x4D494E4543414D50UL ^ (ulong)(e.Civ * 4099 + camp.Id * 97) ^ (ulong)_season * 104729UL);
@@ -765,7 +765,7 @@ public sealed partial class PoliticsSystem
             var holders = new List<Fighter>();
             for (int i = 0; i < occ.Members.Count; i++)
                 if (_economy.TryFigure(occ.Members[i], out _) && !_economy.IsWounded(occ.Members[i]))
-                    holders.Add(new Fighter(occ.Members[i], occ.Strengths[i]));
+                    holders.Add(FighterOf(occ.Members[i], occ.Strengths[i]));
             int loser = _sCiv[occ.Settlement];
             if (holders.Count < Captures.MinHolders || _free[occ.Settlement])
             {

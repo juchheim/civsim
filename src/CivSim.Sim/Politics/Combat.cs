@@ -8,6 +8,8 @@ namespace CivSim.Sim.Politics;
 /// <summary>One person in a fight: who, and how much they count (docs/MVP/13 §7.1, before group multipliers).</summary>
 public readonly record struct Fighter(long Id, Fix64 Strength)
 {
+    /// <summary>A living Legend stands in this fighter's group (docs/MVP/40 §4): the group breaks <see cref="Combat.SteadyLineBonus"/> later.</summary>
+    public bool Steady { get; init; }
     /// <summary>Individual multiplier for shield and chariot crew casualty reduction.</summary>
     public Fix64 CasualtiesTaken { get; init; } = Fix64.One;
     /// <summary>The shield part of <see cref="CasualtiesTaken"/> (0.7 for a shielded fighter), kept apart so bolts can pierce it (WAR-11).</summary>
@@ -122,6 +124,9 @@ public static class Combat
             ? Fix64.One - Fix64.FromRatio(1, 2) * Fix64.Clamp(chariotCrewShare, Fix64.Zero, Fix64.One)
             : Fix64.One);
 
+    /// <summary>How much later, as a share of starting strength, a group with a Legend in it breaks: 10 points (docs/MVP/13 §7.3, docs/MVP/40 §4).</summary>
+    public static readonly Fix64 SteadyLineBonus = Fix64.FromRatio(1, 10);
+
     public static BattleResult Fight(IReadOnlyList<Fighter> attackers, IReadOnlyList<Fighter> defenders, in BattleSetup setup, ulong seed, ulong stream)
     {
         var a = new Side(attackers);
@@ -156,8 +161,8 @@ public static class Combat
             Fix64 onAttackers = Casualties(defend, attack) * a.CasualtiesTakenFrom(d) * setup.AttackerCasualtiesTaken;
             Hit(d, onDefenders, ref rng, dead.DefenderDead, dead.DefenderWounded);
             Hit(a, onAttackers, ref rng, dead.AttackerDead, dead.AttackerWounded);
-            bool defendersBroke = d.Empty || d.Lost >= setup.DefenderBreak;
-            bool attackersBroke = a.Empty || a.Lost >= setup.AttackerBreak;
+            bool defendersBroke = d.Empty || d.Lost >= (d.Steady ? setup.DefenderBreak + SteadyLineBonus : setup.DefenderBreak);
+            bool attackersBroke = a.Empty || a.Lost >= (a.Steady ? setup.AttackerBreak + SteadyLineBonus : setup.AttackerBreak);
             if (defendersBroke && !attackersBroke) { winner = BattleWinner.Attacker; break; }
             if (attackersBroke) { winner = BattleWinner.Defender; break; }
         }
@@ -207,11 +212,13 @@ public static class Combat
             _fighters = fighters;
             _down = new bool[fighters.Count];
             Alive = fighters.Count;
-            foreach (Fighter f in fighters) { _start += f.Strength; if (f.Bolt) _bolt += f.Strength; }
+            foreach (Fighter f in fighters) { _start += f.Strength; if (f.Bolt) _bolt += f.Strength; Steady |= f.Steady; }
             Strength = _start;
         }
 
         public int Alive { get; private set; }
+        /// <summary>A Legend stood in this group when the fight began.</summary>
+        public bool Steady { get; }
         public bool Empty => Alive == 0;
         public Fix64 Strength { get; private set; }
         public Fix64 CasualtiesTaken

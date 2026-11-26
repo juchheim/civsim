@@ -161,6 +161,10 @@ internal sealed class StrategistRig
     {
         archetypes ??= new[] { EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced, EconomyArchetype.Balanced };
         Match = MatchModel.Create(seed, TestPack.Pack, world, archetypes, controls);
+        // These scenarios check the Strategist's decisions on one situation, tuned on a seed's trajectory before Legends (docs/MVP/40). Legends still score and are saved, but
+        // their effects are off here so that trajectory, and so every precondition below, is the one the scenarios were written for. The effects have their own tests (LegendTests).
+        Match.Economy.LegendEffects = null;
+        Match.Politics.Legends = null;
         long start = 0;
         if (snapshot is not null)
         {

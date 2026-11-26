@@ -187,7 +187,7 @@ public sealed partial class PoliticsSystem
         if (levy is null) return false;
         for (int i = 0; i < levy.Members.Count; i++)
             if (_economy.TryFigure(levy.Members[i], out _) && !_economy.IsWounded(levy.Members[i]))
-                host.Add(new Fighter(levy.Members[i], levy.Strengths[i]));
+                host.Add(FighterOf(levy.Members[i], levy.Strengths[i]));
         _economy.ClearIdle(levy.Members);
         _levies.Remove(levy);
         return true;

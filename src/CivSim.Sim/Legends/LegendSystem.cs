@@ -45,10 +45,10 @@ public sealed class LegendRecord
 
 /// <summary>
 /// Legends (docs/MVP/40, phase L1): every figure collects deed points; at <see cref="Threshold"/> a figure of a civilization past KEY-1 rolls each season to become a Legend
-/// (base chance <see cref="BaseChance"/>, doubled while ART-10's patron stands). <b>Phase L1 changes nothing else in the match</b>: the log is not hashed and no system reads it,
-/// so every golden is unchanged. Everything is integer or Fix64; rolls come from their own <see cref="Pcg32"/> stream; lists are kept sorted by figure id.
+/// (base chance <see cref="BaseChance"/>, doubled while ART-10's patron stands). From phase L2 a living Legend changes the match (docs/MVP/40 §4): their settlement's Cohesion target, its adults' skill practice, a Legend's own training and their group's
+/// break point, and a death is mourned. The log is hashed into the match checksum. Everything is integer or Fix64; rolls come from their own <see cref="Pcg32"/> stream; lists are kept sorted by figure id.
 /// </summary>
-public sealed class LegendSystem
+public sealed class LegendSystem : ILegendEffects
 {
     /// <summary>The score at which a figure may become a Legend (P, docs/MVP/40 §3).</summary>
     public const int Threshold = 150;
@@ -88,10 +88,12 @@ public sealed class LegendSystem
     private readonly int _key1;
     private readonly List<Score> _scores = new();           // sorted by figure id
     private readonly List<LegendRecord> _records = new();   // in order of becoming a Legend
-    private readonly List<(int Settlement, long Figure)> _foundings = new();
     /// <summary>Settlements in famine: (settlement index, seasons under the line, people when it began), sorted by settlement; sparse.</summary>
     private readonly List<(int Settlement, int Seasons, int People)> _famine = new();
     private readonly List<FigureView> _residentsScratch = new();
+    // Derived from the records after every change (not saved or hashed): who is a living Legend, and per settlement how many.
+    private readonly List<long> _livingIds = new();   // ascending
+    private int[] _livingBySettlement = Array.Empty<int>();
 
     public LegendSystem(ulong seed, LivingEconomyModel economy, ResearchSystem research)
     {
@@ -100,6 +102,7 @@ public sealed class LegendSystem
         _research = research;
         _key1 = research.Catalog.IndexOf("KEY-1");
         research.EventObserver = OnResearchEvent;
+        economy.LegendEffects = this;
     }
 
     /// <summary>Every Legend ever, oldest first.</summary>
@@ -176,10 +179,6 @@ public sealed class LegendSystem
         _firstClaimedThisSeason.Clear();
         _innovatorsThisSeason.Clear();
 
-        _foundings.Clear();
-        _economy.DrainFounders(_foundings);
-        foreach ((int settlement, long figure) in _foundings) NoteDeed(figure, LegendDeed.Founder, FounderPoints, settlement);
-
         TrackFamine();
 
         // Long life: one point a year to everyone past sixty, once a year.
@@ -193,6 +192,7 @@ public sealed class LegendSystem
         MarkDeaths(season);
         Roll(season);
         Prune();
+        RebuildEffects();
     }
 
     /// <summary>
@@ -259,11 +259,50 @@ public sealed class LegendSystem
         if (at >= 0) _famine.RemoveAt(at);
     }
 
+    /// <summary>Keeps each living Legend's settlement current and marks the dead; a death is mourned in the settlement the Legend last lived in (docs/MVP/40 §5).</summary>
     private void MarkDeaths(int season)
     {
         foreach (LegendRecord r in _records)
-            if (r.DiedSeason < 0 && !_economy.TryFigure(r.FigureId, out _)) r.DiedSeason = season;
+        {
+            if (r.DiedSeason >= 0) continue;
+            if (_economy.TryFigure(r.FigureId, out FigureView who)) { r.Settlement = who.SettlementId; continue; }
+            r.DiedSeason = season;
+            _economy.NoteMourning(r.Settlement, MourningPoints);
+        }
     }
+
+    /// <summary>The one-time Cohesion dip, in points, when a Legend dies.</summary>
+    public const int MourningPoints = 3;
+    /// <summary>The Cohesion points a living Legend adds to their settlement's target, and the most a settlement can gain.</summary>
+    public const int CohesionPointsEach = 2, CohesionPointsCap = 4;
+
+    /// <summary>Rebuilds the derived lookups from the records. Called whenever the records change and after a restore.</summary>
+    private void RebuildEffects()
+    {
+        _livingIds.Clear();
+        int top = 0;
+        foreach (LegendRecord r in _records)
+            if (r.DiedSeason < 0 && r.Settlement + 1 > top) top = r.Settlement + 1;
+        if (_livingBySettlement.Length < top) _livingBySettlement = new int[top];
+        else Array.Clear(_livingBySettlement);
+        foreach (LegendRecord r in _records)
+        {
+            if (r.DiedSeason >= 0) continue;
+            _livingIds.Add(r.FigureId);
+            if ((uint)r.Settlement < (uint)_livingBySettlement.Length) _livingBySettlement[r.Settlement]++;
+        }
+        _livingIds.Sort();
+    }
+
+    public bool IsLivingLegend(long figureId) => _livingIds.BinarySearch(figureId) >= 0;
+
+    public int CohesionPoints(int settlement)
+        => (uint)settlement < (uint)_livingBySettlement.Length ? Math.Min(CohesionPointsCap, CohesionPointsEach * _livingBySettlement[settlement]) : 0;
+
+    public bool SpreadsSkill(int settlement) => (uint)settlement < (uint)_livingBySettlement.Length && _livingBySettlement[settlement] > 0;
+
+    /// <summary>Whether the log holds anything: the match hashes it only once it does, so a match that never scored keeps an older checksum.</summary>
+    public bool HasState => _scores.Count > 0 || _records.Count > 0 || _innovatorsThisSeason.Count > 0 || _firstClaimedThisSeason.Count > 0 || _famine.Count > 0;
 
     private void Roll(int season)
     {
@@ -361,12 +400,14 @@ public sealed class LegendSystem
         _innovatorsThisSeason.Clear();
         _firstClaimedThisSeason.Clear();
         _famine.Clear();
+        RebuildEffects();
         Stream stream = reader.BaseStream;
         if (!stream.CanSeek || stream.Length - stream.Position < 4) return;
         long start = stream.Position;
         if (reader.ReadUInt32() != TrailerMagic) { stream.Position = start; return; }
         if (reader.ReadInt32() != TrailerVersion) throw new InvalidDataException("The snapshot has an unsupported Legends trailer.");
         Read(reader);
+        RebuildEffects();
     }
 
     public void Write(BinaryWriter w)

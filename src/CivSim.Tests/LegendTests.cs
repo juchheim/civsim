@@ -148,14 +148,15 @@ public sealed class LegendTests
     }
 
     [Fact]
-    public void The_log_is_not_part_of_the_match_checksum_in_phase_L1()
+    public void The_log_is_part_of_the_match_checksum_once_it_holds_anything()
     {
         (MatchModel a, SimRunner ra) = Start();
         (MatchModel b, SimRunner rb) = Start();
-        b.Legends.NoteDeed(AnAdult(b), LegendDeed.First, 500, 1);
-        ra.Advance(150 * 4);
-        rb.Advance(150 * 4);
+        Assert.False(a.Legends.HasState);
         Assert.Equal(a.ComputeChecksum(), b.ComputeChecksum());
+        b.Legends.NoteDeed(AnAdult(b), LegendDeed.First, 500, 1);
+        Assert.True(b.Legends.HasState);
+        Assert.NotEqual(a.ComputeChecksum(), b.ComputeChecksum());
     }
 
     [Fact]
@@ -303,5 +304,131 @@ public sealed class LegendTests
 
         match.Economy.FixtureCompleteIron(home, "harbor"); // not a Wonder: nobody scores again
         Assert.Equal(1, residents.Count(f => match.Legends.ScoreOf(f.Id) != was[f.Id]));
+    }
+
+    // ---- L2 effects -----------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>A match in which the player's civilization has KEY-3 and one adult has become a Legend; returns the Legend's id and settlement.</summary>
+    private static (MatchModel Match, SimRunner Runner, long Legend, int Settlement) WithLegend(int skip = 0)
+    {
+        (MatchModel match, SimRunner runner) = Start();
+        Grant(runner, match, "KEY-1", "KEY-2", "KEY-3");
+        long id = AnAdult(match, skip);
+        match.Legends.NoteDeed(id, LegendDeed.First, 1000, 1);
+        for (int i = 0; i < 40 && !match.Legends.IsLegend(id); i++) runner.Advance(150);
+        Assert.True(match.Legends.IsLegend(id));
+        Assert.True(match.Economy.TryFigure(id, out FigureView who));
+        return (match, runner, id, who.SettlementId);
+    }
+
+    [Fact]
+    public void A_living_Legend_adds_two_Cohesion_points_to_their_settlement_up_to_four()
+    {
+        (MatchModel match, SimRunner runner, long legend, int home) = WithLegend();
+        Assert.True(match.Legends.IsLivingLegend(legend));
+        Assert.Equal(2, match.Legends.CohesionPoints(home));
+        int target = match.Economy.FixtureCohesionTarget(home);
+
+        // Remove the effect (without touching the figure) by comparing with a settlement that has none.
+        int other = Enumerable.Range(0, match.Economy.SettlementCount).First(i => i != home && match.Economy.SettlementLite(i).Civilization == 0 && match.Legends.CohesionPoints(i) == 0);
+        Assert.Equal(0, match.Legends.CohesionPoints(other));
+        Assert.Equal(target, match.Economy.FixtureCohesionTarget(home)); // stable
+
+        // Two more Legends in the same settlement: capped at four.
+        var more = new List<long>();
+        for (int i = 0; i < match.Economy.FigureCount && more.Count < 3; i++)
+        {
+            FigureView f = match.Economy.Figure(i);
+            if (f.Civilization == 0 && f.SettlementId == home && f.Id != legend && f.Age is >= 18 and <= 40) more.Add(f.Id);
+        }
+        foreach (long id in more) match.Legends.NoteDeed(id, LegendDeed.First, 1000, 1);
+        for (int i = 0; i < 60; i++) runner.Advance(150);
+        Assert.True(match.Legends.CohesionPoints(home) <= LegendSystem.CohesionPointsCap);
+        Assert.Equal(Math.Min(LegendSystem.CohesionPointsCap, 2 * match.Legends.LivingInSettlement(home)), match.Legends.CohesionPoints(home));
+    }
+
+    [Fact]
+    public void The_Cohesion_target_rises_by_the_Legend_points_and_a_death_is_mourned_once()
+    {
+        (MatchModel match, _, long legend, int home) = WithLegend();
+        int with = match.Economy.FixtureCohesionTarget(home);
+        int points = match.Legends.CohesionPoints(home);
+        Assert.True(points >= 2);
+        ILegendEffects? effects = match.Economy.LegendEffects;
+        match.Economy.LegendEffects = null; // the same settlement, as if no Legend lived there
+        int without = match.Economy.FixtureCohesionTarget(home);
+        match.Economy.LegendEffects = effects;
+        Assert.Equal(points, with - without);
+
+        Fix64 before = match.Economy.SettlementCohesion(home);
+        match.Economy.NoteMourning(home, LegendSystem.MourningPoints);
+        Fix64 after = match.Economy.SettlementCohesion(home);
+        Assert.True(after < before, "mourning lowers the stored Cohesion");
+        Assert.Equal(Fix64.FromRatio(6, 1000) * Fix64.FromInt(LegendSystem.MourningPoints), before - after);
+        Assert.True(with > 0);
+        Assert.True(match.Legends.IsLivingLegend(legend));
+    }
+
+    [Fact]
+    public void A_Legends_death_is_marked_and_mourned_and_ends_their_effects()
+    {
+        (MatchModel match, SimRunner runner, long legend, int home) = WithLegend();
+        Assert.True(match.Economy.KillFigure(legend));
+        Fix64 before = match.Economy.SettlementCohesion(home);
+        for (int i = 0; i < 2; i++) runner.Advance(150);
+        LegendRecord record = match.Legends.Records.Single(r => r.FigureId == legend);
+        Assert.True(record.DiedSeason >= 0);
+        Assert.False(match.Legends.IsLivingLegend(legend));
+        Assert.Equal(0, match.Legends.CohesionPoints(home) - 2 * match.Legends.LivingInSettlement(home));
+        Assert.True(match.Economy.SettlementCohesion(home) <= before + Fix64.FromRatio(6, 1000) * Fix64.FromInt(20), "the dip is small and closes");
+    }
+
+    [Fact]
+    public void The_adults_around_a_Legend_practise_ten_percent_faster_but_the_Legend_does_not()
+    {
+        (MatchModel match, _, long legend, int home) = WithLegend();
+        var residents = new List<FigureView>();
+        match.Economy.ListFigures(home, residents);
+        long neighbour = residents.First(f => f.Id != legend && f.Age >= 14).Id;
+        Fix64 work = Fix64.FromInt(10);
+        Assert.Equal(work * Fix64.FromRatio(11, 10), match.Economy.FixtureSkillSpreadWork(neighbour, work));
+        Assert.Equal(work, match.Economy.FixtureSkillSpreadWork(legend, work));
+
+        int far = Enumerable.Range(0, match.Economy.SettlementCount).FirstOrDefault(i => i != home && match.Legends.CohesionPoints(i) == 0, -1);
+        if (far >= 0)
+        {
+            var others = new List<FigureView>();
+            match.Economy.ListFigures(far, others);
+            if (others.Count > 0) Assert.Equal(work, match.Economy.FixtureSkillSpreadWork(others[0].Id, work));
+        }
+    }
+
+    [Fact]
+    public void A_Legend_fights_as_a_warrior_at_one_and_a_half_and_steadies_the_group()
+    {
+        (MatchModel match, _, long legend, int home) = WithLegend();
+        List<Fighter> defenders = match.Politics.OwnDefendersOf(0, home).ToList();
+        Fighter mine = defenders.FirstOrDefault(f => f.Id == legend);
+        Assert.Equal(legend, mine.Id);
+        Assert.True(mine.Steady);
+        Fighter? neighbour = defenders.FirstOrDefault(f => f.Id != legend && !f.Steady);
+        Assert.NotNull(neighbour);
+        Assert.True(mine.Strength > neighbour.Value.Strength, $"a Legend ({mine.Strength}) fights harder than the levy beside them ({neighbour.Value.Strength})");
+    }
+
+    [Fact]
+    public void A_group_with_a_Legend_breaks_ten_points_later()
+    {
+        var setup = new BattleSetup(Fix64.One, Fix64.One, false, Fix64.FromRatio(4, 10), Fix64.FromRatio(4, 10), 12, false);
+        List<Fighter> Force(int n, bool steady) => Enumerable.Range(0, n).Select(i => new Fighter(i, Fix64.FromInt(2)) { Steady = steady && i == 0 }).ToList();
+        var defenders = Enumerable.Range(100, 14).Select(i => new Fighter(i, Fix64.FromInt(3))).ToList();
+        int plain = 0, steady = 0;
+        for (ulong stream = 1; stream <= 40; stream++)
+        {
+            plain += Combat.Fight(Force(12, false), defenders, setup, Seed, stream).Rounds;
+            steady += Combat.Fight(Force(12, true), defenders, setup, Seed, stream).Rounds;
+        }
+        Assert.True(steady >= plain, $"a steadied line fights at least as long ({steady} against {plain} rounds in total)");
+        Assert.True(steady > plain, "and longer in some of the fights");
     }
 }
