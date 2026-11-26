@@ -39,6 +39,8 @@ public sealed class MatchModel : ISimModel
         politics.Guidance = Guidance;
         source.FreeFolk = politics;
         Legends = new LegendSystem(research.Seed, economy, research);
+        politics.Legends = Legends;
+        economy.LegendDeedObserver = (figure, deed, points, detail) => Legends.NoteDeed(figure, (LegendDeed)deed, points, detail);
     }
 
     private const uint ModeTrailerMagic = 0x52544843; // "CHTR" little-endian

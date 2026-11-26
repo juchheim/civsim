@@ -3040,7 +3040,7 @@ public sealed partial class LivingEconomyModel
     {
         if (kind == IronStructure.FrontierWall) (m.IronFacing ??= new List<int>()).Add(NextFrontierFacing(s)); // before the count rises: the facing is the civ this segment answers
         (m.IronWorks ??= new int[(int)IronStructure.Count])[(int)kind]++;
-        if (IsWonder(kind)) _wondersBuilt.Add((s.Civilization, WonderProject(kind))); // the Wonder's Legacy (docs/MVP/22 §3.3)
+        if (IsWonder(kind)) { _wondersBuilt.Add((s.Civilization, WonderProject(kind))); NoteWonderBuilder(s); } // the Wonder's Legacy (docs/MVP/22 §3.3) and its builder's deed (docs/MVP/40)
         if (kind == IronStructure.Terrace)
         {
             int tile = NextTerraceTile(s);

@@ -20,6 +20,12 @@ public enum LegendDeed : byte
     Founder = 2,
     /// <summary>Lived past sixty.</summary>
     LongLife = 3,
+    /// <summary>Survived a battle the figure's side won (the strongest survivor scores more).</summary>
+    Battle = 4,
+    /// <summary>Was the settlement's leading elder when it came through a famine.</summary>
+    Famine = 5,
+    /// <summary>The most skilled adult of the settlement that raised a Wonder.</summary>
+    Wonder = 6,
 }
 
 /// <summary>A person who became a Legend. <see cref="DiedSeason"/> is -1 while they live.</summary>
@@ -54,6 +60,12 @@ public sealed class LegendSystem
     public const int LongLifeAge = 60;
 
     public const int InnovatorPoints = 10, FirstPoints = 40, FounderPoints = 60, LongLifePoints = 1;
+    /// <summary>A survivor of a won battle scores <see cref="BattlePoints"/>; the strongest survivor scores <see cref="BattleBestBonus"/> more.</summary>
+    public const int BattlePoints = 30, BattleBestBonus = 20, FamineHeldPoints = 25, WonderPoints = 60;
+    /// <summary>A famine is at least this many seasons under the line.</summary>
+    public const int FamineMinSeasons = 3;
+    /// <summary>A settlement is in famine while its food security is under this; it has come through when it is back at <see cref="FamineRecovered"/>.</summary>
+    public static readonly Fix64 FamineBelow = Fix64.Half, FamineRecovered = Fix64.FromRatio(8, 10);
 
     /// <summary>The chance a figure at the threshold becomes a Legend in a season: 35% (P).</summary>
     public static readonly Fix64 BaseChance = Fix64.FromRatio(35, 100);
@@ -77,6 +89,9 @@ public sealed class LegendSystem
     private readonly List<Score> _scores = new();           // sorted by figure id
     private readonly List<LegendRecord> _records = new();   // in order of becoming a Legend
     private readonly List<(int Settlement, long Figure)> _foundings = new();
+    /// <summary>Settlements in famine: (settlement index, seasons under the line, people when it began), sorted by settlement; sparse.</summary>
+    private readonly List<(int Settlement, int Seasons, int People)> _famine = new();
+    private readonly List<FigureView> _residentsScratch = new();
 
     public LegendSystem(ulong seed, LivingEconomyModel economy, ResearchSystem research)
     {
@@ -165,6 +180,8 @@ public sealed class LegendSystem
         _economy.DrainFounders(_foundings);
         foreach ((int settlement, long figure) in _foundings) NoteDeed(figure, LegendDeed.Founder, FounderPoints, settlement);
 
+        TrackFamine();
+
         // Long life: one point a year to everyone past sixty, once a year.
         if (season % 4 == 3)
             for (int i = 0; i < _economy.FigureCount; i++)
@@ -176,6 +193,70 @@ public sealed class LegendSystem
         MarkDeaths(season);
         Roll(season);
         Prune();
+    }
+
+    /// <summary>
+    /// Held through famine (docs/MVP/40 §3): a settlement whose food security stays under 0.5 for three or more seasons and then recovers to 0.8 with at least four fifths of
+    /// its people still alive scores the famine deed for its leading elder (the oldest resident of seventy or under), who held it together.
+    /// </summary>
+    private void TrackFamine()
+    {
+        for (int i = 0; i < _economy.SettlementCount; i++)
+        {
+            if (_economy.IsFreeFolkSettlement(i)) continue;
+            var lite = _economy.SettlementLite(i);
+            if (lite.Civilization < 0) continue;
+            int people = _economy.Population(lite.Id);
+            if (people <= 0) { RemoveFamine(i); continue; }
+            StepFamine(i, people, _economy.Settlement(i).LastFoodSecurity);
+        }
+    }
+
+    /// <summary>One season of one settlement's famine bookkeeping (see <see cref="TrackFamine"/>).</summary>
+    internal void StepFamine(int settlement, int people, Fix64 security)
+    {
+        int at = FindFamine(settlement);
+        if (security < FamineBelow)
+        {
+            if (at < 0) _famine.Insert(~at, (settlement, 1, people));
+            else _famine[at] = (settlement, _famine[at].Seasons + 1, _famine[at].People);
+        }
+        else if (security >= FamineRecovered && at >= 0)
+        {
+            (int _, int seasons, int before) = _famine[at];
+            _famine.RemoveAt(at);
+            if (seasons >= FamineMinSeasons && people * 5 >= before * 4) NoteLeadingElder(settlement, LegendDeed.Famine, FamineHeldPoints, seasons);
+        }
+    }
+
+    private void NoteLeadingElder(int settlement, LegendDeed deed, int points, int detail)
+    {
+        _residentsScratch.Clear();
+        _economy.ListFigures(settlement, _residentsScratch);
+        long best = -1;
+        int bestAge = -1;
+        foreach (FigureView f in _residentsScratch)
+            if (f.Age is >= 14 and <= 70 && f.Age > bestAge) { best = f.Id; bestAge = f.Age; }
+        if (best >= 0) NoteDeed(best, deed, points, detail);
+    }
+
+    private int FindFamine(int settlement)
+    {
+        int low = 0, high = _famine.Count - 1;
+        while (low <= high)
+        {
+            int middle = (low + high) >> 1;
+            int v = _famine[middle].Settlement;
+            if (v == settlement) return middle;
+            if (v < settlement) low = middle + 1; else high = middle - 1;
+        }
+        return ~low;
+    }
+
+    private void RemoveFamine(int settlement)
+    {
+        int at = FindFamine(settlement);
+        if (at >= 0) _famine.RemoveAt(at);
     }
 
     private void MarkDeaths(int season)
@@ -254,6 +335,8 @@ public sealed class LegendSystem
         foreach ((int civ, int project, long figure) in _innovatorsThisSeason) { h.Add(civ); h.Add(project); h.Add(figure); }
         h.Add(_firstClaimedThisSeason.Count);
         foreach ((int civ, int project) in _firstClaimedThisSeason) { h.Add(civ); h.Add(project); }
+        h.Add(_famine.Count);
+        foreach ((int settlement, int seasons, int people) in _famine) { h.Add(settlement); h.Add(seasons); h.Add(people); }
     }
 
     private const uint TrailerMagic = 0x444E4745; // "EGND" little-endian
@@ -265,7 +348,7 @@ public sealed class LegendSystem
     /// </summary>
     internal void WriteOptionalTrailer(BinaryWriter writer)
     {
-        if (_scores.Count == 0 && _records.Count == 0 && _innovatorsThisSeason.Count == 0 && _firstClaimedThisSeason.Count == 0) return;
+        if (_scores.Count == 0 && _records.Count == 0 && _innovatorsThisSeason.Count == 0 && _firstClaimedThisSeason.Count == 0 && _famine.Count == 0) return;
         writer.Write(TrailerMagic);
         writer.Write(TrailerVersion);
         Write(writer);
@@ -277,6 +360,7 @@ public sealed class LegendSystem
         _records.Clear();
         _innovatorsThisSeason.Clear();
         _firstClaimedThisSeason.Clear();
+        _famine.Clear();
         Stream stream = reader.BaseStream;
         if (!stream.CanSeek || stream.Length - stream.Position < 4) return;
         long start = stream.Position;
@@ -299,6 +383,8 @@ public sealed class LegendSystem
         foreach ((int civ, int project, long figure) in _innovatorsThisSeason) { w.Write(civ); w.Write(project); w.Write(figure); }
         w.Write(_firstClaimedThisSeason.Count);
         foreach ((int civ, int project) in _firstClaimedThisSeason) { w.Write(civ); w.Write(project); }
+        w.Write(_famine.Count);
+        foreach ((int settlement, int seasons, int people) in _famine) { w.Write(settlement); w.Write(seasons); w.Write(people); }
     }
 
     public void Read(BinaryReader r)
@@ -331,5 +417,16 @@ public sealed class LegendSystem
         int firsts = r.ReadInt32();
         if (firsts < 0 || firsts > 1_000_000) throw new InvalidDataException("Invalid Legend first count.");
         for (int i = 0; i < firsts; i++) _firstClaimedThisSeason.Add((r.ReadInt32(), r.ReadInt32()));
+        _famine.Clear();
+        int famine = r.ReadInt32();
+        if (famine < 0 || famine > 1_000_000) throw new InvalidDataException("Invalid Legend famine count.");
+        int previousSettlement = -1;
+        for (int i = 0; i < famine; i++)
+        {
+            (int settlement, int seasons, int people) = (r.ReadInt32(), r.ReadInt32(), r.ReadInt32());
+            if (settlement <= previousSettlement) throw new InvalidDataException("Legend famine entries are not in ascending settlement order.");
+            previousSettlement = settlement;
+            _famine.Add((settlement, seasons, people));
+        }
     }
 }

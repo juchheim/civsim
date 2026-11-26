@@ -222,4 +222,27 @@ public sealed partial class LivingEconomyModel
         into.AddRange(_foundings);
         _foundings.Clear();
     }
+
+    /// <summary>Tells the Legend system of a deed done by one figure (figure id, <see cref="CivSim.Sim.Legends.LegendDeed"/>, points, detail). Wired by the match; not state.</summary>
+    internal Action<long, int, int, int>? LegendDeedObserver { get; set; }
+
+    /// <summary>Whether a settlement is a Free Folk camp (a refugee or seceded group that belongs to no civilization's Legends).</summary>
+    public bool IsFreeFolkSettlement(int settlementIndex)
+        => (uint)settlementIndex < (uint)_settlements.Count && IsFreeFolk(_settlements[settlementIndex]);
+
+    /// <summary>A Wonder was raised in <paramref name="s"/>: its most skilled adult scores the Wonder deed (docs/MVP/40 §3).</summary>
+    private void NoteWonderBuilder(SettlementState s)
+    {
+        if (LegendDeedObserver is null) return;
+        long best = -1;
+        int bestSkill = -1;
+        foreach (FigureState f in Residents(s.Id))
+        {
+            if (f.Age is < 14 or >= 60) continue;
+            int skill = 0;
+            foreach (byte level in f.SkillLevels) skill += level;
+            if (skill > bestSkill || skill == bestSkill && f.Id < best) { best = f.Id; bestSkill = skill; }
+        }
+        if (best >= 0) LegendDeedObserver(best, 6, 60, s.Id);
+    }
 }

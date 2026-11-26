@@ -425,6 +425,7 @@ public sealed partial class PoliticsSystem
             SiegeStream ^ 0x425245414348UL ^ (ulong)settlement ^ (ulong)_season * 7919UL);
         ApplyCasualties(result.AttackerDead, result.AttackerWounded, "siegeBreach");
         ApplyCasualties(result.DefenderDead, result.DefenderWounded, "siegeBreach");
+        NoteBattleDeeds(besiegers, defenders, result, settlement);
         int fight = PoliticsEvent.PackFight(besiegers.Count, defenders.Count,
             result.AttackerDead.Count + result.AttackerWounded.Count, result.DefenderDead.Count + result.DefenderWounded.Count);
         bool won = Captures.CanHold(result);
@@ -521,6 +522,7 @@ public sealed partial class PoliticsSystem
             SiegeStream ^ 0x53414C4C59UL ^ (ulong)investment.Settlement ^ (ulong)_season * 104729UL);
         ApplyCasualties(battle.AttackerDead, battle.AttackerWounded, "siegeSally");
         ApplyCasualties(battle.DefenderDead, battle.DefenderWounded, "siegeSally");
+        NoteBattleDeeds(defenders, besiegers, battle, investment.Settlement); // the sally is the "attacker" of this fight
         _events.Add(new PoliticsEvent(_tick, (byte)investment.TargetCiv, PoliticsEventKind.InvestmentSally,
             investment.Civ, investment.Settlement, battle.Winner == BattleWinner.Attacker ? 1 : 0));
         _events.Add(new PoliticsEvent(_tick, (byte)investment.Civ, PoliticsEventKind.InvestmentSally,
@@ -569,6 +571,7 @@ public sealed partial class PoliticsSystem
             SiegeStream ^ 0x52454C494546UL ^ (ulong)settlement ^ (ulong)_season * 13007UL);
         ApplyCasualties(battle.AttackerDead, battle.AttackerWounded, "siegeRelief");
         ApplyCasualties(battle.DefenderDead, battle.DefenderWounded, "siegeRelief");
+        NoteBattleDeeds(alive, besiegers, battle, settlement);
         if (battle.Winner == BattleWinner.Attacker) EndInvestment(_investments.IndexOf(investment), relieved: true);
         return true;
     }

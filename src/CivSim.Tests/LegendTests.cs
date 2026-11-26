@@ -6,6 +6,7 @@ using CivSim.Sim.Core;
 using CivSim.Sim.Economy;
 using CivSim.Sim.Legends;
 using CivSim.Sim.Numerics;
+using CivSim.Sim.Politics;
 using CivSim.Sim.Research;
 using CivSim.Sim.View;
 using CivSim.Sim.World;
@@ -209,5 +210,98 @@ public sealed class LegendTests
         var b = new StateHasher(); restored.Legends.Hash(ref b);
         Assert.Equal(a.Finish(), b.Finish());
         Assert.Equal(match.Legends.Records.Count, restored.Legends.Records.Count);
+    }
+
+    // ---- L1b deeds ------------------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_won_battle_scores_its_survivors_and_the_strongest_most_and_a_bloodless_one_scores_nothing()
+    {
+        (MatchModel match, _) = Start();
+        var ids = new List<long>();
+        for (int i = 0; i < match.Economy.FigureCount && ids.Count < 8; i++)
+            if (match.Economy.Figure(i).Civilization == 0) ids.Add(match.Economy.Figure(i).Id);
+        Assert.True(ids.Count >= 8);
+        var attackers = new List<Fighter> { new(ids[0], Fix64.FromInt(2)), new(ids[1], Fix64.FromInt(5)), new(ids[2], Fix64.FromInt(3)) };
+        var defenders = new List<Fighter> { new(ids[3], Fix64.FromInt(2)), new(ids[4], Fix64.FromInt(2)) };
+
+        var won = new BattleResult { Winner = BattleWinner.Attacker };
+        won.AttackerDead.Add(ids[2]);
+        won.DefenderDead.Add(ids[3]);
+        match.Politics.NoteBattleDeeds(attackers, defenders, won, 1);
+        Assert.Equal(LegendSystem.BattlePoints, match.Legends.ScoreOf(ids[0]));
+        Assert.Equal(LegendSystem.BattlePoints + LegendSystem.BattleBestBonus, match.Legends.ScoreOf(ids[1])); // the strongest survivor
+        Assert.Equal(0, match.Legends.ScoreOf(ids[2]));                                                          // fell
+        Assert.Equal(0, match.Legends.ScoreOf(ids[3]));                                                          // the losing side
+        Assert.Equal(0, match.Legends.ScoreOf(ids[4]));
+
+        var bloodless = new BattleResult { Winner = BattleWinner.Attacker };
+        match.Politics.NoteBattleDeeds(attackers, defenders, bloodless, 1);
+        var standOff = new BattleResult { Winner = BattleWinner.StandOff };
+        standOff.AttackerDead.Add(ids[0]);
+        match.Politics.NoteBattleDeeds(attackers, defenders, standOff, 1);
+        Assert.Equal(LegendSystem.BattlePoints, match.Legends.ScoreOf(ids[0])); // unchanged
+
+        var lost = new BattleResult { Winner = BattleWinner.Defender };
+        lost.AttackerDead.Add(ids[0]);
+        match.Politics.NoteBattleDeeds(attackers, defenders, lost, 1);
+        Assert.Equal(LegendSystem.BattlePoints + LegendSystem.BattleBestBonus, match.Legends.ScoreOf(ids[3])); // the defenders won this one: the first survivor of equal strength is best
+        Assert.Equal(LegendSystem.BattlePoints, match.Legends.ScoreOf(ids[4]));
+        Assert.Equal(LegendSystem.BattlePoints, match.Legends.ScoreOf(ids[0]));                                // the losers' scores are untouched
+    }
+
+    [Fact]
+    public void A_settlement_that_comes_through_a_famine_scores_its_leading_elder()
+    {
+        (MatchModel match, _) = Start();
+        int home = Enumerable.Range(0, match.Economy.SettlementCount).First(i => match.Economy.SettlementLite(i).Civilization == 0);
+        int people = match.Economy.Population(match.Economy.SettlementLite(home).Id);
+        var elders = new List<FigureView>();
+        match.Economy.ListFigures(home, elders);
+        long eldest = elders.Where(f => f.Age is >= 14 and <= 70).OrderByDescending(f => f.Age).ThenBy(f => f.Id).First().Id;
+
+        Fix64 starving = Fix64.FromRatio(3, 10), fed = Fix64.FromRatio(9, 10);
+        match.Legends.StepFamine(home, people, starving);
+        match.Legends.StepFamine(home, people, starving);
+        match.Legends.StepFamine(home, people, fed);          // two hungry seasons are not a famine
+        Assert.Equal(0, match.Legends.ScoreOf(eldest));
+
+        match.Legends.StepFamine(home, people, starving);
+        match.Legends.StepFamine(home, people, starving);
+        match.Legends.StepFamine(home, people, starving);
+        match.Legends.StepFamine(home, people, Fix64.FromRatio(65, 100)); // better, but not recovered yet
+        Assert.Equal(0, match.Legends.ScoreOf(eldest));
+        match.Legends.StepFamine(home, people, fed);
+        Assert.Equal(LegendSystem.FamineHeldPoints, match.Legends.ScoreOf(eldest));
+
+        long other = elders.First(f => f.Id != eldest).Id;
+        match.Legends.StepFamine(home, 100, starving);
+        match.Legends.StepFamine(home, 100, starving);
+        match.Legends.StepFamine(home, 100, starving);
+        match.Legends.StepFamine(home, 70, fed);               // a third of the people were lost: no deed
+        Assert.Equal(LegendSystem.FamineHeldPoints, match.Legends.ScoreOf(eldest));
+        Assert.Equal(0, match.Legends.ScoreOf(other));
+    }
+
+    [Fact]
+    public void Raising_a_Wonder_scores_the_most_skilled_adult_of_the_settlement()
+    {
+        var pack = new Lazy<CivSim.Sim.Content.ContentPack>(() => TestPack.WithNumeric("KEY-6"));
+        MatchModel match = MatchModel.Create(Seed, pack.Value, World.Value, Balanced, default, rules: ChapterRules.Discovery);
+        var runner = new SimRunner(match);
+        Grant(runner, match, "KEY-5", "KEY-6");
+        int home = Enumerable.Range(0, match.Economy.SettlementCount).First(i => match.Economy.SettlementLite(i).Civilization == 0);
+        int born = match.Legends.Records.Count;
+        var residents = new List<FigureView>();
+        match.Economy.ListFigures(home, residents);
+        Dictionary<long, int> was = residents.ToDictionary(f => f.Id, f => match.Legends.ScoreOf(f.Id));
+
+        match.Economy.FixtureCompleteIron(home, "great_library");
+        int raised = residents.Count(f => match.Legends.ScoreOf(f.Id) - was[f.Id] == LegendSystem.WonderPoints);
+        Assert.Equal(1, raised);
+        Assert.Equal(born, match.Legends.Records.Count);
+
+        match.Economy.FixtureCompleteIron(home, "harbor"); // not a Wonder: nobody scores again
+        Assert.Equal(1, residents.Count(f => match.Legends.ScoreOf(f.Id) != was[f.Id]));
     }
 }

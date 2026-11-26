@@ -611,6 +611,7 @@ public sealed partial class PoliticsSystem
         ObserveSettlementRaid(e.ToSettlement, _season, raiders.Count, c);
         ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded, "settlementRaid");
         ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded, "settlementRaid");
+        NoteBattleDeeds(raiders, defenders, outcome.Battle, e.ToSettlement);
 
         Fix64 loot = Fix64.Zero;
         if (outcome.Success)
@@ -678,6 +679,7 @@ public sealed partial class PoliticsSystem
             RaidStream ^ 0x4D494E4543414D50UL ^ (ulong)(e.Civ * 4099 + camp.Id * 97) ^ (ulong)_season * 104729UL);
         ApplyCasualties(outcome.Battle.AttackerDead, outcome.Battle.AttackerWounded, "miningCampRaid");
         ApplyCasualties(outcome.Battle.DefenderDead, outcome.Battle.DefenderWounded, "miningCampRaid");
+        NoteBattleDeeds(raiders, defenders, outcome.Battle, e.FromSettlement);
 
         Fix64 loot = Fix64.Zero;
         if (outcome.Success)
@@ -727,6 +729,7 @@ public sealed partial class PoliticsSystem
         BattleResult result = Captures.Assault(attackers, defenders, defenses, childrenInside: true, _seed, AssaultStream ^ (ulong)(c * 4099 + o * 97) ^ (ulong)_season * 7907UL);
         ApplyCasualties(result.AttackerDead, result.AttackerWounded, "assault");
         ApplyCasualties(result.DefenderDead, result.DefenderWounded, "assault");
+        NoteBattleDeeds(attackers, defenders, result, e.ToSettlement);
         bool won = Captures.CanHold(result);
         int fight = PoliticsEvent.PackFight(attackers.Count, defenders.Count,
             result.AttackerDead.Count + result.AttackerWounded.Count, result.DefenderDead.Count + result.DefenderWounded.Count);
