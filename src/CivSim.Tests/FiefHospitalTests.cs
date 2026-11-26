@@ -213,11 +213,23 @@ public sealed class FiefHospitalTests
         return legacy;
     }
 
-    /// <summary>Snapshots before Fief 49 end without the tool-work tail (a count of zero here, since no figure has worked with a tool in these fixtures).</summary>
+    /// <summary>Remove the v49+ tool-work tail and v50+ fission-scale tail to create a legacy Fief fixture.</summary>
     private static byte[] WithoutToolWorkTail(byte[] current)
     {
+        current = WithoutFiefFissionScaleTail(current);
         if (BitConverter.ToInt32(current, current.Length - sizeof(int)) != 0) throw new InvalidDataException("The fixture snapshot has tool-work flags.");
         return current[..^sizeof(int)];
+    }
+
+    private static byte[] WithoutFiefFissionScaleTail(byte[] current)
+    {
+        const int civilizationCount = 8;
+        const int tailBytes = sizeof(int) + sizeof(int) + civilizationCount * sizeof(long);
+        int offset = current.Length - tailBytes;
+        if (offset < 0 || BitConverter.ToInt32(current, offset) != 0x53495346 ||
+            BitConverter.ToInt32(current, offset + sizeof(int)) != civilizationCount)
+            throw new InvalidDataException("Could not locate the Fief fission-scale snapshot tail.");
+        return current[..offset];
     }
 
     private static int FindBytes(byte[] source, byte[] value)

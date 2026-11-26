@@ -167,6 +167,43 @@ public sealed class SettlementCoreTests
     }
 
     [Fact]
+    public void Razing_discards_domestic_herds_and_the_empty_settlement_restores_from_snapshot()
+    {
+        LivingEconomyModel economy = Town().Economy;
+        economy.FixtureSetDomesticHerds(0, pastures: 2, smallStock: Fix64.FromInt(6),
+            cattle: Fix64.FromInt(2), pigs: Fix64.FromInt(2));
+
+        economy.RazeSettlement(0);
+
+        DomesticHerdView empty = new(Fix64.Zero, Fix64.Zero, Fix64.Zero);
+        Assert.Equal(empty, economy.DomesticHerd(0));
+        LivingEconomyModel resumed = Town().Economy;
+        Restore(resumed, Snapshot(economy));
+        Assert.Equal(empty, resumed.DomesticHerd(0));
+    }
+
+    [Fact]
+    public void Fission_keeps_existing_abandoned_site_herds_with_enough_pasture_capacity()
+    {
+        LivingEconomyModel economy = Town().Economy;
+        economy.FixtureSetDomesticHerds(0, pastures: 5, smallStock: Fix64.Zero,
+            cattle: Fix64.FromInt(5), pigs: Fix64.FromInt(5));
+        economy.FixtureSetDomesticHerds(1, pastures: 2, smallStock: Fix64.Zero,
+            cattle: Fix64.FromInt(2), pigs: Fix64.FromInt(2));
+
+        economy.FixtureTransferDomesticHerds(0, 1);
+
+        DomesticHerdView herd = economy.DomesticHerd(1);
+        Fix64 transferred = Fix64.FromInt(5) * Fix64.FromRatio(2, 5);
+        Assert.Equal(Fix64.FromInt(2) + transferred, herd.Cattle);
+        Assert.Equal(Fix64.FromInt(2) + transferred, herd.Pigs);
+        Assert.Equal(4, economy.FixtureSettlementStructureCount(1, "pasture"));
+        LivingEconomyModel resumed = Town().Economy;
+        Restore(resumed, Snapshot(economy));
+        Assert.Equal(herd, resumed.DomesticHerd(1));
+    }
+
+    [Fact]
     public void Mid_season_snapshot_after_a_queued_district_matches_eight_continuous_seasons()
     {
         var continuous = new LivingEconomyModel(Seed, EconomyContent.FromPack(TestPack.Pack), Input.Value) { IronChain = true };

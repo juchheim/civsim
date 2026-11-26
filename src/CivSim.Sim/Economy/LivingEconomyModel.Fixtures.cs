@@ -298,6 +298,22 @@ public sealed partial class LivingEconomyModel
         if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
         _settlements[settlementIndex].Structures[kind] = count;
     }
+    internal void FixtureSetDomesticHerds(int settlementIndex, int pastures, Fix64 smallStock, Fix64 cattle, Fix64 pigs)
+    {
+        SettlementState settlement = _settlements[settlementIndex];
+        settlement.Structures[(int)Structure.Pasture] = pastures;
+        settlement.DomesticSmallStock = smallStock;
+        settlement.DomesticCattle = cattle;
+        settlement.DomesticPigs = pigs;
+    }
+    internal void FixtureTransferDomesticHerds(int parentSettlementIndex, int daughterSettlementIndex)
+        => TransferDomesticHerds(_settlements[parentSettlementIndex], _settlements[daughterSettlementIndex]);
+    internal int FixtureSettlementStructureCount(int settlementIndex, string structure)
+    {
+        int kind = StructureIndex(structure);
+        if (kind < 0) throw new ArgumentException($"Unknown structure '{structure}'.", nameof(structure));
+        return _settlements[settlementIndex].Structures[kind];
+    }
     internal Fix64 FixtureStoredCohesion(int settlementIndex) => _settlements[settlementIndex].Cohesion;
     internal Fix64 FixtureStorageFactor(int settlementIndex) => StorageFactor(_settlements[settlementIndex]);
     internal int FixtureBuildTarget(int settlementIndex) => (int)_settlements[settlementIndex].BuildTarget;

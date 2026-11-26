@@ -218,7 +218,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     public const int SnapshotVersion = 30;
     /// <summary>The non-Fief Iron chapter's snapshot version: 31 added the tool-work tail (<see cref="WriteToolWorkFlags"/>); Bronze keeps <see cref="SnapshotVersion"/> unchanged.</summary>
     public const int IronSnapshotVersion = 31;
-    private const int FiefSnapshotVersion = 49;
+    private const int FiefSnapshotVersion = 50;
     internal int FiefSnapshotVersionForRestore { get; private set; } = FiefSnapshotVersion;
     private bool _fiefCraftNeedsMigration;
     private bool _toolWorkTailPresent;
@@ -5135,15 +5135,18 @@ public sealed partial class LivingEconomyModel : ISimModel
         parent.DomesticSmallStock -= small; daughter.DomesticSmallStock += small;
         parent.DomesticCattle -= cattle; daughter.DomesticCattle += cattle;
         parent.DomesticPigs -= pigs; daughter.DomesticPigs += pigs;
-        if (small > Fix64.Zero || cattle + pigs > Fix64.Zero)
+        Fix64 daughterLargeAnimals = daughter.DomesticCattle + daughter.DomesticPigs;
+        if (daughter.DomesticSmallStock > Fix64.Zero || daughterLargeAnimals > Fix64.Zero)
         {
-            int smallPastures = (small / Fix64.FromInt(6)).FloorToInt();
-            if (Fix64.FromInt(smallPastures * 6) < small) smallPastures++;
-            int largePastures = ((cattle + pigs) / Fix64.FromInt(2)).FloorToInt();
-            if (Fix64.FromInt(largePastures * 2) < cattle + pigs) largePastures++;
-            // Fission carries enough fenced capacity for its transferred animals; build assets are
-            // otherwise not divided by the existing settlement-fission system.
-            daughter.Structures[(int)Structure.Pasture] = Math.Max(1, Math.Max(smallPastures, largePastures));
+            int smallPastures = (daughter.DomesticSmallStock / Fix64.FromInt(6)).FloorToInt();
+            if (Fix64.FromInt(smallPastures * 6) < daughter.DomesticSmallStock) smallPastures++;
+            int largePastures = (daughterLargeAnimals / Fix64.FromInt(2)).FloorToInt();
+            if (Fix64.FromInt(largePastures * 2) < daughterLargeAnimals) largePastures++;
+            // A fission may reuse an abandoned site whose buildings and herds survived. Keep its
+            // pasture capacity and add enough for the combined retained and transferred herds.
+            int requiredPastures = Math.Max(1, Math.Max(smallPastures, largePastures));
+            daughter.Structures[(int)Structure.Pasture] = Math.Max(
+                daughter.Structures[(int)Structure.Pasture], requiredPastures);
         }
     }
 
@@ -7123,6 +7126,15 @@ public sealed partial class LivingEconomyModel : ISimModel
             hash.Add(f.SkillLevels.Length); foreach (byte level in f.SkillLevels) hash.Add(level);
             hash.Add(f.SkillPractice.Length); foreach (Fix64 practice in f.SkillPractice) hash.Add(practice);
         }
+        bool nonDefaultFissionScale = false;
+        foreach (Fix64 scale in _fissionThresholdScale)
+            if (scale != Fix64.One) { nonDefaultFissionScale = true; break; }
+        if (FiefChain && nonDefaultFissionScale)
+        {
+            hash.Add(0x46495353494F4E53UL); // FISSIONS
+            hash.Add(_fissionThresholdScale.Length);
+            foreach (Fix64 scale in _fissionThresholdScale) hash.Add(scale);
+        }
         foreach (int deaths in _lastDeathsByCause) hash.Add(deaths);
         hash.Add(_lastDeathsByCauseAndAgeBand);
         hash.Add(_lastExpectedHazardsByCauseAndAgeBand);
@@ -7235,6 +7247,12 @@ public sealed partial class LivingEconomyModel : ISimModel
         WriteSteam(writer);
         WriteSoot(writer);
         WriteToolWorkFlags(writer);
+        if (FiefChain)
+        {
+            writer.Write(0x53495346); // FISS
+            writer.Write(_fissionThresholdScale.Length);
+            foreach (Fix64 scale in _fissionThresholdScale) writer.Write(scale.Raw);
+        }
     }
 
     public void ReadSnapshot(BinaryReader reader)
@@ -7249,7 +7267,7 @@ public sealed partial class LivingEconomyModel : ISimModel
     {
         int magic = reader.ReadInt32();
         int version = reader.ReadInt32();
-        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion && version != IronSnapshotVersion)) // a Bronze economy may read an Iron save's Bronze prefix (tested); MatchModel rejects the cross-mode save
+        if (magic != 0x45434F4E || (FiefChain ? version != FiefSnapshotVersion && version != 49 && version != 48 && version != 47 && version != 46 && version != 45 && version != 44 && version != 43 && version != 42 && version != 41 && version != 40 : version != SnapshotVersion && version != IronSnapshotVersion)) // a Bronze economy may read an Iron save's Bronze prefix (tested); MatchModel rejects the cross-mode save
             throw new InvalidDataException("Unsupported living-economy snapshot.");
         if (FiefChain) FiefSnapshotVersionForRestore = version;
         _toolWorkTailPresent = FiefChain ? version >= 49 : IronChain && version >= IronSnapshotVersion;
@@ -7402,6 +7420,17 @@ public sealed partial class LivingEconomyModel : ISimModel
         ReadSteam(reader);
         ReadSoot(reader);
         ReadToolWorkFlags(reader);
+        if (FiefChain && FiefSnapshotVersionForRestore >= 50)
+        {
+            if (reader.ReadInt32() != 0x53495346) throw new InvalidDataException("Fief snapshot has an invalid fission-scale tail.");
+            if (reader.ReadInt32() != _fissionThresholdScale.Length) throw new InvalidDataException("Fief snapshot civilization count differs in its fission-scale tail.");
+            for (int civ = 0; civ < _fissionThresholdScale.Length; civ++)
+            {
+                Fix64 scale = Fix64.FromRaw(reader.ReadInt64());
+                if (scale <= Fix64.Zero) throw new InvalidDataException("Fief snapshot contains an invalid fission scale.");
+                _fissionThresholdScale[civ] = scale;
+            }
+        }
         RefreshBronzeActive();
         RebuildWeirOwnership();
         ValidateSnapshotState();
@@ -7591,6 +7620,7 @@ public sealed partial class LivingEconomyModel : ISimModel
         InvalidateForageSettlementOwners();
         _soot = source._soot is null ? null : (Fix64[])source._soot.Clone();
         FiefSnapshotVersionForRestore = source.FiefSnapshotVersionForRestore;
+        Array.Copy(source._fissionThresholdScale, _fissionThresholdScale, _fissionThresholdScale.Length);
         _tick = source._tick;
         _seasonsCompleted = source._seasonsCompleted;
         _nextFigureId = source._nextFigureId;
