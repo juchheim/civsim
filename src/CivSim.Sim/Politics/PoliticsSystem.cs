@@ -1855,6 +1855,9 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
     }
 
     /// <summary>First blood between the meeting parties (13 §3.1): two small parties fight until one breaks.</summary>
+    /// <summary>A fighter rebuilt from a stored id and strength (an expedition, a siege, an occupation), steadying its group if the person is a living Legend.</summary>
+    private Fighter FighterOf(long id, Fix64 strength) => new Fighter(id, strength) { Steady = Legends is not null && Legends.IsLivingLegend(id) };
+
     /// <summary>The Legend system, when the match has one (set by the match; not state). Battles tell it who won them (docs/MVP/40 §3).</summary>
     internal CivSim.Sim.Legends.LegendSystem? Legends { get; set; }
 
@@ -2110,8 +2113,12 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Fix64 casualtiesTaken = Fix64.One;
             Fix64 shieldFactor = Fix64.One;
             bool bolt = false, levyBow = false;
+            // A living Legend (docs/MVP/40 §4): an adult who is not a paid soldier fights as a warrior at x1.5 in place of the warrior's x1.3, and any Legend steadies their group's line.
+            bool livingLegend = Legends is not null && Legends.IsLivingLegend(r.Id);
+            bool legendWarrior = livingLegend && r.Age < 45 && !r.Soldier;
             Fix64 regularTraining = r.Age >= 45 ? Fix64.FromRatio(3, 10)
                 : r.Soldier ? Combat.ProfessionalTraining
+                : legendWarrior ? Fix64.FromRatio(15, 10)
                 : warrior ? Fix64.FromRatio(13, 10)
                 : attacking ? Fix64.One : Fix64.FromRatio(6, 10);
             Fix64 levyTraining = r.Age < 45 && !r.Soldier && !warrior ? Fix64.One : regularTraining;
@@ -2148,6 +2155,10 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
             Fix64 strength;
             if (r.Age >= 45) strength = Fix64.FromRatio(3, 10) * weaponStrength;
             else if (r.Soldier) strength = weaponStrength * Combat.ProfessionalTraining;
+            else if (legendWarrior)
+            {
+                strength = weaponStrength * Fix64.FromRatio(15, 10);
+            }
             else if (warrior)
             {
                 strength = weaponStrength * Fix64.FromRatio(13, 10);
@@ -2161,7 +2172,7 @@ public sealed partial class PoliticsSystem : IFissionSiteAdvisor, IFreeFolkRegis
                 if (openTerrain && !targetDefenses.Hillfort && !targetDefenses.StoneWalls) strength *= Fix64.FromInt(2);
             }
             if (tinFolk) strength *= _trade.FolkDefense;
-            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken, ShieldFactor = shieldFactor, Bolt = bolt });
+            list.Add(new Fighter(r.Id, strength) { CasualtiesTaken = casualtiesTaken, ShieldFactor = shieldFactor, Bolt = bolt, Steady = livingLegend });
             ids?.Add(r.Id);
         }
     }

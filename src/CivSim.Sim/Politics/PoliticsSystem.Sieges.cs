@@ -219,7 +219,7 @@ public sealed partial class PoliticsSystem
         {
             long id = investment.Members[i];
             if (!_economy.TryFigure(id, out _) || _economy.IsWounded(id)) continue;
-            var fighter = new Fighter(id, investment.Strengths[i]);
+            var fighter = FighterOf(id, investment.Strengths[i]);
             into.Add(fighter);
             strength += fighter.Strength;
         }

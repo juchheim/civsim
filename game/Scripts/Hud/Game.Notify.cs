@@ -303,6 +303,7 @@ public partial class Game
     private void RefreshNotifications(MatchFrame frame)
     {
         ProcessViewEvents(frame);
+        ProcessLegends(frame);
         ProcessCoachTriggers(frame);
         UpdateMomentButtons();
         if (_chronicleOpen && _chronicleDirty) RefreshChronicleRows();

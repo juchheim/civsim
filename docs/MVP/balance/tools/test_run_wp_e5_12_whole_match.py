@@ -13,6 +13,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import run_wp_e5_12_whole_match as runner
 
 MANIFEST = Path(__file__).resolve().parents[1] / "m12-e5-12-natural-seeds-2026-11-16.txt"
+EXPECTED_E5_OBSERVER_TRACE_FLAGS = (
+    "--fief-power-ledger", "--fief-health-trace", "--fief-arms-lifecycle-trace",
+    "--fief-institution-trace", "--fief-siege-trace", "--fief-siege-strategist-trace",
+    "--fief-wp7-trace", "--fief-territory-trace", "--fief-sea10-trace",
+)
 
 
 class WpE512RunnerFixtures(unittest.TestCase):
@@ -103,6 +108,8 @@ fief: E5 progress per civilization:
                 self.assertTrue(match["provenanceStable"])
                 self.assertEqual(4, len(match["match"]["seats"]))
                 self.assertTrue(match["replayVerification"]["verified"])
+                self.assertEqual(EXPECTED_E5_OBSERVER_TRACE_FLAGS, tuple(match["command"][-len(EXPECTED_E5_OBSERVER_TRACE_FLAGS):]))
+            self.assertEqual(EXPECTED_E5_OBSERVER_TRACE_FLAGS, tuple(metadata["observerTraceFlags"]))
 
     def test_existing_external_root_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -54,7 +54,7 @@ public sealed class MatchModel : ISimModel
     public CivilizationGuidance Guidance { get; }
     /// <summary>The AI civilizations' minds; null when every civilization is on the Council.</summary>
     public AiSystem? Ai { get; }
-    /// <summary>The Legends of the match (docs/MVP/40). Phase L1: scored, recorded and saved (an optional snapshot trailer), but not yet hashed into the match checksum or read by any system but the frame.</summary>
+    /// <summary>The Legends of the match (docs/MVP/40). Scored, recorded, saved (an optional snapshot trailer), hashed into the match checksum, and read by the economy, the fighters and the frame.</summary>
     public LegendSystem Legends { get; }
 
     /// <summary>
@@ -171,6 +171,7 @@ public sealed class MatchModel : ISimModel
         Politics.Hash(ref hasher);
         Ai?.Hash(ref hasher);
         Guidance.Hash(ref hasher);
+        if (Legends.HasState) Legends.Hash(ref hasher); // the Legends change the match from phase L2; a match with none keeps an older checksum
         return hasher.Finish();
     }
 

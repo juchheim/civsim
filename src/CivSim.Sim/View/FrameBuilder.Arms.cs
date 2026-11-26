@@ -98,7 +98,7 @@ public sealed partial class FrameBuilder
         if (mine == 0) return;
         int take = System.Math.Min(mine, MatchFrame.LegendCap), skip = mine - take, n = 0;
         MatchFrame.Ensure(ref target.LegendFigure, take); MatchFrame.Ensure(ref target.LegendSettlement, take); MatchFrame.Ensure(ref target.LegendBorn, take);
-        MatchFrame.Ensure(ref target.LegendDied, take); MatchFrame.Ensure(ref target.LegendDeed, take); MatchFrame.Ensure(ref target.LegendDetail, take); MatchFrame.Ensure(ref target.LegendName, take);
+        MatchFrame.Ensure(ref target.LegendDied, take); MatchFrame.Ensure(ref target.LegendDeed, take); MatchFrame.Ensure(ref target.LegendDetail, take); MatchFrame.Ensure(ref target.LegendName, take); MatchFrame.Ensure(ref target.LegendRemembered, take);
         for (int i = 0; i < all.Count && n < take; i++)
         {
             CivSim.Sim.Legends.LegendRecord r = all[i];
@@ -106,6 +106,7 @@ public sealed partial class FrameBuilder
             if (skip > 0) { skip--; continue; }
             target.LegendFigure[n] = r.FigureId; target.LegendSettlement[n] = r.Settlement; target.LegendBorn[n] = r.BornSeason; target.LegendDied[n] = r.DiedSeason;
             target.LegendDeed[n] = (byte)r.Deed; target.LegendDetail[n] = r.Detail; target.LegendName[n] = r.NameCode;
+            target.LegendRemembered[n] = match.Legends.IsRemembered(r) ? (byte)1 : (byte)0;
             n++;
         }
         target.LegendCount = n;

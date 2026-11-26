@@ -3,6 +3,7 @@
 
 One Harness process per manifest seed. This runner never resumes or overwrites
 an output root, never grants E5, and preserves every attempt including failures.
+Report-only E5 observers collect several whole-match balance traces in the same run.
 """
 from __future__ import annotations
 
@@ -24,6 +25,17 @@ MANIFEST_SHA256 = "c3ef15f4654a0fb1a0834a61dc6516dfc407493d2a5e7f1e4c8e22684e87b
 SEED_COUNT = 80
 MINUTES = 130
 SEAT_ARCHETYPES = ("Builder", "Grower", "Warlord", "Sage")
+E5_OBSERVER_TRACE_FLAGS = (
+    "--fief-power-ledger",
+    "--fief-health-trace",
+    "--fief-arms-lifecycle-trace",
+    "--fief-institution-trace",
+    "--fief-siege-trace",
+    "--fief-siege-strategist-trace",
+    "--fief-wp7-trace",
+    "--fief-territory-trace",
+    "--fief-sea10-trace",
+)
 
 
 def sha256(path: Path) -> str:
@@ -196,6 +208,7 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
         "repo": str(repo), "pack": str(pack), "harness": str(harness), "sim": str(sim),
         "manifest": str(manifest), "manifestSha256": args.expected_manifest_sha256,
         "seedCount": len(seeds), "minutes": MINUTES, "grantE5": False,
+        "observerTraceFlags": list(E5_OBSERVER_TRACE_FLAGS),
         "provenanceBefore": before, "runner": {"path": str(runner_path), "sha256": runner_hash},
         "provenanceHelper": {"path": str(helper_path), "sha256": helper_hash}, "matches": records,
     }
@@ -223,7 +236,7 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
             record["provenanceBefore"] = current
             record["toolPinsBefore"] = verify_tool_pins()
             command = [args.dotnet, str(harness), "fief-match", "--pack", str(pack), "--seed", str(seed),
-                       "--minutes", str(MINUTES), "--record-dir", str(replay_dir)]
+                       "--minutes", str(MINUTES), "--record-dir", str(replay_dir), *E5_OBSERVER_TRACE_FLAGS]
             if replay_dir.exists():
                 raise FileExistsError(f"refusing existing per-seed replay directory: {replay_dir}")
             record["command"] = command

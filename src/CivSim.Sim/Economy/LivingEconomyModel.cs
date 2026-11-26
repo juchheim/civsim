@@ -2833,7 +2833,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             FigureState figure = _figures[i];
             int level = figure.SkillLevels[column];
             if (level >= MaxSkillLevel) continue;
-            Fix64 progress = figure.SkillPractice[column] + work;
+            Fix64 progress = figure.SkillPractice[column] + SkillSpreadWork(figure, work);
             while (level < MaxSkillLevel)
             {
                 Fix64 threshold = level < 6 ? SkillWorkPerLevel : VeteranSkillWorkPerLevel;
@@ -5072,7 +5072,7 @@ public sealed partial class LivingEconomyModel : ISimModel
             movedAny = true;
         }
         if (parentWrite < parentResidents.Count) parentResidents.RemoveRange(parentWrite, parentResidents.Count - parentWrite);
-        if (founder is not null) _foundings.Add((daughter.Id, founder.Id));
+        if (founder is not null) LegendDeedObserver?.Invoke(founder.Id, 2, CivSim.Sim.Legends.LegendSystem.FounderPoints, daughter.Id); // scored at once: no queue to lose across a save
         if (movedAny)
         {
             InvalidateResidentDerived(parent.Id);

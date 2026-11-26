@@ -392,6 +392,21 @@ public partial class Game
                     Step(() => TakeScenarioShot($"glide-{n}"), 0.2f);
                 }
                 break;
+            case "legends":
+                // Needs --legend-debug: three people become Legends a few frames in, and one of them later dies with a relief to remember them.
+                Step(() => { }, 6.0f);
+                Shot("legends-1-toast");
+                Step(() => ToggleChronicle(true), 0.8f);
+                Shot("legends-2-chronicle");
+                Step(() => ToggleChronicle(false), 0.3f);
+                Step(() => { }, 5.0f);
+                Step(() => OpenPeoplePanel(PeopleTab.Overview, int.MinValue), 1.0f);
+                Step(ShowLegendsSection, 0.6f);
+                Shot("legends-3-people-sheet");
+                Step(ClosePeoplePanel, 0.3f);
+                Step(() => ToggleChronicle(true), 0.8f);
+                Shot("legends-4-chronicle-after-death");
+                break;
             case "tools":
                 Step(() => { FrameCapital(); ZoomTo(2.0f); }, 2.0f);
                 Step(() => _session!.SetPaused(true), 0.3f);

@@ -557,6 +557,12 @@ public sealed partial class LivingEconomyModel
         return (plan.Terminal[BowSlot(BowGood.Crossbow)], plan.Terminal[BowSlot(BowGood.Longbow)]);
     }
 
+    internal Fix64 FixtureSkillSpreadWork(long figureId, Fix64 work)
+    {
+        int index = FigureIndex(figureId);
+        return index < 0 ? work : SkillSpreadWork(_figures[index], work);
+    }
+
     internal Fix64 FixtureMusketWant(int settlementIndex)
     {
         SettlementState settlement = _settlements[settlementIndex];

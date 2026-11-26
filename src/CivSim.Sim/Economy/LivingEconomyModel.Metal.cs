@@ -2209,7 +2209,7 @@ public sealed partial class LivingEconomyModel
         int column = (int)family;
         int level = figure.SkillLevels[column];
         if (level >= MaxSkillLevel || work <= Fix64.Zero) return;
-        Fix64 progress = figure.SkillPractice[column] + work;
+        Fix64 progress = figure.SkillPractice[column] + SkillSpreadWork(figure, work);
         while (level < MaxSkillLevel)
         {
             Fix64 threshold = level < 6 ? SkillWorkPerLevel : VeteranSkillWorkPerLevel;
