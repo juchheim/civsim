@@ -904,6 +904,21 @@ public partial class Game : Node3D
                 metaList.AddRange(new[] { i, tileList.Count, steps + 1, 1 });
                 for (int k = 0; k <= steps; k++) tileList.Add(CivSim.Sim.World.HexGrid.Index(fx + (tx - fx) * k / steps, fy + (ty - fy) * k / steps, frame.Width, frame.Height));
             }
+            if (metaList.Count == 0 && capitalAt >= 0 && frame.Discovery.Active)
+            {
+                // dev aid: a straight road, capital end first, to the first settlement's tile from a land tile eight hexes away, so the turnpike's gate and coach show
+                int home = frame.SettlementTile[capitalAt], far = -1;
+                for (int tile = 0; tile < frame.Width * frame.Height && far < 0; tile++)
+                    if (world.Biome[tile] > 1 && HexLayout.Distance(tile, home, frame.Width) == 8) far = tile;
+                if (far >= 0)
+                {
+                    CivSim.Sim.World.HexGrid.Coordinates(far, frame.Width, out int fx, out int fy);
+                    CivSim.Sim.World.HexGrid.Coordinates(home, frame.Width, out int tx, out int ty);
+                    metaList.AddRange(new[] { capitalAt, 0, 9, 1 });
+                    for (int k = 0; k <= 8; k++) tileList.Add(CivSim.Sim.World.HexGrid.Index(fx + (tx - fx) * k / 8, fy + (ty - fy) * k / 8, frame.Width, frame.Height));
+                    DevRoadFarTile = tileList[6];   // the gate tile: two out from the town
+                }
+            }
             roadMeta = metaList.ToArray();
             roadTiles = tileList.ToArray();
         }
@@ -981,6 +996,7 @@ public partial class Game : Node3D
             int viewerCivDev = Math.Max(0, frame.ViewerCiv), nextCiv = (viewerCivDev + 1) % 4;
             if (HasArgument("--dev-tribute")) tributes = new[] { nextCiv, viewerCivDev };
             if (HasArgument("--dev-league")) leagues = new[] { (1 << viewerCivDev) | (1 << nextCiv) };
+            if (HasArgument("--dev-roads") && frame.Discovery.Active && viewerCivDev < ironLooks.Length) ironLooks[viewerCivDev] |= IronFrame.LookTurnpike;   // the viewer holds TRN-10, to see the gate and coach
         }
 #endif
 
@@ -1130,7 +1146,7 @@ public partial class Game : Node3D
     /// <summary>The Discovery frame's ocean lanes flattened for the renderer: from tile, to tile, civilization, volume in permille, four ints a lane (docs/MVP/39 §7.2).</summary>
 #if DEBUG
     /// <summary>Tiles the dev work-state aid (<c>--dev-disc-states</c>) picked, so the capture scenario can frame them.</summary>
-    internal static int DevPitTile = -1, DevWreckTile = -1, DevCaneTile = -1, DevFoundingTile = -1;
+    internal static int DevPitTile = -1, DevWreckTile = -1, DevCaneTile = -1, DevFoundingTile = -1, DevRoadFarTile = -1;
 #endif
 
     /// <summary>The viewer's worked deep coal pits, two ints each: tile, state (1 flooded, 2 pumped).</summary>

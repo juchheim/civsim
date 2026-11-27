@@ -15,6 +15,8 @@ class_name M7DiscoveryRig
 extends RefCounted
 
 const MAX_COLUMNS := 24
+const COACH_SCALE := 1.5           # the coach mesh is people-sized (a tenth tall); this makes it a road vehicle beside a hex
+const COACH_SPEED := 0.3           # world units per second along a turnpike (a stage coach at a steady trot)
 const BARGE_SPEED := 0.09          # world units per second along the canal (a slow, patient barge)
 const WHEEL_SPEED := 1.4           # radians per second of the winding wheel
 const BEAM_PERIOD := 4.0           # seconds per rock of the engine's beam
@@ -27,6 +29,7 @@ var smoke_factory: Callable
 var holder: Node3D
 var wheels: Array = []             # {node, base, hub, rot, spin}
 var beams: Array = []              # {node, pivot, rot, scale, phase}
+var coaches: Array = []            # {node, path, length, phase}: a stage coach shuttling along a turnpike road
 var barges: Array = []             # {node, man, path, length, phase}: a coal barge and its bargeman poled along a navigation canal
 var columns: Array = []            # {smoke, work}
 var soot_material: ShaderMaterial  # the shared smoke shader with its colour set near-black (it ignores a particle's own colour)
@@ -89,6 +92,7 @@ func _clear() -> void:
 	wheels.clear()
 	beams.clear()
 	barges.clear()
+	coaches.clear()
 	columns.clear()
 
 ## Rebuilds the moving parts for a list of works. `works` entries: {kind, pos: Vector3, yaw: float, scale: float, state: String}.
@@ -135,6 +139,27 @@ func sync(works: Array) -> void:
 			"coke_oven":
 				if working:
 					_column(pos + rot * (Power.COKE_SMOKE * scale), 0.08, 18, 6.0, false, scale)
+			"coach":
+				var cpts: Array = w.path
+				if working and cpts.size() >= 2:
+					var clen := 0.0
+					for i in cpts.size() - 1:
+						clen += (cpts[i + 1] as Vector3).distance_to(cpts[i] as Vector3)
+					if clen > 0.01:
+						# a one-instance MultiMesh, so the body takes the owner's colour from the instance's custom data like every other prop (a plain MeshInstance3D has none)
+						var cmm := MultiMesh.new()
+						cmm.transform_format = MultiMesh.TRANSFORM_3D
+						cmm.use_custom_data = true
+						cmm.mesh = b.kit.get_mesh("coach")
+						cmm.instance_count = 1
+						cmm.set_instance_custom_data(0, w.get("tint", Color(1, 1, 1, 0.5)))
+						var coach := MultiMeshInstance3D.new()
+						coach.multimesh = cmm
+						coach.material_override = b.mats.prop
+						coach.extra_cull_margin = 2.5
+						coach.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+						holder.add_child(coach)
+						coaches.append({"node": coach, "path": cpts, "length": clen, "phase": float(absi(String(w.get("seed", 0)).hash()) % 100) / 100.0})
 			"barge":
 				var pts: Array = w.path
 				if working and pts.size() >= 2:
@@ -201,6 +226,13 @@ func update(seconds: float) -> void:
 		var pos2: Vector3 = at[0]
 		(bg.node as MeshInstance3D).transform = Transform3D(Basis(Vector3.UP, yaw), pos2)
 		(bg.man as MeshInstance3D).transform = Transform3D(Basis(Vector3.UP, yaw), pos2 + Basis(Vector3.UP, yaw) * Vector3(0.0, 0.03, -0.07))
+	for ch in coaches:
+		var cu := fposmod(seconds * COACH_SPEED / float(ch.length) + float(ch.phase), 2.0)
+		var cfwd := cu <= 1.0
+		var cfrac := cu if cfwd else 2.0 - cu
+		var cat: Array = _along(ch.path, cfrac * float(ch.length))
+		var cdir: Vector3 = cat[1] if cfwd else -(cat[1] as Vector3)
+		(ch.node as MultiMeshInstance3D).multimesh.set_instance_transform(0, Transform3D(Basis(Vector3.UP, atan2(cdir.x, cdir.z)) * Basis.from_scale(Vector3.ONE * COACH_SCALE), cat[0]))
 	for bm in beams:
 		var rot2: Basis = bm.rot
 		var s2: float = bm.scale

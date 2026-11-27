@@ -9,7 +9,7 @@ const STATIC_CHUNK_SIZE := 40.0
 const STATIC_DETAIL_CHUNK_SIZE := 12.0
 const SETTLEMENT_LAYOUT_ARRAYS := ["hearths", "villages", "ziggurat_sites", "castle_sites", "harbor_sites", "forge_sites",
 	"frontier_sites", "chimney_smokes", "aqueduct_sites", "beacon_fires", "lighthouse_sites", "siege_engines", "siege_cannons",
-	"bridge_sites", "civic_sites", "disc_works"]
+	"bridge_sites", "turnpike_sites", "civic_sites", "disc_works"]
 
 const SPECIES := [
 	# mesh, colour, scale
@@ -95,6 +95,7 @@ var disc_mines: Array = []              # Discovery coal pits for the discovery 
 var siege_cannons: Array = []           # {p, yaw, target, seed}: each cannon a besieger with gunpowder (WAR-12) trains on a wall, for the war rig (recoil, flash, smoke)
 var siege_engines: Array = []           # {p, yaw, target, seed, k}: each siege engine standing round a besieged town, for the war rig
 var harbor_sites: Array = []            # {p, y}: where each harbor stands
+var turnpike_sites: Array = []          # {p, y}: where each toll gate stands (Discovery turnpikes)
 var bridge_sites: Array = []            # {p, y}: where each stone bridge stands
 var castle_sites: Array = []            # {p, y, yaw, stage, civ, tile}: where each castle (DEF-08) stands or is going up
 var ziggurat_sites: Array = []           # {p, y, yaw, stage, civ, seed, tile}: where each ziggurat (BLD-08) stands, for its rig
@@ -1466,6 +1467,7 @@ func _settlements() -> void:
 	siege_engines.clear()
 	siege_cannons.clear()
 	bridge_sites.clear()
+	turnpike_sites.clear()
 	civic_sites.clear()
 	var terrace_set := {}
 	for tt in w.terrace_tiles:
@@ -1558,6 +1560,7 @@ func _settlements() -> void:
 
 	var profile_settlements := Time.get_ticks_usec()
 	_bridges()
+	_turnpikes()
 	var profile_bridges := Time.get_ticks_usec()
 	_finish_plot_visual_layout()
 	_apply_garden_cues()
@@ -2584,6 +2587,68 @@ func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_o
 							Vector3(bp.x, -0.02, bp.y)), Color(et.r, et.g, et.b, 0.5))
 			return true
 	return false
+
+## TRN-10 (docs/MVP/39 §5): a paved road of a realm that holds turnpikes carries a toll gate with its toll house where it leaves the town's built-up ground (two tiles out
+## from the town), and one stage coach that shuttles along it between the capital's edge and the gate (the discovery rig moves it). Only a road the sim says is paved (the road
+## list is the sim's), of a civilization whose look bit says it holds TRN-10, and only tiles in sight: a road the viewer cannot see in full gets a gate but no coach.
+func _turnpikes() -> void:
+	if not w.discovery_active:
+		return
+	for ri in range(0, w.road_meta.size(), 4):
+		var row := w.road_meta[ri]
+		if row < 0 or row >= w.settlements.size():
+			continue
+		var sd: Dictionary = w.settlements[row]
+		var civ := int(sd.get("civ", -1))
+		if bool(sd.get("remembered", false)) or not w.has_iron_look(civ, M7WorldData.IRON_TURNPIKE):
+			continue
+		var start := w.road_meta[ri + 1]
+		var length := w.road_meta[ri + 2]
+		if length < 6:
+			continue    # a road this short is all town
+		# the whole road must be in sight (-1 is a tile of someone else's road the viewer cannot see); the list runs from the capital to the town
+		var run := PackedInt32Array()
+		for j in length:
+			run.append(w.road_tiles[start + j])
+		if run.has(-1):
+			continue
+		# the road's own centre line, the one the ribbon is laid along (trail_builder.gd), so the gate and the coach stand on the paving and not beside it
+		var line := M7TrailBuilder._smooth(w, run)
+		var total := M7TrailBuilder._length(line)
+		var gate_at := total - 2.0         # two tiles out from the town
+		if gate_at < 2.2:
+			continue
+		var gate := _along_line(line, gate_at)
+		var gp: Vector2 = gate[0]
+		var gd: Vector2 = gate[1]
+		if not w.is_land(w.tile_at(gp)):
+			continue
+		kit.ensure_discovery()
+		props.add("toll_gate", Transform3D(Basis(Vector3.UP, atan2(-gd.y, gd.x)) * Basis.from_scale(Vector3.ONE * 1.6), Vector3(gp.x, maxf(w.height_at(gp), 0.0) - 0.006, gp.y)), Color(1, 1, 1, 0.5))   # sunk a hair: the mesh's own paving stub then lies under the real road, which is wider and curves
+		_record_visual_occupancy(gp, 0.2)
+		turnpike_sites.append({"p": gp, "y": w.height_at(gp)})
+		# the coach shuttles between a point just outside the capital's built-up ground and the gate
+		var pts: Array = []
+		var d := 1.6
+		while d < gate_at - 0.1:
+			var at: Array = _along_line(line, d)
+			var c2: Vector2 = at[0]
+			pts.append(Vector3(c2.x, maxf(w.height_at(c2), 0.0) + 0.02, c2.y))
+			d += 0.25
+		if pts.size() >= 2:
+			var cc := M7MeshBuilder.lin(M7WorldData.civ_color(civ), 0.5)
+			disc_works.append({"kind": "coach", "path": pts, "state": "work", "seed": "coach%d" % row, "pos": pts[0], "civ": civ, "tint": Color(cc.r, cc.g, cc.b, 0.5)})
+
+## The point `distance` along a polyline and the unit direction of the line there.
+static func _along_line(line: PackedVector2Array, distance: float) -> Array:
+	var left := distance
+	for i in line.size() - 1:
+		var seg := line[i].distance_to(line[i + 1])
+		if left <= seg or i == line.size() - 2:
+			var t := clampf(left / maxf(seg, 0.0001), 0.0, 1.0)
+			return [line[i].lerp(line[i + 1], t), (line[i + 1] - line[i]).normalized()]
+		left -= seg
+	return [line[0], Vector2.RIGHT]
 
 ## The stone bridges (TRN-08) where a bridged paved road crosses a river: one per run of river tiles on a road, over the nearest river reach,
 ## turned to cross the river squarely.

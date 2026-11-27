@@ -386,6 +386,13 @@ func harbor_focus() -> Vector3:
 	var site: Dictionary = builder.harbor_sites[0]
 	return Vector3(site.p.x, site.y, site.p.y)
 
+## Dev aid for scenarios: where the first turnpike's toll gate stands (the origin when none).
+func turnpike_focus() -> Vector3:
+	if builder == null or builder.turnpike_sites.is_empty():
+		return Vector3.ZERO
+	var site: Dictionary = builder.turnpike_sites[0]
+	return Vector3(site.p.x, site.y, site.p.y)
+
 func bridge_focus() -> Vector3:
 	if builder == null or builder.bridge_sites.is_empty():
 		return Vector3.ZERO

@@ -443,6 +443,20 @@ public partial class Game
                 Step(() => FocusTileNow(DevFoundingTile, 2.6f), 2.0f);
                 Shot("disc-more-founding");
                 break;
+            case "disc-turnpike":
+                // a turnpike (use the disc flags plus --dev-disc-more --dev-roads and --looks-debug): the toll gate two tiles out from the town and the coach shuttling to it
+                Step(() => { FrameCapital(); ZoomTo(7.0f); }, 2.5f);
+                Shot("disc-turnpike-a");
+                Step(() => { _target = (Vector3)_visualRenderer!.Call("turnpike_focus"); ZoomTo(2.4f); }, 2.0f);
+                Shot("disc-turnpike-b");
+                Step(() => { ZoomTo(3.4f); _session!.SetPaused(false); _session.SetSpeedIndex(3); }, 3.0f);
+                for (int i = 0; i < 6; i++)
+                {
+                    int n = i;
+                    Shot($"disc-turnpike-run{n}");
+                    Step(() => { }, 2.5f);
+                }
+                break;
             case "rival-key7":
                 // a rival's Industrial Revolution (docs/MVP/39 §8.5, A-14): the notice in the rival's colour, once each, for two rivals, with no place and no clock
                 Step(() => { ShowRivalAgeToast(1, 7); ShowRivalAgeToast(2, 7); ShowRivalAgeToast(1, 7); }, 1.2f);
