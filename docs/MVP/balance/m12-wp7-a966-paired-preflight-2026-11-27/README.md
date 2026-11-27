@@ -14,7 +14,7 @@ The calibration run must finish and be analyzed before opening holdout output. H
 
 ## Launch state
 
-No cohort has been started. Launch only after WP-E5-12, the Release-suite run, and other local workloads finish and the host is idle. The 20-seed and 80-seed runs must use distinct absent output directories outside the repository. The runner's metadata captures `dotnet --info`, operating-system and architecture details, all match commands, trace counts, replay hashes, and final provenance.
+The 20-seed calibration is being launched while the independent WP-E5-12 cohort continues. Both are fixed-seed deterministic balance runs, and neither measures runtime performance; the available host has capacity for the four calibration workers. The 80-seed holdout remains sealed until calibration analysis is complete. The 20-seed and 80-seed runs use distinct absent output directories outside the repository. The runner's metadata captures `dotnet --info`, operating-system and architecture details, all match commands, trace counts, replay hashes, and final provenance. B5-11 performance cohorts still require an idle host.
 
 The frozen command shape for calibration is:
 

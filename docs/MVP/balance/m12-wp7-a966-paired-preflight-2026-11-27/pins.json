@@ -46,6 +46,6 @@
     "pairedFlag": "--fief-wp7-paired",
     "workers": 4,
     "criteriaSource": "m12-e5-7-measurement-protocol-audit-2026-11-15.md",
-    "launchBlocker": "wait for idle host; WP-E5-12, Release suite and other simulations are live"
+    "launchState": "calibration may run beside deterministic WP-E5-12 cohort; performance cohorts remain gated on idle host"
   }
 }
