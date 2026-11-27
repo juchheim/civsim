@@ -7,15 +7,15 @@ This replaces the consumed 2026-11-16 whole-match block for acceptance. The earl
 - Seed generation: `random.Random(20261127).sample(range(47_000_000, 48_000_000), 80)`, sorted for execution.
 - Manifest: [`m12-e5-12-natural-seeds-2026-11-27-r1.txt`](../m12-e5-12-natural-seeds-2026-11-27-r1.txt)
 - Manifest SHA-256: `c69840b655fa6127ccf1565cabaecb774db7e4b0834913cc353152d814670af9`
-- WP-E5-12 runner SHA-256: `0cbcd4288c031c8c408225ca1e63fed957207a739375f65d15d43b16cf29b562`
+- WP-E5-12 parallel runner SHA-256: `ee9e171fd31409363c5ec750792e16f65c798722ca16a880037f375cf0ce0725`
 - Provenance helper SHA-256: `496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a`
-- Runner fixture SHA-256: `f7ce61a473def91e31dcf55f6cfaa49a5fa6e0878fda8e09148e6b33613a90b1`
+- Runner fixture SHA-256: `8e950e85f1744d6299c851f1a88975e5876716816526885c584d6badd1b13567`
 - Collision audit: [seed-collision-audit.json](seed-collision-audit.json) records that all 80 exact seed tokens were absent from 5,398 seed manifests, run metadata, preflight records, and named seed ledgers scanned under `/Users/ejuchheim/Projects/CivSim` and `/private/tmp` on 2026-11-27. The 47M block also does not overlap the registered WP-E5-7 46M calibration/holdout block.
 - Exposure policy: natural Fief, 130 simulated minutes, no geography/progress/outcome screening, and no `--grant-e5`.
 
 ## Acceptance protocol
 
-Run the guarded `run_wp_e5_12_whole_match.py` once after the final source, numeric pack, adjacent Release Harness/Sim, runner, and manifest are frozen. The current WP-E5-12 runner and observer set are described in [the protocol preflight](../m12-e5-12-whole-match-preflight-2026-11-16/README.md); its manifest pin was updated for this registration. Use a new absent output root. Preserve every match, raw log, replay, replay-index verification, censor status, and pre/post provenance record.
+Run the guarded `run_wp_e5_12_whole_match.py` once after the final source, numeric pack, adjacent Release Harness/Sim, runner, and manifest are frozen, with `--workers 4`. The runner uses separate per-seed outputs and synchronized metadata checkpoints while executing up to four matches concurrently. Its fixtures exercise the concurrent path. The observer set is described in [the protocol preflight](../m12-e5-12-whole-match-preflight-2026-11-16/README.md); the manifest pin was updated for this registration. Use a new absent output root. Preserve every match, raw log, replay, replay-index verification, censor status, and pre/post provenance record.
 
 The cohort is also the combined natural whole-match measurement for compatible F-T1, F-T2, F-T5, F-T6, F-T7, F-T8, SEA-10, arms-production-lag, and WP-E5-7 denominator traces. Controlled F-T3, matched-state F-T4, and the paired GOV-11 treatment/control test remain separate protocols.
 
