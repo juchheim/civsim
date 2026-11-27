@@ -1,0 +1,50 @@
+{
+  "build": {
+    "command": [
+      "dotnet",
+      "build",
+      "src/CivSim.Tests/CivSim.Tests.csproj",
+      "--configuration",
+      "Release"
+    ],
+    "exitCode": 0,
+    "log": "/var/folders/sx/zhsq0sld501725xpp2j3s5740000gn/T/fief-a8-build-72941.log",
+    "logBytes": 720,
+    "logSha256": "a986258596363cc63ec967a8642af28f64f47981fbb2f70cac239c0ace7ed9c9",
+    "seconds": 9.101
+  },
+  "executeRequested": true,
+  "inputs": {
+    "harnessSha256": "5feac4a0162638143a9385632a32c841eef6ec8d122df7e60ec7045fc0607d14",
+    "hashHelperSha256": "7cb7fa0d6a47885364d6f968fc07f1431cff85957148beace52650520f49c916",
+    "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "runnerSha256": "9315432889dba189cbe162848011ae7be8c5521d7f964419dd3c2ed08d462bdc",
+    "seedManifestSha256": "58e52b0d6a070fd5415a6a0554922f0bda113b62022ee5624abcffdfda5d0683",
+    "simSha256": "4cb8c92ee84a7f5fa2d60a33ea15faefa10cd736ca00558fa9737f5b9d13e17a",
+    "testAssemblySha256": "6d21bdfaa425eb8c4821d2b5a64b3c103ef01199670a8b0fd46c5bcef4d9f073",
+    "testSourceSha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2",
+    "validatorSha256": "cc3204ed9de950f17a49c2824883f08acf8b73131ff0f222c1413698c06f52e6"
+  },
+  "outputRoot": "/private/tmp/e5-closeout-a8-2fce-run-20261127-r1",
+  "postBuildSource": {
+    "contentSrcGameAggregateSha256": "227902576ec15604a8399d395b170d55305ad0e50823e30fd49087d8f742342b",
+    "head": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "tree": "de5be3c634f2b806c87f0b9ea49cde8352f0f4d5"
+  },
+  "seeds": [
+    83001001,
+    83001002,
+    83001003,
+    83001004,
+    83001005,
+    83001006,
+    83001007,
+    83001008
+  ],
+  "source": {
+    "contentSrcGameAggregateSha256": "227902576ec15604a8399d395b170d55305ad0e50823e30fd49087d8f742342b",
+    "head": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "tree": "de5be3c634f2b806c87f0b9ea49cde8352f0f4d5"
+  },
+  "status": "preflight_passed"
+}

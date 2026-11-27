@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "simAssemblyPath": "/private/tmp/e5-closeout-a8-2fce-worktree/src/CivSim.Tests/bin/Release/net10.0/CivSim.Sim.dll",
+  "simAssemblySha256": "4cb8c92ee84a7f5fa2d60a33ea15faefa10cd736ca00558fa9737f5b9d13e17a",
+  "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+  "seeds": [83001001,83001002,83001003,83001004,83001005,83001006,83001007,83001008], "intervalSeasons": 16, "minutes": 64, "margin": 8,
+  "unseenCompositeObserverCheckpoints": 640, "unseenCompositeApplied": 640, "unseenInvarianceFailures": 0,
+  "unseenNotApplied": 0,
+  "unseenIneligible": 0,
+  "unseenWorldChangedCount": 640,
+  "unseenAppliedByCategory": {"deposits": 1024, "powderCannon": 1024, "fleetCrew": 1024, "horses": 1024, "peopleStoresResearch": 1024},
+  "unseenMatchesWithCategory": {"deposits": 8, "powderCannon": 8, "fleetCrew": 8, "horses": 8, "peopleStoresResearch": 8},
+  "unseenExposureBySeed": {"83001001":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001002":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001003":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001004":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":16,"peopleStoresResearch":128},"83001005":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001006":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001007":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128},"83001008":{"deposits":128,"powderCannon":128,"fleetCrew":128,"horses":144,"peopleStoresResearch":128}},
+  "visibleControls": {
+    "visible-deposit": {"checkpoints": 128, "eligible": 128, "ineligible": 0, "applied": 128, "unapplied": 0, "detected": 128, "misses": 0},
+    "visible-stock": {"checkpoints": 128, "eligible": 128, "ineligible": 0, "applied": 128, "unapplied": 0, "detected": 128, "misses": 0},
+    "visible-fleet": {"checkpoints": 128, "eligible": 128, "ineligible": 0, "applied": 128, "unapplied": 0, "detected": 128, "misses": 0},
+    "visible-horse": {"checkpoints": 128, "eligible": 128, "ineligible": 0, "applied": 128, "unapplied": 0, "detected": 128, "misses": 0}
+  },
+  "visibleControlMisses": 0,
+  "nullControls": {"applied": 512, "notApplied": 0, "ineligible": 0, "withDiffs": 0},
+  "tierBComposite": {"applied": 512, "notApplied": 0, "ineligible": 0, "withInputOrDecisionDiffs": 0, "decisionDiffsWithoutOtherDiffs": 0},
+  "cloneChecksumMismatches": 0,
+  "observerCheckpointsTotal": 2304
+}
