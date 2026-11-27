@@ -1,0 +1,17 @@
+{
+  "compositeFailures": 0,
+  "exposureCounts": {
+    "deposits": 8192,
+    "fleetCrew": 9000,
+    "horses": 10675,
+    "peopleStoresResearch": 211363,
+    "powderCannon": 6000
+  },
+  "failures": [],
+  "nullFailures": 0,
+  "rowCount": 2304,
+  "seedCount": 8,
+  "status": "pass",
+  "strictFailures": 0,
+  "visibleControlMisses": 0
+}

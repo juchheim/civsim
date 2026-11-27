@@ -1,0 +1,13 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  CivSim.Sim -> /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Sim/bin/Release/net8.0/CivSim.Sim.dll
+  CivSim.Content -> /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Content/bin/Release/net8.0/CivSim.Content.dll
+  CivSim.Harness -> /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll
+  CivSim.Cli -> /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Cli/bin/Release/net10.0/civsim.dll
+  CivSim.Tests -> /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Tests/bin/Release/net10.0/CivSim.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.75
