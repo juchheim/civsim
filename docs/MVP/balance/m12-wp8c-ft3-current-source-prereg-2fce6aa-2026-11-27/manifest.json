@@ -1,0 +1,83 @@
+{
+  "protocol": "WP-E5-5/F-T3",
+  "preregistration_id": "F-T3-current-source-2fce6aa-40-2026-11-27",
+  "preregistered_at_utc": "2026-11-27T20:20:46Z",
+  "sampling": {
+    "method": "Retain the previously preregistered simple random sample without replacement; sort ascending for execution. No outcome, geography, or other seed-level screening.",
+    "rng": "Python random.Random",
+    "rng_seed": 20261116,
+    "candidate_frame": {
+      "inclusive_min": 36000000,
+      "inclusive_max": 36999999
+    },
+    "screening": "The original outcome-blind sample was fixed 2026-11-16. Rechecked exact 8-digit seed collisions against all tracked seed/manifest-named files in the current frozen candidate; zero collisions outside the original preregistration."
+  },
+  "seeds": [
+    36006879,
+    36013794,
+    36038398,
+    36198005,
+    36220586,
+    36224360,
+    36235061,
+    36256869,
+    36269804,
+    36337339,
+    36353720,
+    36374148,
+    36381763,
+    36424177,
+    36455818,
+    36458344,
+    36526346,
+    36526678,
+    36528733,
+    36530505,
+    36546304,
+    36546720,
+    36584754,
+    36588619,
+    36590850,
+    36600613,
+    36602302,
+    36602611,
+    36658659,
+    36666311,
+    36678525,
+    36721004,
+    36740819,
+    36797034,
+    36872838,
+    36898494,
+    36916907,
+    36975618,
+    36984612,
+    36992143
+  ],
+  "fixture": {
+    "seasons": 64,
+    "people": 200
+  },
+  "arms": {
+    "treatment": "fief-low-wood-furnace",
+    "control": "fief-low-wood-no-furnace"
+  },
+  "gate": {
+    "mature_window_rule": "Every rolling 12-season window from first kit output plus 12 seasons through season 64.",
+    "metal_work_share_max": 0.15,
+    "no_exposure": "Incomplete, never a pass."
+  },
+  "pins": {
+    "source_commit": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "source_tree_sha256": "7d1135f42d47e6ecc8c387020b0cc847291d07cff137d131d40a08f810ae40e3",
+    "pack_sha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "release_harness_sha256": "650e2ac7775d8842b15c1383bd4f5e08174762a78e74afa1acdda71b68fa8cba",
+    "adjacent_sim_sha256": "52d0cbdc39886119652f4231c383c97dc01623926df99e00876fd043eda37416",
+    "runner_sha256": "8bc5676a1f74549e0373cdf2b0eb5e0db52ecfcb8f586982c7ad4df2b7d498d1"
+  },
+  "source_freeze": {
+    "commit": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "candidate_tree": "de5be3c634f2b806c87f0b9ea49cde8352f0f4d5",
+    "numeric_pack": "numeric-e5.pack"
+  }
+}
