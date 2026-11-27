@@ -1225,6 +1225,37 @@ func _make_grade_overlay() -> void:
 	layer.add_child(rect)
 	add_child(layer)
 
+## Dev-only night look for captures (the game has no day and night cycle): a dim blue sun and sky, cool ambient light, warm hearth lights turned up so lit windows, glowing furnaces and lamps can be photographed.
+var dev_night := false
+
+func set_dev_night(on: bool) -> void:
+	dev_night = on
+	if on:
+		sun.light_color = Color("#7f95d6")
+		sun.light_energy = 0.55
+		environment.ambient_light_color = Color("#4a5f94")
+		environment.ambient_light_energy = 1.05
+		environment.tonemap_exposure = 1.0
+		var sky_mat := environment.sky.sky_material as ProceduralSkyMaterial
+		sky_mat.sky_top_color = Color("#0b1330")
+		sky_mat.sky_horizon_color = Color("#1d2a4d")
+		sky_mat.ground_horizon_color = Color("#161f38")
+		sky_mat.ground_bottom_color = Color("#0a0f1e")
+		for fx in hearth_fx_by_tile.values():
+			var light := fx.get("light") as OmniLight3D
+			if is_instance_valid(light):
+				light.light_energy = 1.5
+				light.omni_range = 0.9
+	else:
+		last_season = -1   # the next season sync restores the day look
+		environment.ambient_light_color = Color("#8fb3dc")
+		environment.ambient_light_energy = 0.75
+		var day := environment.sky.sky_material as ProceduralSkyMaterial
+		day.sky_top_color = Color("#5f93c9")
+		day.sky_horizon_color = Color("#cfe0e6")
+		day.ground_horizon_color = Color("#b9cbd0")
+		day.ground_bottom_color = Color("#56707a")
+
 func _apply_season(season: int) -> void:
 	if season == last_season:
 		return
@@ -1258,6 +1289,8 @@ func _apply_season(season: int) -> void:
 		var light := fx.get("light") as OmniLight3D
 		if is_instance_valid(light):
 			_set_hearth_light(light, season)
+	if dev_night:
+		set_dev_night(true)
 
 func _set_villages() -> void:
 	var values := PackedVector4Array()

@@ -448,6 +448,18 @@ public partial class Game
                 Step(() => FocusTileNow(DevFoundingTile, 2.6f), 2.0f);
                 Shot("disc-more-founding");
                 break;
+            case "disc-night":
+                // the Discovery works and cues after dark (the disc-more flags plus --dev-disc-states for the dormant and blocked contrast): lit windows, furnace and boiler glow, the free colony's flag; a dev-only look, the game has no night
+                Step(() => { _visualRenderer!.Call("set_dev_night", true); FrameCapital(); ZoomTo(7.0f); }, 3.0f);
+                Shot("disc-night-a");
+                Step(() => ZoomTo(4.2f), 1.5f);
+                Shot("disc-night-b");
+                Step(() => { _yawTarget = Mathf.DegToRad(150.0f); ZoomTo(4.2f); }, 1.4f);
+                Shot("disc-night-c");
+                Step(() => { _yawTarget = Mathf.DegToRad(-90.0f); ZoomTo(3.4f); }, 1.4f);
+                Shot("disc-night-d");
+                Step(() => _visualRenderer!.Call("set_dev_night", false), 0.2f);
+                break;
             case "disc-turnpike":
                 // a turnpike (use the disc flags plus --dev-disc-more --dev-roads and --looks-debug): the toll gate two tiles out from the town and the coach shuttling to it
                 Step(() => { FrameCapital(); ZoomTo(7.0f); }, 2.5f);
