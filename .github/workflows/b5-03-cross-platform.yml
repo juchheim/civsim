@@ -1,0 +1,304 @@
+name: B5-03 cross-platform Fief determinism
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/e5-closeout-candidate-*']
+permissions:
+  contents: read
+concurrency:
+  group: b5-03-cross-platform-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    runs-on: macos-15
+    outputs:
+      head: ${{ steps.pins.outputs.head }}
+      tree: ${{ steps.pins.outputs.tree }}
+      aggregate: ${{ steps.pins.outputs.aggregate }}
+      manifest: ${{ steps.pins.outputs.manifest }}
+      pack: ${{ steps.pins.outputs.pack }}
+      harness: ${{ steps.pins.outputs.harness }}
+      sim: ${{ steps.pins.outputs.sim }}
+      tests: ${{ steps.pins.outputs.tests }}
+      runner: ${{ steps.pins.outputs.runner }}
+      merger: ${{ steps.pins.outputs.merger }}
+      test_source: ${{ steps.pins.outputs.test_source }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build Release and numeric E5 pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build CivSim.slnx -c Release
+          mkdir -p "$RUNNER_TEMP/b5-frozen"
+          dotnet run --project src/CivSim.Cli -c Release --no-build -- build-pack --out "$RUNNER_TEMP/b5-frozen/numeric-e5.pack"
+          cp -R src/CivSim.Harness/bin/Release/net10.0 "$RUNNER_TEMP/b5-frozen/harness"
+          cp src/CivSim.Tests/bin/Release/net10.0/CivSim.Tests.dll "$RUNNER_TEMP/b5-frozen/CivSim.Tests.dll"
+      - name: Validate runner fixtures and capture frozen pins
+        id: pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 docs/MVP/balance/tools/test_run_b5_03_determinism.py
+          test -z "$(git status --porcelain --untracked-files=all)"
+          python3 docs/MVP/balance/tools/hash_e5_workspace.py --output "$RUNNER_TEMP/b5-frozen/source.json"
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          root=Path(os.environ["GITHUB_WORKSPACE"])
+          frozen=Path(os.environ["RUNNER_TEMP"])/"b5-frozen"
+          def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+          def git(*a): return subprocess.check_output(["git","-C",str(root),*a],text=True).strip()
+          source=json.loads((frozen/"source.json").read_text())
+          values={
+            "head":git("rev-parse","HEAD"),
+            "tree":git("rev-parse","HEAD^{tree}"),
+            "aggregate":source["aggregate_sha256"],
+            "manifest":sha(root/"docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt"),
+            "pack":sha(frozen/"numeric-e5.pack"),
+            "harness":sha(frozen/"harness/CivSim.Harness.dll"),
+            "sim":sha(frozen/"harness/CivSim.Sim.dll"),
+            "tests":sha(frozen/"CivSim.Tests.dll"),
+            "runner":sha(root/"docs/MVP/balance/tools/run_b5_03_determinism.py"),
+            "merger":sha(root/"docs/MVP/balance/tools/merge_b5_03_shards.py"),
+            "test_source":sha(root/"docs/MVP/balance/tools/test_run_b5_03_determinism.py"),
+          }
+          (frozen/"freeze.json").write_text(json.dumps(values,indent=2,sort_keys=True)+"\n")
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:
+            for k,v in values.items(): f.write(f"{k}={v}\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b5-03-frozen-inputs
+          path: ${{ runner.temp }}/b5-frozen
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  shard:
+    needs: freeze
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        os: [macos-15, windows-2025]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze.outputs.head }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: b5-03-frozen-inputs
+          path: ${{ runner.temp }}/b5-frozen
+      - name: Run Mac shard
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        env:
+          HEAD_PIN: ${{ needs.freeze.outputs.head }}
+          TREE_PIN: ${{ needs.freeze.outputs.tree }}
+          AGGREGATE_PIN: ${{ needs.freeze.outputs.aggregate }}
+          MANIFEST_PIN: ${{ needs.freeze.outputs.manifest }}
+          PACK_PIN: ${{ needs.freeze.outputs.pack }}
+          HARNESS_PIN: ${{ needs.freeze.outputs.harness }}
+          SIM_PIN: ${{ needs.freeze.outputs.sim }}
+          TESTS_PIN: ${{ needs.freeze.outputs.tests }}
+          RUNNER_PIN: ${{ needs.freeze.outputs.runner }}
+          TEST_SOURCE_PIN: ${{ needs.freeze.outputs.test_source }}
+        run: |
+          set -euo pipefail
+          python3 docs/MVP/balance/tools/run_b5_03_determinism.py \
+            --repo-root "$GITHUB_WORKSPACE" --pack "$RUNNER_TEMP/b5-frozen/numeric-e5.pack" \
+            --harness-dll "$RUNNER_TEMP/b5-frozen/harness/CivSim.Harness.dll" \
+            --sim-dll "$RUNNER_TEMP/b5-frozen/harness/CivSim.Sim.dll" \
+            --manifest docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt \
+            --expected-manifest-sha256 "$MANIFEST_PIN" \
+            --test-assembly "$RUNNER_TEMP/b5-frozen/CivSim.Tests.dll" \
+            --test-source docs/MVP/balance/tools/test_run_b5_03_determinism.py \
+            --expected-test-assembly-sha256 "$TESTS_PIN" --expected-test-source-sha256 "$TEST_SOURCE_PIN" \
+            --expected-runner-sha256 "$RUNNER_PIN" --output-root "$RUNNER_TEMP/b5-03-shard-${{ matrix.shard }}" \
+            --expected-source-head "$HEAD_PIN" --expected-source-tree "$TREE_PIN" \
+            --expected-source-aggregate "$AGGREGATE_PIN" --expected-pack-sha256 "$PACK_PIN" \
+            --expected-harness-sha256 "$HARNESS_PIN" --expected-sim-sha256 "$SIM_PIN" \
+            --minutes 130 --shard-index ${{ matrix.shard }} --shard-count 100 --execute
+      - name: Run Windows shard
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        env:
+          HEAD_PIN: ${{ needs.freeze.outputs.head }}
+          TREE_PIN: ${{ needs.freeze.outputs.tree }}
+          AGGREGATE_PIN: ${{ needs.freeze.outputs.aggregate }}
+          MANIFEST_PIN: ${{ needs.freeze.outputs.manifest }}
+          PACK_PIN: ${{ needs.freeze.outputs.pack }}
+          HARNESS_PIN: ${{ needs.freeze.outputs.harness }}
+          SIM_PIN: ${{ needs.freeze.outputs.sim }}
+          TESTS_PIN: ${{ needs.freeze.outputs.tests }}
+          RUNNER_PIN: ${{ needs.freeze.outputs.runner }}
+          TEST_SOURCE_PIN: ${{ needs.freeze.outputs.test_source }}
+        run: |
+          $r = @('docs/MVP/balance/tools/run_b5_03_determinism.py','--repo-root',$env:GITHUB_WORKSPACE,
+            '--pack',"$env:RUNNER_TEMP\b5-frozen\numeric-e5.pack",
+            '--harness-dll',"$env:RUNNER_TEMP\b5-frozen\harness\CivSim.Harness.dll",
+            '--sim-dll',"$env:RUNNER_TEMP\b5-frozen\harness\CivSim.Sim.dll",
+            '--manifest','docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt',
+            '--expected-manifest-sha256',$env:MANIFEST_PIN,
+            '--test-assembly',"$env:RUNNER_TEMP\b5-frozen\CivSim.Tests.dll",
+            '--test-source','docs/MVP/balance/tools/test_run_b5_03_determinism.py',
+            '--expected-test-assembly-sha256',$env:TESTS_PIN,
+            '--expected-test-source-sha256',$env:TEST_SOURCE_PIN,
+            '--expected-runner-sha256',$env:RUNNER_PIN,
+            '--output-root',"$env:RUNNER_TEMP\b5-03-shard-${{ matrix.shard }}",
+            '--expected-source-head',$env:HEAD_PIN,'--expected-source-tree',$env:TREE_PIN,
+            '--expected-source-aggregate',$env:AGGREGATE_PIN,'--expected-pack-sha256',$env:PACK_PIN,
+            '--expected-harness-sha256',$env:HARNESS_PIN,'--expected-sim-sha256',$env:SIM_PIN,
+            '--minutes','130','--shard-index','${{ matrix.shard }}','--shard-count','100','--execute')
+          & python @r
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b5-03-${{ matrix.os }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/b5-03-shard-${{ matrix.shard }}
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
+  merge:
+    needs: [freeze, shard]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze.outputs.head }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: b5-03-frozen-inputs
+          path: ${{ runner.temp }}/b5-frozen
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: b5-03-${{ matrix.os }}-*
+          path: ${{ runner.temp }}/b5-shards
+          merge-multiple: false
+      - name: Merge Mac shards
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        env:
+          HEAD_PIN: ${{ needs.freeze.outputs.head }}
+          TREE_PIN: ${{ needs.freeze.outputs.tree }}
+          AGGREGATE_PIN: ${{ needs.freeze.outputs.aggregate }}
+          MANIFEST_PIN: ${{ needs.freeze.outputs.manifest }}
+          PACK_PIN: ${{ needs.freeze.outputs.pack }}
+          HARNESS_PIN: ${{ needs.freeze.outputs.harness }}
+          SIM_PIN: ${{ needs.freeze.outputs.sim }}
+          TESTS_PIN: ${{ needs.freeze.outputs.tests }}
+          RUNNER_PIN: ${{ needs.freeze.outputs.runner }}
+          MERGER_PIN: ${{ needs.freeze.outputs.merger }}
+          TEST_SOURCE_PIN: ${{ needs.freeze.outputs.test_source }}
+        run: |
+          set -euo pipefail
+          args=(--manifest docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt
+            --expected-manifest-sha256 "$MANIFEST_PIN" --expected-test-assembly-sha256 "$TESTS_PIN"
+            --expected-test-source-sha256 "$TEST_SOURCE_PIN" --expected-runner-sha256 "$RUNNER_PIN"
+            --expected-merger-sha256 "$MERGER_PIN" --output-root "$RUNNER_TEMP/b5-03-merged"
+            --expected-source-head "$HEAD_PIN" --expected-source-tree "$TREE_PIN"
+            --expected-source-aggregate "$AGGREGATE_PIN" --expected-pack-sha256 "$PACK_PIN"
+            --expected-harness-sha256 "$HARNESS_PIN" --expected-sim-sha256 "$SIM_PIN")
+          for i in {0..99}; do args+=(--shard-root "$RUNNER_TEMP/b5-shards/b5-03-macos-15-$i"); done
+          python3 docs/MVP/balance/tools/merge_b5_03_shards.py "${args[@]}"
+      - name: Merge Windows shards
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        env:
+          HEAD_PIN: ${{ needs.freeze.outputs.head }}
+          TREE_PIN: ${{ needs.freeze.outputs.tree }}
+          AGGREGATE_PIN: ${{ needs.freeze.outputs.aggregate }}
+          MANIFEST_PIN: ${{ needs.freeze.outputs.manifest }}
+          PACK_PIN: ${{ needs.freeze.outputs.pack }}
+          HARNESS_PIN: ${{ needs.freeze.outputs.harness }}
+          SIM_PIN: ${{ needs.freeze.outputs.sim }}
+          TESTS_PIN: ${{ needs.freeze.outputs.tests }}
+          RUNNER_PIN: ${{ needs.freeze.outputs.runner }}
+          MERGER_PIN: ${{ needs.freeze.outputs.merger }}
+          TEST_SOURCE_PIN: ${{ needs.freeze.outputs.test_source }}
+        run: |
+          $m = @('--manifest','docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt',
+            '--expected-manifest-sha256',$env:MANIFEST_PIN,'--expected-test-assembly-sha256',$env:TESTS_PIN,
+            '--expected-test-source-sha256',$env:TEST_SOURCE_PIN,'--expected-runner-sha256',$env:RUNNER_PIN,
+            '--expected-merger-sha256',$env:MERGER_PIN,'--output-root',"$env:RUNNER_TEMP\b5-03-merged",
+            '--expected-source-head',$env:HEAD_PIN,'--expected-source-tree',$env:TREE_PIN,
+            '--expected-source-aggregate',$env:AGGREGATE_PIN,'--expected-pack-sha256',$env:PACK_PIN,
+            '--expected-harness-sha256',$env:HARNESS_PIN,'--expected-sim-sha256',$env:SIM_PIN)
+          for ($i=0; $i -lt 100; $i++) { $m += @('--shard-root',"$env:RUNNER_TEMP\b5-shards\b5-03-windows-2025-$i") }
+          & python docs/MVP/balance/tools/merge_b5_03_shards.py @m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b5-03-merged-${{ matrix.os }}
+          path: ${{ runner.temp }}/b5-03-merged
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  compare:
+    needs: [freeze, merge]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze.outputs.head }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: b5-03-merged-macos-15
+          path: ${{ runner.temp }}/b5-03-mac
+      - uses: actions/download-artifact@v4
+        with:
+          name: b5-03-merged-windows-2025
+          path: ${{ runner.temp }}/b5-03-windows
+      - name: Compare replay indexes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 docs/MVP/balance/tools/compare_replay_indexes.py \
+            --seeds-file docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt \
+            "$RUNNER_TEMP/b5-03-mac/replay-index.json" \
+            "$RUNNER_TEMP/b5-03-windows/replay-index.json" \
+            > "$RUNNER_TEMP/b5-03-cross-platform-comparison.txt"
+          cat "$RUNNER_TEMP/b5-03-cross-platform-comparison.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b5-03-cross-platform-comparison
+          path: ${{ runner.temp }}/b5-03-cross-platform-comparison.txt
+          if-no-files-found: error
+          retention-days: 30
