@@ -26,7 +26,7 @@ Censored seeds: no mature window — `37177184`, `37536110`; low fuel demand —
 - Frozen run manifest SHA-256: `d2a4c63a9b54939614488a920f3225ff4e75c21290f6c72f01b02f6036fcdfe3`
 - Original seed-level analysis SHA-256: `67e76cc7fafbbf363d5b6ad8a188b5340fd4bc5aebb309a0e7242a731c3aae31`
 - Cohort-level closeout analysis SHA-256: `3fcaa319a23f627c85ff767a2baca6157ee4d0d9d0a751aef97cba22afce962a`
-- Classifier/runner SHA-256: `794fa3b7041d96bc1a71ff7f3dc3a9d11eebc714812daaf4397e3dfc60287adf`
+- Run analyzer SHA-256 used for the derived closeout: `794fa3b7041d96bc1a71ff7f3dc3a9d11eebc714812daaf4397e3dfc60287adf`
 
 All 80 raw treatment/control logs, the frozen manifest, raw analysis, and derived closeout analysis are archived in [the raw evidence directory](m12-wp8c-ft3-current-source-results-2fce6aa-80s-2026-11-27/raw/), with per-file digests in `SHA256SUMS.txt`. The original `analysis.json` is unchanged; `analysis-closeout.json` records the original analysis hash and classifier hash. The original run directory remains at `/private/tmp/e5-closeout-ft3-80season-run-20261127`.
 
