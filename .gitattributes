@@ -1,4 +1,5 @@
 # Keep line endings identical on macOS and Windows so content hashes and golden files match.
+* text=auto eol=lf
 *.cs text eol=lf
 *.csproj text eol=lf
 *.props text eol=lf
@@ -9,5 +10,11 @@
 *.md text eol=lf
 *.txt text eol=lf
 *.py text eol=lf
-*.xlsx binary
-*.png binary
+*.jpg binary -eol
+*.jpeg binary -eol
+*.xlsx binary -eol
+*.png binary -eol
+*.gif binary -eol
+*.ttf binary -eol
+*.ogv binary -eol
+*.mp4 binary -eol
