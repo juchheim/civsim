@@ -3,6 +3,11 @@ on:
   workflow_dispatch:
   push:
     branches: ['codex/e5-closeout-candidate-*']
+    paths:
+      - 'content/**'
+      - 'src/**'
+      - 'game/**'
+      - '.gitattributes'
 permissions:
   contents: read
 concurrency:
