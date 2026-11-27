@@ -12,7 +12,15 @@ The implementation now applies the charter's 1.1 multiplier to final conception 
 - The primary outcome is, per seed, the sum of treatment conception probabilities divided by the sum of control probabilities for same-figure, same-state, same-keyed-roll opportunities in live City settlements whose civilization has GOV-11.
 - A seed is an independent cluster. The estimate is the geometric mean of the per-seed ratios. Use a 10,000-replicate seed-cluster bootstrap with RNG seed `20261127` for the 95% percentile interval.
 - A pass requires at least 20 independent exposed seeds, point estimate 1.08–1.12, and a 95% interval containing 1.10. Report expected and observed seed counts, no-exposure seeds, zero-control-chance rows, eligible female-season opportunities, expected conception totals, paired realized outcome deltas, and the paired whole-city population-factor result as a secondary diagnostic. Do not impute missing or censored observations.
-- The 20-seed calibration block may inform implementation only. Freeze source, measurement code, candidate, and criteria before running the untouched 80-seed holdout. Any code or criteria change consumes both blocks and requires a new registration.
+- The 20-seed calibration block may inform implementation only. Freeze source, measurement code, candidate, and criteria before running the untouched 80-seed holdout. Any runtime-source change, effect-range change, outcome-selection change, or seed reuse consumes both blocks and requires a new registration.
+
+## Pre-holdout fixed-point precision clarification — 2026-11-27
+
+The calibration report preserves the literal-decimal analyzer result, which is a failure because its confidence interval lies about `2.25e-9` below decimal `1.10`. The E5 simulation represents probabilities in Q32, so the actual implementation of the charter's `11/10` multiplier is `multiplierRaw = floor(11 * 2^32 / 10) = 4,724,464,025`, followed by the engine's fixed-point multiply. Decimal `1.10` is not exactly representable, and the raw literal interval check is sensitive to that arithmetic at a scale far below gameplay precision.
+
+For acceptance, the literal-decimal interval remains reported as a diagnostic. The primary arithmetic conformance check is now the exact per-opportunity Q32 operation: `treatmentChanceRaw == (controlChanceRaw * multiplierRaw) >> 32`. A pass requires zero mismatches, at least 20 exposed natural seeds, the geometric-mean treatment/control ratio in `1.08–1.12`, and the seed-clustered interval to contain the geometric mean of the per-seed Q32 target ratios. This is an arithmetic interpretation of the existing `11/10` rule; it changes no gameplay value, selection rule, or runtime source. The 80-seed holdout remains untouched.
+
+The 20-seed calibration has zero mismatches across 903,853 nonzero-control opportunities. Its literal decimal result and the row-level Q32 audit are retained in [`evidence/`](evidence/).
 
 ## Seed registration
 

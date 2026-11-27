@@ -1,0 +1,185 @@
+{
+  "effect_definition": "geometric mean of per-seed ratios of summed paired conception probabilities in GOV-11 City female-seasons",
+  "effect_target": 1.1,
+  "estimate": 1.099999997633269,
+  "expected_seeds": 20,
+  "gate": {
+    "ci_must_include": 1.1,
+    "estimate_max": 1.12,
+    "estimate_min": 1.08,
+    "minimum_exposed_seeds": 20
+  },
+  "match_clustered_bootstrap_ci95": [
+    1.0999999975204087,
+    1.0999999977510957
+  ],
+  "nonzero_control_opportunities": 903853,
+  "observed_terminal_seeds": 20,
+  "opportunity_rows": 2085272,
+  "per_seed": [
+    {
+      "chance_ratio": 1.0999999975753962,
+      "control_expected_conceptions": 1779.760290991282,
+      "opportunities": 33155,
+      "paired_outcome_delta": 182,
+      "seed": 46038683,
+      "treatment_expected_conceptions": 1957.736315775197
+    },
+    {
+      "chance_ratio": 1.0999999977262978,
+      "control_expected_conceptions": 3030.8505404570606,
+      "opportunities": 53483,
+      "paired_outcome_delta": 307,
+      "seed": 46090745,
+      "treatment_expected_conceptions": 3333.935587611515
+    },
+    {
+      "chance_ratio": 1.0999999978774553,
+      "control_expected_conceptions": 1991.3647686592303,
+      "opportunities": 33005,
+      "paired_outcome_delta": 202,
+      "seed": 46154301,
+      "treatment_expected_conceptions": 2190.5012412983924
+    },
+    {
+      "chance_ratio": 1.0999999974869652,
+      "control_expected_conceptions": 2866.362221645657,
+      "opportunities": 55639,
+      "paired_outcome_delta": 303,
+      "seed": 46169572,
+      "treatment_expected_conceptions": 3152.998436606955
+    },
+    {
+      "chance_ratio": 1.0999999977445785,
+      "control_expected_conceptions": 2671.8903925886843,
+      "opportunities": 46371,
+      "paired_outcome_delta": 291,
+      "seed": 46175045,
+      "treatment_expected_conceptions": 2939.0794258213136
+    },
+    {
+      "chance_ratio": 1.0999999974183814,
+      "control_expected_conceptions": 1247.3701670784503,
+      "opportunities": 25347,
+      "paired_outcome_delta": 131,
+      "seed": 46248759,
+      "treatment_expected_conceptions": 1372.1071805660613
+    },
+    {
+      "chance_ratio": 1.099999997092777,
+      "control_expected_conceptions": 1719.7552091805264,
+      "opportunities": 39538,
+      "paired_outcome_delta": 167,
+      "seed": 46274318,
+      "treatment_expected_conceptions": 1891.730725098867
+    },
+    {
+      "chance_ratio": 1.0999999976095538,
+      "control_expected_conceptions": 2696.405988807557,
+      "opportunities": 48928,
+      "paired_outcome_delta": 291,
+      "seed": 46281063,
+      "treatment_expected_conceptions": 2966.046581242699
+    },
+    {
+      "chance_ratio": 1.0999999975277588,
+      "control_expected_conceptions": 2288.816427029902,
+      "opportunities": 43844,
+      "paired_outcome_delta": 222,
+      "seed": 46297596,
+      "treatment_expected_conceptions": 2517.698064074386
+    },
+    {
+      "chance_ratio": 1.0999999979326904,
+      "control_expected_conceptions": 3959.3190429334063,
+      "opportunities": 64634,
+      "paired_outcome_delta": 384,
+      "seed": 46316997,
+      "treatment_expected_conceptions": 4355.250939041609
+    },
+    {
+      "chance_ratio": 1.0999999975993626,
+      "control_expected_conceptions": 4124.760419421364,
+      "opportunities": 76288,
+      "paired_outcome_delta": 420,
+      "seed": 46412696,
+      "treatment_expected_conceptions": 4537.2364514614455
+    },
+    {
+      "chance_ratio": 1.0999999978233959,
+      "control_expected_conceptions": 3359.3932585304137,
+      "opportunities": 57896,
+      "paired_outcome_delta": 359,
+      "seed": 46487068,
+      "treatment_expected_conceptions": 3695.3325770713855
+    },
+    {
+      "chance_ratio": 1.0999999974437837,
+      "control_expected_conceptions": 2344.35891847685,
+      "opportunities": 46766,
+      "paired_outcome_delta": 274,
+      "seed": 46567345,
+      "treatment_expected_conceptions": 2578.7948043318465
+    },
+    {
+      "chance_ratio": 1.099999997220367,
+      "control_expected_conceptions": 2101.1300566354766,
+      "opportunities": 44435,
+      "paired_outcome_delta": 202,
+      "seed": 46621329,
+      "treatment_expected_conceptions": 2311.243056458654
+    },
+    {
+      "chance_ratio": 1.099999998209884,
+      "control_expected_conceptions": 504.85858563007787,
+      "opportunities": 6910,
+      "paired_outcome_delta": 56,
+      "seed": 46834582,
+      "treatment_expected_conceptions": 555.3444432893302
+    },
+    {
+      "chance_ratio": 1.0999999976266892,
+      "control_expected_conceptions": 1798.2707773738075,
+      "opportunities": 33050,
+      "paired_outcome_delta": 199,
+      "seed": 46857029,
+      "treatment_expected_conceptions": 1978.0978508433327
+    },
+    {
+      "chance_ratio": 1.0999999974202308,
+      "control_expected_conceptions": 3555.78640307812,
+      "opportunities": 69920,
+      "paired_outcome_delta": 319,
+      "seed": 46878564,
+      "treatment_expected_conceptions": 3911.365034212824
+    },
+    {
+      "chance_ratio": 1.099999997829529,
+      "control_expected_conceptions": 2415.216939726146,
+      "opportunities": 39836,
+      "paired_outcome_delta": 238,
+      "seed": 46969371,
+      "treatment_expected_conceptions": 2656.738628456602
+    },
+    {
+      "chance_ratio": 1.0999999974604173,
+      "control_expected_conceptions": 2469.2171783903614,
+      "opportunities": 47555,
+      "paired_outcome_delta": 257,
+      "seed": 46988622,
+      "treatment_expected_conceptions": 2716.1388899586163
+    },
+    {
+      "chance_ratio": 1.0999999980398685,
+      "control_expected_conceptions": 2460.462858399609,
+      "opportunities": 37253,
+      "paired_outcome_delta": 230,
+      "seed": 46998981,
+      "treatment_expected_conceptions": 2706.5091394167393
+    }
+  ],
+  "seeds_with_exposure": 20,
+  "seeds_without_exposure": [],
+  "status": "fail",
+  "zero_control_chance_rows": 1181419
+}

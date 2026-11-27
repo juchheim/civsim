@@ -1,0 +1,218 @@
+{
+  "expected_seeds": 20,
+  "exposed_seeds": 20,
+  "mismatch_examples": [],
+  "mismatch_rows": 0,
+  "multiplier_raw": 4724464025,
+  "multiplier_value": 1.0999999998603016,
+  "nonzero_control_rows": 903853,
+  "opportunity_rows": 2085272,
+  "per_seed": [
+    {
+      "control_chance_raw_sum": 7644012244527,
+      "fixed_point_target_ratio": 1.0999999975753962,
+      "fixed_point_target_raw_sum": 8408413450446,
+      "opportunities": 69564,
+      "seed": 46038683,
+      "treatment_chance_raw_sum": 8408413450446,
+      "treatment_to_control_ratio": 1.0999999975753962,
+      "zero_control_rows": 36409
+    },
+    {
+      "control_chance_raw_sum": 13017403950327,
+      "fixed_point_target_ratio": 1.0999999977262978,
+      "fixed_point_target_raw_sum": 14319144315762,
+      "opportunities": 133795,
+      "seed": 46090745,
+      "treatment_chance_raw_sum": 14319144315762,
+      "treatment_to_control_ratio": 1.0999999977262978,
+      "zero_control_rows": 80312
+    },
+    {
+      "control_chance_raw_sum": 8552846555798,
+      "fixed_point_target_ratio": 1.0999999978774553,
+      "fixed_point_target_raw_sum": 9408131193224,
+      "opportunities": 75849,
+      "seed": 46154301,
+      "treatment_chance_raw_sum": 9408131193224,
+      "treatment_to_control_ratio": 1.0999999978774553,
+      "zero_control_rows": 42844
+    },
+    {
+      "control_chance_raw_sum": 12310932000458,
+      "fixed_point_target_ratio": 1.0999999974869652,
+      "fixed_point_target_raw_sum": 13542025169566,
+      "opportunities": 106359,
+      "seed": 46169572,
+      "treatment_chance_raw_sum": 13542025169566,
+      "treatment_to_control_ratio": 1.0999999974869652,
+      "zero_control_rows": 50720
+    },
+    {
+      "control_chance_raw_sum": 11475681854665,
+      "fixed_point_target_ratio": 1.0999999977445785,
+      "fixed_point_target_raw_sum": 12623250014249,
+      "opportunities": 114187,
+      "seed": 46175045,
+      "treatment_chance_raw_sum": 12623250014249,
+      "treatment_to_control_ratio": 1.0999999977445785,
+      "zero_control_rows": 67816
+    },
+    {
+      "control_chance_raw_sum": 5357414073608,
+      "fixed_point_target_ratio": 1.0999999974183814,
+      "fixed_point_target_raw_sum": 5893155467138,
+      "opportunities": 59009,
+      "seed": 46248759,
+      "treatment_chance_raw_sum": 5893155467138,
+      "treatment_to_control_ratio": 1.0999999974183814,
+      "zero_control_rows": 33662
+    },
+    {
+      "control_chance_raw_sum": 7386292380556,
+      "fixed_point_target_ratio": 1.099999997092777,
+      "fixed_point_target_raw_sum": 8124921597138,
+      "opportunities": 99850,
+      "seed": 46274318,
+      "treatment_chance_raw_sum": 8124921597138,
+      "treatment_to_control_ratio": 1.099999997092777,
+      "zero_control_rows": 60312
+    },
+    {
+      "control_chance_raw_sum": 11580975538667,
+      "fixed_point_target_ratio": 1.0999999976095538,
+      "fixed_point_target_raw_sum": 12739073064850,
+      "opportunities": 109855,
+      "seed": 46281063,
+      "treatment_chance_raw_sum": 12739073064850,
+      "treatment_to_control_ratio": 1.0999999976095538,
+      "zero_control_rows": 60927
+    },
+    {
+      "control_chance_raw_sum": 9830391700641,
+      "fixed_point_target_ratio": 1.0999999975277588,
+      "fixed_point_target_raw_sum": 10813430846402,
+      "opportunities": 125973,
+      "seed": 46297596,
+      "treatment_chance_raw_sum": 10813430846402,
+      "treatment_to_control_ratio": 1.0999999975277588,
+      "zero_control_rows": 82129
+    },
+    {
+      "control_chance_raw_sum": 17005145803829,
+      "fixed_point_target_ratio": 1.0999999979326904,
+      "fixed_point_target_raw_sum": 18705660349057,
+      "opportunities": 115394,
+      "seed": 46316997,
+      "treatment_chance_raw_sum": 18705660349057,
+      "treatment_to_control_ratio": 1.0999999979326904,
+      "zero_control_rows": 50760
+    },
+    {
+      "control_chance_raw_sum": 17715711105250,
+      "fixed_point_target_ratio": 1.0999999975993626,
+      "fixed_point_target_raw_sum": 19487282173246,
+      "opportunities": 156203,
+      "seed": 46412696,
+      "treatment_chance_raw_sum": 19487282173246,
+      "treatment_to_control_ratio": 1.0999999975993626,
+      "zero_control_rows": 79915
+    },
+    {
+      "control_chance_raw_sum": 14428484179791,
+      "fixed_point_target_ratio": 1.0999999978233959,
+      "fixed_point_target_raw_sum": 15871332566365,
+      "opportunities": 117134,
+      "seed": 46487068,
+      "treatment_chance_raw_sum": 15871332566365,
+      "treatment_to_control_ratio": 1.0999999978233959,
+      "zero_control_rows": 59238
+    },
+    {
+      "control_chance_raw_sum": 10068944884944,
+      "fixed_point_target_ratio": 1.0999999974437837,
+      "fixed_point_target_raw_sum": 11075839347700,
+      "opportunities": 127417,
+      "seed": 46567345,
+      "treatment_chance_raw_sum": 11075839347700,
+      "treatment_to_control_ratio": 1.0999999974437837,
+      "zero_control_rows": 80651
+    },
+    {
+      "control_chance_raw_sum": 9024284877892,
+      "fixed_point_target_ratio": 1.099999997220367,
+      "fixed_point_target_raw_sum": 9926713340597,
+      "opportunities": 103782,
+      "seed": 46621329,
+      "treatment_chance_raw_sum": 9926713340597,
+      "treatment_to_control_ratio": 1.099999997220367,
+      "zero_control_rows": 59347
+    },
+    {
+      "control_chance_raw_sum": 2168351114386,
+      "fixed_point_target_ratio": 1.099999998209884,
+      "fixed_point_target_raw_sum": 2385186221943,
+      "opportunities": 12940,
+      "seed": 46834582,
+      "treatment_chance_raw_sum": 2385186221943,
+      "treatment_to_control_ratio": 1.099999998209884,
+      "zero_control_rows": 6030
+    },
+    {
+      "control_chance_raw_sum": 7723514178173,
+      "fixed_point_target_ratio": 1.0999999976266892,
+      "fixed_point_target_raw_sum": 8495865577660,
+      "opportunities": 94833,
+      "seed": 46857029,
+      "treatment_chance_raw_sum": 8495865577660,
+      "treatment_to_control_ratio": 1.0999999976266892,
+      "zero_control_rows": 61783
+    },
+    {
+      "control_chance_raw_sum": 15271986312782,
+      "fixed_point_target_ratio": 1.0999999974202308,
+      "fixed_point_target_raw_sum": 16799184904662,
+      "opportunities": 150494,
+      "seed": 46878564,
+      "treatment_chance_raw_sum": 16799184904662,
+      "treatment_to_control_ratio": 1.0999999974202308,
+      "zero_control_rows": 80574
+    },
+    {
+      "control_chance_raw_sum": 10373277768869,
+      "fixed_point_target_ratio": 1.099999997829529,
+      "fixed_point_target_raw_sum": 11410605523241,
+      "opportunities": 107138,
+      "seed": 46969371,
+      "treatment_chance_raw_sum": 11410605523241,
+      "treatment_to_control_ratio": 1.099999997829529,
+      "zero_control_rows": 67302
+    },
+    {
+      "control_chance_raw_sum": 10605207027908,
+      "fixed_point_target_ratio": 1.0999999974604173,
+      "fixed_point_target_raw_sum": 11665727703766,
+      "opportunities": 108672,
+      "seed": 46988622,
+      "treatment_chance_raw_sum": 11665727703766,
+      "treatment_to_control_ratio": 1.0999999974604173,
+      "zero_control_rows": 61117
+    },
+    {
+      "control_chance_raw_sum": 10567607509849,
+      "fixed_point_target_ratio": 1.0999999980398685,
+      "fixed_point_target_raw_sum": 11624368240120,
+      "opportunities": 96824,
+      "seed": 46998981,
+      "treatment_chance_raw_sum": 11624368240120,
+      "treatment_to_control_ratio": 1.0999999980398685,
+      "zero_control_rows": 59571
+    }
+  ],
+  "q32_scale": 4294967296,
+  "schema": "civsim.gov11-q32-effect-audit/v1",
+  "seeds_sha256": "9c5ec7210aba37b9f2be2b9e69c352c0c7d7ae311e0574c49655be72581b696a",
+  "status": "pass",
+  "terminal_seeds": 20,
+  "zero_control_rows": 1181419
+}
