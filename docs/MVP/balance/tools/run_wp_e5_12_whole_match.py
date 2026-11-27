@@ -8,6 +8,7 @@ Report-only E5 observers collect several whole-match balance traces in the same 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime as dt
 import hashlib
 import json
@@ -15,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -91,6 +93,8 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-runner-sha256", required=True)
     parser.add_argument("--expected-provenance-helper-sha256", required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--workers", type=int, default=4,
+                        help="independent match processes to run at once (default: 4)")
     parser.add_argument("--dotnet", default="dotnet")
     return parser
 
@@ -174,6 +178,9 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
         raise FileExistsError(f"refusing existing output root: {output}")
     if output == repo or repo in output.parents:
         raise ValueError("WP-E5-12 output root must be external to the repository")
+    workers = getattr(args, "workers", 1)
+    if workers < 1 or workers > 16:
+        raise ValueError("workers must be between 1 and 16")
     if args.expected_head.lower() != args.expected_head or len(args.expected_head) != 40:
         raise ValueError("expected HEAD must be a lowercase 40-character commit SHA")
     if len(args.expected_tree) != 40 or any(c not in "0123456789abcdef" for c in args.expected_tree):
@@ -208,6 +215,7 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
         "repo": str(repo), "pack": str(pack), "harness": str(harness), "sim": str(sim),
         "manifest": str(manifest), "manifestSha256": args.expected_manifest_sha256,
         "seedCount": len(seeds), "minutes": MINUTES, "grantE5": False,
+        "workers": workers,
         "observerTraceFlags": list(E5_OBSERVER_TRACE_FLAGS),
         "provenanceBefore": before, "runner": {"path": str(runner_path), "sha256": runner_hash},
         "provenanceHelper": {"path": str(helper_path), "sha256": helper_hash}, "matches": records,
@@ -215,12 +223,16 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
     metadata_path = output / "run_metadata.json"
 
     def save() -> None:
-        tmp = metadata_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        tmp.replace(metadata_path)
+        with metadata_lock:
+            tmp = metadata_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            tmp.replace(metadata_path)
 
+    metadata_lock = threading.Lock()
     save()
-    for i, record in enumerate(records):
+
+    def run_one(i: int) -> None:
+        record = dict(records[i])
         seed = record["seed"]
         seed_manifest = output / "manifests" / f"{seed}.txt"
         seed_manifest.write_text(f"{seed}\n", encoding="ascii")
@@ -230,6 +242,9 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
         record_manifest = {"path": str(seed_manifest), "sha256": sha256(seed_manifest)}
         record.update({"status": "running", "startedUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
                        "seedManifest": record_manifest})
+        with metadata_lock:
+            records[i] = dict(record)
+        save()
         try:
             current = capture_candidate(repo, pack, harness, sim)
             _verify_snapshot(current, args)
@@ -298,16 +313,19 @@ def run(args: argparse.Namespace, *, process_run=subprocess.run) -> dict[str, An
             if log_path.is_file():
                 record["rawLogSha256"] = sha256(log_path)
                 record["rawLogBytes"] = log_path.stat().st_size
-            for pending in records[i + 1:]:
-                pending["status"] = "not-started-after-fatal-runner-error"
+            with metadata_lock:
+                records[i] = record
             save()
-            break
+            return
         record["completedUtc"] = dt.datetime.now(dt.timezone.utc).isoformat()
+        with metadata_lock:
+            records[i] = record
         save()
-        if record.get("status") == "provenance-changed":
-            for pending in records[i + 1:]:
-                pending["status"] = "not-started-after-provenance-change"
-            break
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(run_one, i) for i in range(len(records))]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
     try:
         after = capture_candidate(repo, pack, harness, sim)

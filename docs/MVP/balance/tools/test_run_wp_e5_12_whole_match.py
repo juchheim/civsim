@@ -73,7 +73,7 @@ fief: E5 progress per civilization:
                 expected_harness_sha256=snapshot["harnessDllSha256"],
                 expected_sim_sha256=snapshot["simDllSha256"],
                 expected_runner_sha256=runner.sha256(script),
-                expected_provenance_helper_sha256=runner.sha256(helper), dotnet="dotnet")
+                expected_provenance_helper_sha256=runner.sha256(helper), dotnet="dotnet", workers=4)
 
             def fake_process(command: list[str], **kwargs: object) -> argparse.Namespace:
                 stdout = kwargs["stdout"]
