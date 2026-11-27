@@ -1,0 +1,61 @@
+{
+  "schema": "wp-e5-9-a6-current-source/v1",
+  "status": "completed-pass",
+  "candidate": {
+    "head": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "tree": "de5be3c634f2b806c87f0b9ea49cde8352f0f4d5",
+    "sourceAggregateSha256": "227902576ec15604a8399d395b170d55305ad0e50823e30fd49087d8f742342b",
+    "sourceWasClean": true
+  },
+  "artifacts": {
+    "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "harnessSha256": "650e2ac7775d8842b15c1383bd4f5e08174762a78e74afa1acdda71b68fa8cba",
+    "simSha256": "52d0cbdc39886119652f4231c383c97dc01623926df99e00876fd043eda37416",
+    "searchLogSha256": "1f826a7ece7d4c1915249b5475e34a5d4e427f6bd0f0247f3bbb801fc9bc74cb",
+    "finalistOutputSha256": "880b39bfcde6439d105e3cab3184306c859f7bb2be6a9603c6ba818bec01d001"
+  },
+  "protocol": {
+    "mode": "Fief",
+    "generations": 417,
+    "childrenPerGeneration": 24,
+    "uniquePoliciesScreened": 10009,
+    "screenMinutes": 1,
+    "screenSeed": 89010001,
+    "finalists": 16,
+    "validationMinutes": 64,
+    "validationSeedPairs": [89000001, 89000002, 89000003],
+    "maxValidatedExploitRate": 0.55
+  },
+  "command": [
+    "dotnet",
+    "src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll",
+    "ai",
+    "--pack",
+    "/private/tmp/e5-closeout-acceptance-2fce6aa/numeric-e5.pack",
+    "--mode",
+    "fief",
+    "--exploit",
+    "--generations",
+    "417",
+    "--children",
+    "24",
+    "--seeds",
+    "1",
+    "--screen-minutes",
+    "1",
+    "--minutes",
+    "64",
+    "--first-seed",
+    "20261127",
+    "--exploit-screen-first-seed",
+    "89010001",
+    "--exploit-validation-first-seed",
+    "89000001",
+    "--exploit-output",
+    "/private/tmp/e5-closeout-a6-2fce6aa-20261127.txt"
+  ],
+  "startedLocal": "2026-11-27T12:27:15-06:00",
+  "completedLocal": "2026-11-27T13:56:32-06:00",
+  "exitCode": null,
+  "exitCodeNote": "The process completed and its raw stdout contains the explicit Harness line 'EXPLOIT SEARCH PASS'; the invoking shell exit code was not retained."
+}

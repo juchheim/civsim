@@ -1,0 +1,502 @@
+  generation 1/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 2/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 3/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 4/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 5/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 6/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 7/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 8/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 9/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 10/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 11/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 12/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 13/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 14/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 15/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 16/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 17/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 18/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 19/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 20/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 21/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 22/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 23/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 24/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 25/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 26/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 27/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 28/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 29/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 30/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 31/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 32/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 33/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 34/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 35/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 36/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 37/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 38/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 39/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 40/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 41/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 42/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 43/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 44/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 45/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 46/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 47/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 48/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 49/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 50/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 51/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 52/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 53/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 54/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 55/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 56/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 57/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 58/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 59/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 60/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 61/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 62/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 63/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 64/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 65/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 66/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 67/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 68/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 69/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 70/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 71/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 72/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 73/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 74/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 75/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 76/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 77/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 78/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 79/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 80/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 81/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 82/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 83/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 84/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 85/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 86/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 87/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 88/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 89/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 90/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 91/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 92/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 93/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 94/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 95/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 96/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 97/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 98/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 99/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 100/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 101/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 102/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 103/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 104/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 105/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 106/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 107/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 108/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 109/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 110/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 111/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 112/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 113/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 114/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 115/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 116/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 117/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 118/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 119/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 120/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 121/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 122/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 123/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 124/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 125/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 126/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 127/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 128/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 129/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 130/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 131/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 132/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 133/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 134/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 135/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 136/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 137/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 138/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 139/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 140/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 141/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 142/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 143/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 144/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 145/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 146/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 147/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 148/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 149/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 150/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 151/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 152/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 153/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 154/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 155/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 156/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 157/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 158/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 159/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 160/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 161/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 162/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 163/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 164/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 165/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 166/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 167/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 168/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 169/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 170/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 171/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 172/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 173/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 174/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 175/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 176/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 177/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 178/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 179/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 180/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 181/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 182/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 183/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 184/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 185/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 186/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 187/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 188/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 189/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 190/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 191/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 192/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 193/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 194/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 195/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 196/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 197/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 198/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 199/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 200/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 201/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 202/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 203/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 204/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 205/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 206/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 207/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 208/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 209/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 210/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 211/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 212/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 213/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 214/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 215/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 216/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 217/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 218/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 219/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 220/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 221/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 222/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 223/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 224/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 225/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 226/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 227/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 228/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 229/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 230/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 231/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 232/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 233/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 234/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 235/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 236/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 237/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 238/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 239/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 240/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 241/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 242/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 243/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 244/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 245/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 246/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 247/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 248/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 249/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 250/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 251/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 252/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 253/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 254/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 255/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 256/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 257/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 258/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 259/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 260/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 261/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 262/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 263/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 264/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 265/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 266/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 267/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 268/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 269/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 270/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 271/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 272/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 273/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 274/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 275/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 276/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 277/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 278/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 279/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 280/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 281/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 282/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 283/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 284/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 285/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 286/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 287/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 288/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 289/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 290/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 291/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 292/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 293/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 294/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 295/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 296/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 297/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 298/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 299/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 300/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 301/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 302/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 303/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 304/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 305/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 306/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 307/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 308/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 309/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 310/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 311/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 312/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 313/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 314/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 315/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 316/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 317/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 318/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 319/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 320/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 321/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 322/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 323/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 324/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 325/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 326/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 327/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 328/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 329/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 330/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 331/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 332/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 333/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 334/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 335/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 336/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 337/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 338/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 339/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 340/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 341/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 342/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 343/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 344/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 345/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 346/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 347/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 348/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 349/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 350/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 351/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 352/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 353/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 354/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 355/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 356/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 357/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 358/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 359/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 360/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 361/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 362/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 363/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 364/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 365/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 366/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 367/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 368/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 369/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 370/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 371/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 372/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 373/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 374/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 375/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 376/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 377/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 378/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 379/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 380/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 381/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 382/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 383/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 384/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 385/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 386/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 387/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 388/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 389/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 390/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 391/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 392/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 393/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 394/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 395/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 396/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 397/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 398/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 399/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 400/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 401/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 402/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 403/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 404/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 405/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 406/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 407/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 408/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 409/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 410/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 411/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 412/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 413/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 414/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 415/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 416/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+  generation 417/417: best fitness (win rate + Legacy share) 1.00  lineages=SOC>LRN>HUS raid@-1 fortify@-1 party=4 gifts=True
+A6 screen: 10,009 distinct candidates (10,009 evaluations), 1-minute horizon.
+Finalists: 16; full validation: 16/16 at 64 minutes, 3 fresh mirrored seed pairs each.
+Deterministic seed ranges: screen 89010001–89010001; validation 89000001–89000003; chapter Fief.
+  finalist 33 % vs Warlord: lineages=AGR>ART>DEF raid@-1 fortify@59 party=10 gifts=True
+  finalist 0 % vs Warlord: lineages=AGR>ART>DIP>GOV raid@49 fortify@-1 party=12 gifts=False
+  finalist 17 % vs Warlord: lineages=AGR>ART>DIP>INQ raid@86 fortify@9 party=8 gifts=True
+  finalist 0 % vs Warlord: lineages=AGR>ART>FIB>MED raid@54 fortify@-1 party=4 gifts=True
+  finalist 0 % vs Warlord: lineages=AGR>ART>FIR>FOD raid@-1 fortify@27 party=14 gifts=False
+  finalist 17 % vs Warlord: lineages=AGR>ART>FIR>STN raid@-1 fortify@22 party=6 gifts=False
+  finalist 0 % vs Warlord: lineages=AGR>ART>FOD raid@39 fortify@39 party=14 gifts=False
+  finalist 17 % vs Warlord: lineages=AGR>ART>FOR>TER raid@21 fortify@-1 party=10 gifts=False
+  finalist 17 % vs Warlord: lineages=ART>AGR>SOC>INQ raid@20 fortify@29 party=4 gifts=False
+  finalist 0 % vs Warlord: lineages=ART>FOD>WAR>GOV raid@32 fortify@48 party=6 gifts=True
+  finalist 33 % vs Warlord: lineages=BEL>BLD>FIB>COM raid@47 fortify@43 party=8 gifts=False
+  finalist 17 % vs Warlord: lineages=BEL>HNT>BLD>TER raid@18 fortify@63 party=12 gifts=True
+  finalist 17 % vs Warlord: lineages=BLD>FIB>TRN>WOD raid@24 fortify@6 party=14 gifts=True
+  finalist 17 % vs Warlord: lineages=AGR>DEF>SOC>LRN raid@51 fortify@36 party=6 gifts=True
+  finalist 17 % vs Warlord: lineages=AGR>FIR>STN>ART raid@70 fortify@26 party=8 gifts=False
+  finalist 0 % vs Warlord: lineages=AGR>FOR>COM>WOD raid@59 fortify@4 party=4 gifts=False
+A6 finalist report	chapter=Fief	screen=10009	unique=10009	screen-minutes=1	validation-minutes=64	finalists=16	validated=16	screen-seeds=89010001-89010001	validation-seeds=89000001-89000003
+finalist	01	key=AGR,ART,DEF|-1|59|10|1	screenFitness=1.000000	policy=lineages=AGR>ART>DEF raid@-1 fortify@59 party=10 gifts=True	validation=33.33 %
+pair	AGR,ART,DEF|-1|59|10|1	seed=89000001	policy-first=5130.683	warlord-first=5926.971	policy-swapped=5555.575	warlord-swapped=5520.757	win-points=1.0
+pair	AGR,ART,DEF|-1|59|10|1	seed=89000002	policy-first=4559.206	warlord-first=6253.685	policy-swapped=5688.385	warlord-swapped=5157.193	win-points=1.0
+pair	AGR,ART,DEF|-1|59|10|1	seed=89000003	policy-first=4693.404	warlord-first=6618.962	policy-swapped=5668.588	warlord-swapped=6111.106	win-points=0.0
+finalist	02	key=AGR,ART,DIP,GOV|49|-1|12|0	screenFitness=1.000000	policy=lineages=AGR>ART>DIP>GOV raid@49 fortify@-1 party=12 gifts=False	validation=0.00 %
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=89000001	policy-first=4999.432	warlord-first=5920.535	policy-swapped=2760.113	warlord-swapped=7155.007	win-points=0.0
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=89000002	policy-first=4075.654	warlord-first=6439.454	policy-swapped=4959.536	warlord-swapped=5780.934	win-points=0.0
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=89000003	policy-first=5104.407	warlord-first=6444.735	policy-swapped=5349.184	warlord-swapped=5606.365	win-points=0.0
+finalist	03	key=AGR,ART,DIP,INQ|86|9|8|1	screenFitness=1.000000	policy=lineages=AGR>ART>DIP>INQ raid@86 fortify@9 party=8 gifts=True	validation=16.67 %
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=89000001	policy-first=4691.934	warlord-first=6004.036	policy-swapped=3898.650	warlord-swapped=6605.018	win-points=0.0
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=89000002	policy-first=4130.252	warlord-first=6373.698	policy-swapped=5230.259	warlord-swapped=5332.591	win-points=0.0
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=89000003	policy-first=4770.354	warlord-first=6481.351	policy-swapped=5686.824	warlord-swapped=5510.923	win-points=1.0
+finalist	04	key=AGR,ART,FIB,MED|54|-1|4|1	screenFitness=1.000000	policy=lineages=AGR>ART>FIB>MED raid@54 fortify@-1 party=4 gifts=True	validation=0.00 %
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=89000001	policy-first=4556.420	warlord-first=6137.304	policy-swapped=3407.628	warlord-swapped=6946.472	win-points=0.0
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=89000002	policy-first=3746.282	warlord-first=6531.393	policy-swapped=5189.362	warlord-swapped=5473.390	win-points=0.0
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=89000003	policy-first=4706.112	warlord-first=6667.117	policy-swapped=5134.486	warlord-swapped=6160.978	win-points=0.0
+finalist	05	key=AGR,ART,FIR,FOD|-1|27|14|0	screenFitness=1.000000	policy=lineages=AGR>ART>FIR>FOD raid@-1 fortify@27 party=14 gifts=False	validation=0.00 %
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=89000001	policy-first=4761.650	warlord-first=6227.752	policy-swapped=5549.525	warlord-swapped=5576.899	win-points=0.0
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=89000002	policy-first=4618.494	warlord-first=6354.392	policy-swapped=4976.299	warlord-swapped=5872.321	win-points=0.0
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=89000003	policy-first=5559.636	warlord-first=6115.364	policy-swapped=5057.995	warlord-swapped=6348.236	win-points=0.0
+finalist	06	key=AGR,ART,FIR,STN|-1|22|6|0	screenFitness=1.000000	policy=lineages=AGR>ART>FIR>STN raid@-1 fortify@22 party=6 gifts=False	validation=16.67 %
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=89000001	policy-first=4862.476	warlord-first=6043.550	policy-swapped=3754.498	warlord-swapped=6672.051	win-points=0.0
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=89000002	policy-first=3744.207	warlord-first=6604.041	policy-swapped=5070.232	warlord-swapped=5733.262	win-points=0.0
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=89000003	policy-first=4567.627	warlord-first=6836.122	policy-swapped=5926.645	warlord-swapped=5880.766	win-points=1.0
+finalist	07	key=AGR,ART,FOD|39|39|14|0	screenFitness=1.000000	policy=lineages=AGR>ART>FOD raid@39 fortify@39 party=14 gifts=False	validation=0.00 %
+pair	AGR,ART,FOD|39|39|14|0	seed=89000001	policy-first=4246.157	warlord-first=5910.642	policy-swapped=3807.675	warlord-swapped=6653.897	win-points=0.0
+pair	AGR,ART,FOD|39|39|14|0	seed=89000002	policy-first=4121.852	warlord-first=6307.112	policy-swapped=4299.868	warlord-swapped=6006.390	win-points=0.0
+pair	AGR,ART,FOD|39|39|14|0	seed=89000003	policy-first=4682.816	warlord-first=6543.229	policy-swapped=4341.977	warlord-swapped=6316.040	win-points=0.0
+finalist	08	key=AGR,ART,FOR,TER|21|-1|10|0	screenFitness=1.000000	policy=lineages=AGR>ART>FOR>TER raid@21 fortify@-1 party=10 gifts=False	validation=16.67 %
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=89000001	policy-first=3609.291	warlord-first=6758.376	policy-swapped=4051.100	warlord-swapped=6405.815	win-points=0.0
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=89000002	policy-first=3947.785	warlord-first=6519.968	policy-swapped=5452.751	warlord-swapped=5212.275	win-points=1.0
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=89000003	policy-first=3798.389	warlord-first=7021.224	policy-swapped=4648.447	warlord-swapped=6590.571	win-points=0.0
+finalist	09	key=ART,AGR,SOC,INQ|20|29|4|0	screenFitness=1.000000	policy=lineages=ART>AGR>SOC>INQ raid@20 fortify@29 party=4 gifts=False	validation=16.67 %
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=89000001	policy-first=4644.409	warlord-first=6159.775	policy-swapped=3614.784	warlord-swapped=6665.733	win-points=0.0
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=89000002	policy-first=4361.421	warlord-first=6189.450	policy-swapped=5325.183	warlord-swapped=5143.294	win-points=1.0
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=89000003	policy-first=3232.600	warlord-first=7452.955	policy-swapped=4697.873	warlord-swapped=6573.897	win-points=0.0
+finalist	10	key=ART,FOD,WAR,GOV|32|48|6|1	screenFitness=1.000000	policy=lineages=ART>FOD>WAR>GOV raid@32 fortify@48 party=6 gifts=True	validation=0.00 %
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=89000001	policy-first=4307.845	warlord-first=6265.756	policy-swapped=4980.924	warlord-swapped=5632.186	win-points=0.0
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=89000002	policy-first=4633.970	warlord-first=5945.125	policy-swapped=4541.169	warlord-swapped=5855.930	win-points=0.0
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=89000003	policy-first=4730.000	warlord-first=6532.779	policy-swapped=4468.823	warlord-swapped=6385.477	win-points=0.0
+finalist	11	key=BEL,BLD,FIB,COM|47|43|8|0	screenFitness=1.000000	policy=lineages=BEL>BLD>FIB>COM raid@47 fortify@43 party=8 gifts=False	validation=33.33 %
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=89000001	policy-first=4871.892	warlord-first=6050.490	policy-swapped=4185.037	warlord-swapped=6183.616	win-points=0.0
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=89000002	policy-first=3847.239	warlord-first=6399.538	policy-swapped=5422.870	warlord-swapped=5205.222	win-points=1.0
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=89000003	policy-first=4535.697	warlord-first=6389.634	policy-swapped=5753.416	warlord-swapped=5401.451	win-points=1.0
+finalist	12	key=BEL,HNT,BLD,TER|18|63|12|1	screenFitness=1.000000	policy=lineages=BEL>HNT>BLD>TER raid@18 fortify@63 party=12 gifts=True	validation=16.67 %
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=89000001	policy-first=5077.753	warlord-first=5985.361	policy-swapped=5623.262	warlord-swapped=5191.907	win-points=1.0
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=89000002	policy-first=4066.871	warlord-first=6520.065	policy-swapped=4973.908	warlord-swapped=5305.038	win-points=0.0
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=89000003	policy-first=4818.041	warlord-first=6311.097	policy-swapped=4543.494	warlord-swapped=6352.687	win-points=0.0
+finalist	13	key=BLD,FIB,TRN,WOD|24|6|14|1	screenFitness=1.000000	policy=lineages=BLD>FIB>TRN>WOD raid@24 fortify@6 party=14 gifts=True	validation=16.67 %
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=89000001	policy-first=3471.458	warlord-first=6781.114	policy-swapped=4563.089	warlord-swapped=6055.198	win-points=0.0
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=89000002	policy-first=3811.763	warlord-first=6478.778	policy-swapped=5699.967	warlord-swapped=4974.350	win-points=1.0
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=89000003	policy-first=5504.068	warlord-first=6109.259	policy-swapped=5079.152	warlord-swapped=6297.664	win-points=0.0
+finalist	14	key=AGR,DEF,SOC,LRN|51|36|6|1	screenFitness=1.000000	policy=lineages=AGR>DEF>SOC>LRN raid@51 fortify@36 party=6 gifts=True	validation=16.67 %
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=89000001	policy-first=3976.231	warlord-first=6555.310	policy-swapped=4602.193	warlord-swapped=6058.842	win-points=0.0
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=89000002	policy-first=4515.782	warlord-first=6220.493	policy-swapped=5762.976	warlord-swapped=4804.993	win-points=1.0
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=89000003	policy-first=4767.477	warlord-first=6630.626	policy-swapped=5334.865	warlord-swapped=6127.390	win-points=0.0
+finalist	15	key=AGR,FIR,STN,ART|70|26|8|0	screenFitness=1.000000	policy=lineages=AGR>FIR>STN>ART raid@70 fortify@26 party=8 gifts=False	validation=16.67 %
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=89000001	policy-first=4116.479	warlord-first=6358.781	policy-swapped=2802.132	warlord-swapped=7250.070	win-points=0.0
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=89000002	policy-first=3437.918	warlord-first=6888.686	policy-swapped=4615.568	warlord-swapped=5872.750	win-points=0.0
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=89000003	policy-first=4740.811	warlord-first=6658.386	policy-swapped=6018.096	warlord-swapped=5778.005	win-points=1.0
+finalist	16	key=AGR,FOR,COM,WOD|59|4|4|0	screenFitness=1.000000	policy=lineages=AGR>FOR>COM>WOD raid@59 fortify@4 party=4 gifts=False	validation=0.00 %
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=89000001	policy-first=4062.533	warlord-first=6080.404	policy-swapped=3565.378	warlord-swapped=6768.531	win-points=0.0
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=89000002	policy-first=2781.684	warlord-first=7151.951	policy-swapped=5069.713	warlord-swapped=5420.075	win-points=0.0
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=89000003	policy-first=5119.448	warlord-first=6217.829	policy-swapped=4580.059	warlord-swapped=6610.536	win-points=0.0
+EXPLOIT SEARCH PASS: no validated finalist exceeded 55%; applies to this 10,000-policy searched candidate set, not all possible policies.
