@@ -1,6 +1,6 @@
 {
   "schema": "civsim.wp-e5-7-gov11-paired-preflight/v1",
-  "status": "calibration_r1_failed_before_simulation; retry_pinned_not_started",
+  "status": "calibration_r2_running",
   "candidate": {
     "head": "a966ec377a9d650b2b90b4467827c777e115c603",
     "tree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
@@ -22,7 +22,9 @@
     "manifestSha256": "f2edf753fd3f26e86e49c22385d2e857192b69cf796f36e1bdbdc079a287742d",
     "seedCount": 20,
     "minutes": 130,
-    "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r2"
+    "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r2",
+    "startedUtc": "2026-11-27T09:07:26.184298+00:00",
+    "runnerPid": 95330
   },
   "holdout": {
     "manifest": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-e5-7-gov11-prereg-2026-11-16-r2/holdout-seeds.txt",
@@ -46,9 +48,8 @@
     "pairedFlag": "--fief-wp7-paired",
     "workers": 4,
     "criteriaSource": "m12-e5-7-measurement-protocol-audit-2026-11-15.md",
-    "launchState": "calibration r1 failed at harness record-dir guard before simulation; r2 uses fresh root and same untouched calibration seeds; performance cohorts remain gated on idle host"
-  }
-  ,
+    "launchState": "calibration r2 launched 2026-11-27T09:07:26Z after r1 failed before simulation; r2 uses fresh root and the same untouched calibration seeds; four workers are running alongside WP-E5-12; performance cohorts remain gated on an idle host"
+  },
   "priorAttempt": {
     "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r1",
     "status": "failed_before_simulation",
