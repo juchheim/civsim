@@ -11,7 +11,7 @@ from collections import Counter
 from fractions import Fraction
 from pathlib import Path
 
-SEASONS, PEOPLE, WINDOW, EXPECTED_SEEDS = 64, 200, 12, 40
+SEASONS, PEOPLE, WINDOW, EXPECTED_SEEDS = 80, 200, 12, 40
 ONE_RAW = 1 << 32
 WORK_CEILING_RAW = 15 * ONE_RAW // 100
 FUEL_DEMAND_MIN = 12
@@ -246,9 +246,9 @@ def fixture_checks() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "one-arm.txt"
         path.write_text(
-            "F_T3_WINDOW scenario=fief-low-wood-furnace seed=7 start=53 end=64 status=measured "
+            "F_T3_WINDOW scenario=fief-low-wood-furnace seed=7 start=69 end=80 status=measured "
             f"labor_raw={ONE_RAW} metal_raw={ONE_RAW // 20} no_fuel_seasons=0\n" +
-            "F_T3_ARM scenario=fief-low-wood-furnace seed=7 first_kit_season=52 mature_candidates=1 "
+            "F_T3_ARM scenario=fief-low-wood-furnace seed=7 first_kit_season=68 mature_candidates=1 "
             "measured_windows=1 no_exposure_windows=0 fuel_demand_seasons=12 fuel_short_seasons=0 "
             f"fuel_short_rate_raw=0 planned_charcoal_raw={ONE_RAW} unmet_charcoal_raw=0 fuel_unmet_share_raw=0 "
             "no_fuel_share_raw=0 forest_clear_crossings=0 wood_balance_residual_raw=0\n")
