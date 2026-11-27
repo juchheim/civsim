@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "finishedUtc": "2026-11-27T08:54:50Z",
+  "candidateHead": "a966ec377a9d650b2b90b4467827c777e115c603",
+  "candidateTree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
+  "sourceAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+  "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+  "harnessSha256": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+  "simSha256": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d",
+  "testsSourceSha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2",
+  "testAssemblySha256": "279035650540e27f496a123fa87fbfd5392ece252005ca8665b5aa9d9a457023",
+  "command": "DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec dotnet test src/CivSim.Tests/CivSim.Tests.csproj --configuration Release --no-restore --logger 'console;verbosity=minimal'",
+  "result": {
+    "passed": 1706,
+    "failed": 0,
+    "skipped": 0,
+    "duration": "7m51s"
+  },
+  "candidateCleanAfterRun": true,
+  "overlappedWork": "WP-E5-12 replay-index verification"
+}
