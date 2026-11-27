@@ -26,3 +26,8 @@ This disposition is kept on a separate evidence branch so adding the acceptance 
 ## Applicability to the A8 harness-fix candidate
 
 The current closeout candidate is `a966ec377a9d650b2b90b4467827c777e115c603` (tree `aa860512e8f97f6e1c35ebe5548e32f5159e73ef`, source aggregate `e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048`). Its only source-file delta from the reviewed `8774` candidate is `src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs`, the A8 test-only fixture correction. AI strategy, simulation behavior, and catalog content are unchanged, and the numeric pack remains byte-identical. Therefore the A1 owner exception applies to `a966ec3`; it carries forward the measured current A1 leg on the runtime tuple and does not claim a new A1 measurement on different AI code.
+
+
+## Second Astra confirmation — 2026-11-27
+
+On a second fresh request, Astra rechecked the same clean `a966ec3` candidate and found no new, narrowly justified change likely to reach the 80% target. The current M10 bundle has A2–A5 and A7 passing; A1 remains 74% over 80 matches and below threshold. Earlier GOV-02 variants scored 58/80 against the 59/80 detailed baseline, and broader changes risk A3, which is only two percentage points above its floor. Astra therefore reconfirmed the official **PASS BY OWNER EXCEPTION** disposition. Preserve the measured failure and unchanged target; do not infer an exact current win count from the rounded 74% output.
