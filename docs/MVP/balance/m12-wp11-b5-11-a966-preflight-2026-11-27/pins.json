@@ -1,0 +1,40 @@
+{
+  "schema": "civsim.b5-11-current-candidate-preflight/v1",
+  "status": "ready_host_busy",
+  "candidateHead": "a966ec377a9d650b2b90b4467827c777e115c603",
+  "candidateTree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
+  "sourceAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+  "packPath": "/private/tmp/e5-closeout-acceptance-a966-finalcheck-20261127/numeric-e5.pack",
+  "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+  "harnessDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll",
+  "harnessSha256": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+  "simDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Sim.dll",
+  "simSha256": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d",
+  "runnerPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/tools/run_frozen_e5_cohort.py",
+  "runnerSha256": "a0c516eb1dcb3b91fbce56207682310e0155e5ee626293dbe6a4f1130132e2da",
+  "provenanceHelperPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/tools/cohort_provenance.py",
+  "provenanceHelperSha256": "496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a",
+  "protocol": {
+    "minutes": 130,
+    "warmupMinutes": 5,
+    "perCohortSeeds": 20,
+    "naturalMeanTickMsMax": 4,
+    "naturalGcPauseMsPerTickMax": 16,
+    "grantE5MeanTickMsMax": 4,
+    "grantE5GcPauseMsPerTickMax": 16
+  },
+  "cohorts": {
+    "natural": {
+      "path": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-wp11-fief-natural-seeds-2026-11-15.txt",
+      "sha256": "f787766662b46319f7f0807eacd27592aa8c2af4163f366d52ddec07a3e3a786",
+      "output": "/private/tmp/e5-closeout-b5-11-a966-natural-20261127-01",
+      "grantE5": false
+    },
+    "grantE5": {
+      "path": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-wp11-fief-grant-e5-seeds-2026-11-15.txt",
+      "sha256": "b5d541d0f820ff3fc3979d2ff5158c15b9bc24ac61fa7e11af4196eec1f006b6",
+      "output": "/private/tmp/e5-closeout-b5-11-a966-grant-e5-20261127-01",
+      "grantE5": true
+    }
+  }
+}
