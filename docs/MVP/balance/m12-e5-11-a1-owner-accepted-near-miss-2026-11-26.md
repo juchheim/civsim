@@ -20,7 +20,7 @@ The raw run records `A1: 74% over 80 matches FAIL`. Keep that output unchanged. 
 
 ## Astra's assessment
 
-The 21 losses mostly reflect early growth and expansion: 20 have a Dominion deficit and 19 have a Thriving deficit. One difficult loss reaches no captured settlements, so it does not point to siege or arms as the common cause. The annual trace shows the deficit already present by season 120, before key early governance research is completed. Raising the tested GOV-02 preference from the baseline 46 to 50 did not improve the result (59/80); lower preferences of 36 and 40 produced 58/80. A frontier-founding bonus adjustment also remained at 74%, while small conquest-floor and frontier-weight screens were unchanged.
+The 21 losses mostly reflect early growth and expansion: 20 have a Dominion deficit and 19 have a Thriving deficit. One difficult loss reaches no captured settlements, so it does not point to siege or arms as the common cause. The annual trace shows the deficit already present by season 120, before key early governance research is completed. The measured GOV-02 preferences of 36 and 40 both produced 58/80, while the baseline 46 produced 59/80. No independently verified bonus-50 result is relied on here. A frontier-founding bonus adjustment also remained at 74%, while small conquest-floor and frontier-weight screens were unchanged.
 
 A broader AI change that values early research by expected population, fission, and accumulated land income could be explored later, but the present evidence does not identify a reliable rule or parameter. That is not a sound basis for reopening and retuning the whole AI gate campaign during this closeout.
 
@@ -30,4 +30,17 @@ The fresh review confirmed 20 of 21 losses had a Dominion deficit and 19 had a T
 
 ## Scope
 
-This exception applies to the pinned E5 candidate above. It does not claim A1 met the nominal 80% threshold, and it does not waive other AI or technical gates. Later diagnostics on the pre-integration `0aa3af8` candidate passed B28 at 18/19 and B29 at 31/31, but those short diagnostics are not final current-source acceptance evidence; rerun the applicable gates on the merged freeze.
+The original exception applies to the pinned E5 candidate above; the current closeout candidate extension is recorded below. Neither disposition claims A1 met the nominal 80% threshold or waives other AI or technical gates. Later diagnostics on the pre-integration `0aa3af8` candidate passed B28 at 18/19 and B29 at 31/31, but those short diagnostics are not final current-source acceptance evidence; rerun the applicable gates on the merged freeze.
+
+## Current closeout candidate disposition — 2026-11-26
+
+**A1 is officially recorded as PASS BY OWNER EXCEPTION for closeout candidate `0f7bdd2a182568425f5b1c8531a1442513ca6008`.** The measured outcome remains 59/80 (73.75%) from candidate `c3aa4e0`, below the unchanged 64/80 (80%) nominal threshold. No fresh A1 cohort is claimed for `0f7bdd2`.
+
+The owner directed that, if Astra found no evidence-backed solution, the near-miss result should be officially accepted. Astra re-reviewed the current closeout source, prior A1 results, and the candidate's ResearchSpark changes and found no defensible scoped tuning change likely to add five wins without risking other gates. The existing measurement is therefore carried forward as an explicit exception on this candidate; the raw failure and nominal threshold remain intact.
+
+- Current closeout commit: `0f7bdd2a182568425f5b1c8531a1442513ca6008`
+- Current closeout tree: `893aefd5123fc663a2668a28ef022bcd1d1cf329`
+- Current source aggregate: `c2324286d5578983f6b11ff52d1b6c19bd80ae3933f22edd0eb64ea2a1418aa4`
+- Numeric pack SHA-256: `ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90`
+
+This exception closes A1 for this candidate only. Every other AI, balance, determinism, performance, and technical gate remains independent.
