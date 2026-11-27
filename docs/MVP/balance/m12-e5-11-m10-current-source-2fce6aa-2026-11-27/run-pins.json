@@ -1,0 +1,39 @@
+{
+  "schema": "civsim.e5.m10-current-source-run-pins.v1",
+  "candidate": {
+    "commit": "2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78",
+    "tree": "de5be3c634f2b806c87f0b9ea49cde8352f0f4d5",
+    "contentSrcGameAggregateSha256": "227902576ec15604a8399d395b170d55305ad0e50823e30fd49087d8f742342b"
+  },
+  "inputs": {
+    "packPath": "/private/tmp/e5-closeout-acceptance-2fce6aa/numeric-e5.pack",
+    "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "harnessPath": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll",
+    "harnessSha256": "650e2ac7775d8842b15c1383bd4f5e08174762a78e74afa1acdda71b68fa8cba",
+    "simPath": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Sim.dll",
+    "simSha256": "52d0cbdc39886119652f4231c383c97dc01623926df99e00876fd043eda37416"
+  },
+  "invocation": {
+    "command": "dotnet CivSim.Harness.dll ai --pack numeric-e5.pack --mode fief --check-m10 --seeds 40 --minutes 64",
+    "mode": "fief",
+    "check": "m10",
+    "seeds": 40,
+    "matches": 80,
+    "minutes": 64,
+    "firstSeed": 20261019,
+    "firstSeedSource": "Tournament.BaseSeed default",
+    "guardedRunMetadataWrapper": false
+  },
+  "result": {
+    "status": "completed",
+    "rawOutputPath": "raw-output.txt",
+    "rawOutputSha256": "44e09b507840c3aa62a39031262255c87da6122b36c52b113ddb636aa5c59630",
+    "completedUtcFromLogMtime": "2026-11-27T23:27:34.818006Z",
+    "processExitCode": null,
+    "processExitCodeCaptured": false,
+    "a1ReportedPercent": 76,
+    "a1Matches": 80,
+    "a1NominalTargetPercent": 80,
+    "a1OwnerApprovedE5MinimumPercent": 74
+  }
+}

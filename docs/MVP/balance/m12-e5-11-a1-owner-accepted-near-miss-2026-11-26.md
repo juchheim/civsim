@@ -88,7 +88,7 @@ The prior A1 cohort is not proven runtime-equivalent to `b075e17`: `ed9a146` reg
 
 The historical 74% over 80 matches is accepted at that owner-approved threshold for its measured candidate; its raw output is unchanged and it must not be relabeled as an 80% result. It was measured on the earlier a966ec3 runtime, and Astra found that GOV-11's conception-probability change means it is not proven runtime-equivalent to current 2fce6aa. It is not a current-source measurement.
 
-A separate current-source M10 run on the frozen 2fce6aa build has reported A1 at 76% over 80 matches, which clears the owner-approved 74% acceptance threshold; its full campaign and final provenance capture remain in progress. Preserve both raw outcomes and their distinct provenance. The original 80% target remains the nominal benchmark, while the owner-approved 74% criterion governs this E5 release decision. This closes A1 only and waives no other AI or technical gate.
+A separate current-source M10 run on the frozen 2fce6aa build completed and reports A1 at 76% over 80 matches, which clears the owner-approved 74% acceptance threshold. The raw log and candidate/pack/binary pins are recorded in the [current-source M10 report](m12-e5-11-m10-current-source-2fce6aa-2026-11-27.md). No serialized run metadata or process exit code was captured because the run did not use the guarded metadata wrapper. Preserve both raw outcomes and their distinct provenance. The original 80% target remains the nominal benchmark, while the owner-approved 74% criterion governs this E5 release decision. This closes A1 only and waives no other AI or technical gate.
 
 - Accepted candidate: 2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78
 - Candidate tree: de5be3c634f2b806c87f0b9ea49cde8352f0f4d5

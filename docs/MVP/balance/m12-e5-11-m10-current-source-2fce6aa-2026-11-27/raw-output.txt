@@ -1,0 +1,54 @@
+== M10 AI core: legacy A1-A5/A7 checks at the chapter horizon
+== A1: Warlord AI vs the Council bot (mirrored seeds), >= 80% on Legacy
+  A1: 76% over 80 matches FAIL
+== A2: Warlord AI vs each opening script, >= 70% over 40 seeds
+  A2 grower: 74% over 80 matches PASS
+  A2 builder: 82% over 80 matches PASS
+  A2 wanderer: 82% over 80 matches PASS
+== A3: Warlord AI vs Rusher: loses no settlement in >= 80% of matches, wins >= 70%
+  A3 survive: 100% of matches without a lost settlement PASS
+  A3 win: 79% PASS
+== A4: Chieftain vs Warlord, Chieftain wins 25-40%
+  A4: 36% over 80 matches PASS
+== A5: archetype balance in four-AI free-for-alls (120 seeds), no archetype wins > 30%
+  A5 Builder: 30.0% (144/480) PASS
+  A5 Grower: 25.6% (123/480) PASS
+  A5 Wanderer: 21.9% (105/480) PASS
+  A5 Warlord: 23.1% (111/480) PASS
+  A5 Sage: 24.4% (117/480) PASS
+  archetype   Legacy Dominion Mastery  Firsts Wonders  Settl  Projs  KEY-1  KEY-2  Raids  Capt  Lost
+  Builder       2859     1633     796     430       0   12.1  166.6    7.8   24.6    1.3  0.10  0.04
+  Grower        2735     1600     726     409       0   11.7  156.7    8.9   26.9    1.0  0.02  0.18
+  Wanderer      2738     1575     759     404       0   11.0  161.8    7.1   25.1    1.8  0.16  0.09
+  Warlord       2785     1603     769     412       0   11.6  163.1    7.0   24.9    2.3  0.20  0.07
+  Sage          2755     1590     761     404       0   11.1  161.6    9.0   25.4    1.1  0.04  0.14
+  raids: L=launched, R=resolved, P=in transit at match end, W=won; forecast averages all launches / win rate uses resolved raids
+  assaults: launched/resolved/in transit/held; then occupations broken/pending/captured; later outcomes are censored at match end
+  capture forecast averages all assault launches / capture rate uses resolved assaults
+  Builder   638/615/18/614   24 %/100 %  51/51/ 0/46   0/ 0/46  100 %/ 90 %  (480 seats)
+  Grower    461/447/11/447   17 %/100 %  10/10/ 0/ 9   0/ 0/ 9  100 %/ 90 %  (480 seats)
+  Wanderer  860/834/15/832   32 %/100 %  88/88/ 0/80   3/ 0/77  100 %/ 88 %  (480 seats)
+  Warlord   1121/1085/16/1083   35 %/100 %  107/106/ 1/99   1/ 0/98  100 %/ 92 %  (480 seats)
+  Sage      521/504/10/503   23 %/100 %  22/22/ 0/21   1/ 0/20  100 %/ 91 %  (480 seats)
+== A7: blunder detectors (Warlord vs Council)
+  A7 keystone stalls: 0 PASS
+  A7 dithering: 0 matches PASS
+  A7 avoidable starvation: 0 deaths; 0.000 per match (80; 160 AI seats) PASS
+  A7 undefended loss: 0 captures; 0.000 per match (80; 160 AI seats) PASS
+  A7 herd crash: 0 directly attributed; 0.000 per match (80; 160 AI seats) PASS
+  A7 idle labor: 0 seasons; 0.000 per match (80; 160 AI seats) PASS
+M10 AI CORE CHECK FAILED
+== B29: KEY-4 forecast fidelity (AI forecast sampled at own KEY-3; 40 seeds, capture 64 min, observe 100 min)
+  B29: 158/158 forecasts within 15%; median 3.0 %; sampled 158 AI seats; missing at capture 0; KEY-4 horizon-censored 0
+  B29 result PASS
+== B31: Legend vs Warlord, >= 45% over 40 seeds (22 §16; relaxed from 60%, Legend must not be worse than Warlord)
+  B31: 46% over 80 matches PASS
+  B27 tin-poor fallback: 141/154 = 92 %; dormant bronze 4/80 = 0.050 per match (160 Warlord seats) PASS
+  B28 defenses before first believed-bronze raid: 17/17 = 100 %; settlement raids 234, AI-vs-AI 234, believed-bronze 18; actual-bronze 23; Legend-vs-Warlord matches PASS
+  B30 mandate overflow with positive decree EV: 17/80 = 0.212 per match PASS
+  B30 measurable: suicide raids 0 PASS; unsupplied siege desertion blunders 0 PASS; naked caravans 11/80 = 0.138 per match PASS
+  Raid forecast calibration (actual launched raids): 235/257 resolved; predicted success 74 %; observed success 95 %; mean absolute error 0.28.
+  §13.5 unwalled frontier diagnostic: 0 unanswered bronze-warrior threats after four seasons (no acceptance threshold specified).
+  B30 mandate saturation proxy: 86/160 AI seat-matches had >8 seasons at cap; this omits positive-EV availability and is not a gate.
+M10 AI check INCOMPLETE: A6 exploit search (`ai --exploit`) and A8 fog fairness tests remain separate acceptance gates.
+M10 measurable gates FAIL; full B26-B30 result remains INCOMPLETE.
