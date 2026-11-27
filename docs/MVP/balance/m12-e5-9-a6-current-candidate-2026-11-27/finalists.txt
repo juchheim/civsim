@@ -1,0 +1,65 @@
+A6 finalist report	chapter=Fief	screen=10009	unique=10009	screen-minutes=1	validation-minutes=64	finalists=16	validated=16	screen-seeds=84000000-84000000	validation-seeds=84000001-84000003
+finalist	01	key=AGR,ART,DEF|-1|59|10|1	screenFitness=1.000000	policy=lineages=AGR>ART>DEF raid@-1 fortify@59 party=10 gifts=True	validation=16.67 %
+pair	AGR,ART,DEF|-1|59|10|1	seed=84000001	policy-first=4483.113	warlord-first=5556.692	policy-swapped=4442.638	warlord-swapped=5555.713	win-points=0.0
+pair	AGR,ART,DEF|-1|59|10|1	seed=84000002	policy-first=5028.975	warlord-first=6465.794	policy-swapped=5277.552	warlord-swapped=6287.258	win-points=0.0
+pair	AGR,ART,DEF|-1|59|10|1	seed=84000003	policy-first=3779.292	warlord-first=6916.430	policy-swapped=5867.498	warlord-swapped=5116.022	win-points=1.0
+finalist	02	key=AGR,ART,DIP,GOV|49|-1|12|0	screenFitness=1.000000	policy=lineages=AGR>ART>DIP>GOV raid@49 fortify@-1 party=12 gifts=False	validation=16.67 %
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=84000001	policy-first=4244.449	warlord-first=5796.936	policy-swapped=5160.530	warlord-swapped=5173.738	win-points=0.0
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=84000002	policy-first=5135.151	warlord-first=6182.524	policy-swapped=5315.205	warlord-swapped=5991.563	win-points=0.0
+pair	AGR,ART,DIP,GOV|49|-1|12|0	seed=84000003	policy-first=3180.353	warlord-first=6872.454	policy-swapped=5720.893	warlord-swapped=5112.551	win-points=1.0
+finalist	03	key=AGR,ART,DIP,INQ|86|9|8|1	screenFitness=1.000000	policy=lineages=AGR>ART>DIP>INQ raid@86 fortify@9 party=8 gifts=True	validation=0.00 %
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=84000001	policy-first=3907.993	warlord-first=5994.879	policy-swapped=4549.456	warlord-swapped=5398.074	win-points=0.0
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=84000002	policy-first=3613.303	warlord-first=7075.767	policy-swapped=5051.901	warlord-swapped=6398.124	win-points=0.0
+pair	AGR,ART,DIP,INQ|86|9|8|1	seed=84000003	policy-first=2630.664	warlord-first=7360.479	policy-swapped=5198.245	warlord-swapped=5412.106	win-points=0.0
+finalist	04	key=AGR,ART,FIB,MED|54|-1|4|1	screenFitness=1.000000	policy=lineages=AGR>ART>FIB>MED raid@54 fortify@-1 party=4 gifts=True	validation=16.67 %
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=84000001	policy-first=4049.154	warlord-first=6167.096	policy-swapped=5008.793	warlord-swapped=5577.516	win-points=0.0
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=84000002	policy-first=2899.076	warlord-first=7381.378	policy-swapped=5057.322	warlord-swapped=6202.350	win-points=0.0
+pair	AGR,ART,FIB,MED|54|-1|4|1	seed=84000003	policy-first=4853.601	warlord-first=6384.118	policy-swapped=5523.561	warlord-swapped=5022.720	win-points=1.0
+finalist	05	key=AGR,ART,FIR,FOD|-1|27|14|0	screenFitness=1.000000	policy=lineages=AGR>ART>FIR>FOD raid@-1 fortify@27 party=14 gifts=False	validation=16.67 %
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=84000001	policy-first=3952.062	warlord-first=5825.505	policy-swapped=4140.896	warlord-swapped=5821.353	win-points=0.0
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=84000002	policy-first=4007.974	warlord-first=6984.321	policy-swapped=5309.433	warlord-swapped=6058.256	win-points=0.0
+pair	AGR,ART,FIR,FOD|-1|27|14|0	seed=84000003	policy-first=4364.656	warlord-first=6401.468	policy-swapped=5725.231	warlord-swapped=5225.387	win-points=1.0
+finalist	06	key=AGR,ART,FIR,STN|-1|22|6|0	screenFitness=1.000000	policy=lineages=AGR>ART>FIR>STN raid@-1 fortify@22 party=6 gifts=False	validation=16.67 %
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=84000001	policy-first=4720.586	warlord-first=5180.021	policy-swapped=4013.116	warlord-swapped=6040.718	win-points=0.0
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=84000002	policy-first=3851.047	warlord-first=7010.374	policy-swapped=5444.798	warlord-swapped=5883.747	win-points=0.0
+pair	AGR,ART,FIR,STN|-1|22|6|0	seed=84000003	policy-first=4120.728	warlord-first=6823.312	policy-swapped=5829.207	warlord-swapped=5011.697	win-points=1.0
+finalist	07	key=AGR,ART,FOD|39|39|14|0	screenFitness=1.000000	policy=lineages=AGR>ART>FOD raid@39 fortify@39 party=14 gifts=False	validation=16.67 %
+pair	AGR,ART,FOD|39|39|14|0	seed=84000001	policy-first=4789.518	warlord-first=5609.679	policy-swapped=4407.909	warlord-swapped=5445.993	win-points=0.0
+pair	AGR,ART,FOD|39|39|14|0	seed=84000002	policy-first=5345.846	warlord-first=5914.497	policy-swapped=3577.111	warlord-swapped=6962.095	win-points=0.0
+pair	AGR,ART,FOD|39|39|14|0	seed=84000003	policy-first=3363.100	warlord-first=6853.215	policy-swapped=5628.638	warlord-swapped=5240.381	win-points=1.0
+finalist	08	key=AGR,ART,FOR,TER|21|-1|10|0	screenFitness=1.000000	policy=lineages=AGR>ART>FOR>TER raid@21 fortify@-1 party=10 gifts=False	validation=0.00 %
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=84000001	policy-first=4638.931	warlord-first=5383.960	policy-swapped=4973.918	warlord-swapped=5423.033	win-points=0.0
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=84000002	policy-first=3707.852	warlord-first=6853.851	policy-swapped=3531.586	warlord-swapped=7107.016	win-points=0.0
+pair	AGR,ART,FOR,TER|21|-1|10|0	seed=84000003	policy-first=3950.205	warlord-first=6776.924	policy-swapped=3986.843	warlord-swapped=6315.478	win-points=0.0
+finalist	09	key=ART,AGR,SOC,INQ|20|29|4|0	screenFitness=1.000000	policy=lineages=ART>AGR>SOC>INQ raid@20 fortify@29 party=4 gifts=False	validation=16.67 %
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=84000001	policy-first=4288.388	warlord-first=5584.664	policy-swapped=3972.231	warlord-swapped=5875.923	win-points=0.0
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=84000002	policy-first=2974.972	warlord-first=7483.981	policy-swapped=3827.073	warlord-swapped=6928.475	win-points=0.0
+pair	ART,AGR,SOC,INQ|20|29|4|0	seed=84000003	policy-first=4019.248	warlord-first=6559.590	policy-swapped=5556.424	warlord-swapped=5145.023	win-points=1.0
+finalist	10	key=ART,FOD,WAR,GOV|32|48|6|1	screenFitness=1.000000	policy=lineages=ART>FOD>WAR>GOV raid@32 fortify@48 party=6 gifts=True	validation=0.00 %
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=84000001	policy-first=4114.254	warlord-first=5833.866	policy-swapped=4283.009	warlord-swapped=5601.903	win-points=0.0
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=84000002	policy-first=3870.363	warlord-first=6863.558	policy-swapped=4660.202	warlord-swapped=6463.595	win-points=0.0
+pair	ART,FOD,WAR,GOV|32|48|6|1	seed=84000003	policy-first=3912.247	warlord-first=6652.138	policy-swapped=5098.512	warlord-swapped=5506.587	win-points=0.0
+finalist	11	key=BEL,BLD,FIB,COM|47|43|8|0	screenFitness=1.000000	policy=lineages=BEL>BLD>FIB>COM raid@47 fortify@43 party=8 gifts=False	validation=16.67 %
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=84000001	policy-first=4948.702	warlord-first=5140.494	policy-swapped=4303.954	warlord-swapped=5510.374	win-points=0.0
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=84000002	policy-first=4722.023	warlord-first=6425.920	policy-swapped=2995.596	warlord-swapped=7348.447	win-points=0.0
+pair	BEL,BLD,FIB,COM|47|43|8|0	seed=84000003	policy-first=3649.915	warlord-first=6895.751	policy-swapped=5420.421	warlord-swapped=5199.834	win-points=1.0
+finalist	12	key=BEL,HNT,BLD,TER|18|63|12|1	screenFitness=1.000000	policy=lineages=BEL>HNT>BLD>TER raid@18 fortify@63 party=12 gifts=True	validation=16.67 %
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=84000001	policy-first=4609.359	warlord-first=5626.333	policy-swapped=3841.092	warlord-swapped=6000.431	win-points=0.0
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=84000002	policy-first=3607.885	warlord-first=6984.037	policy-swapped=5432.504	warlord-swapped=5809.674	win-points=0.0
+pair	BEL,HNT,BLD,TER|18|63|12|1	seed=84000003	policy-first=2963.688	warlord-first=7164.485	policy-swapped=5487.890	warlord-swapped=5246.990	win-points=1.0
+finalist	13	key=BLD,FIB,TRN,WOD|24|6|14|1	screenFitness=1.000000	policy=lineages=BLD>FIB>TRN>WOD raid@24 fortify@6 party=14 gifts=True	validation=16.67 %
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=84000001	policy-first=3955.791	warlord-first=5827.930	policy-swapped=4875.320	warlord-swapped=5497.683	win-points=0.0
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=84000002	policy-first=3215.434	warlord-first=7336.763	policy-swapped=3993.418	warlord-swapped=6637.624	win-points=0.0
+pair	BLD,FIB,TRN,WOD|24|6|14|1	seed=84000003	policy-first=3370.186	warlord-first=6789.897	policy-swapped=5337.052	warlord-swapped=5264.071	win-points=1.0
+finalist	14	key=AGR,DEF,SOC,LRN|51|36|6|1	screenFitness=1.000000	policy=lineages=AGR>DEF>SOC>LRN raid@51 fortify@36 party=6 gifts=True	validation=16.67 %
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=84000001	policy-first=4402.912	warlord-first=5573.678	policy-swapped=4275.072	warlord-swapped=5677.143	win-points=0.0
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=84000002	policy-first=5516.337	warlord-first=6043.356	policy-swapped=4786.629	warlord-swapped=6432.521	win-points=0.0
+pair	AGR,DEF,SOC,LRN|51|36|6|1	seed=84000003	policy-first=3312.040	warlord-first=6981.725	policy-swapped=6040.873	warlord-swapped=4627.104	win-points=1.0
+finalist	15	key=AGR,FIR,STN,ART|70|26|8|0	screenFitness=1.000000	policy=lineages=AGR>FIR>STN>ART raid@70 fortify@26 party=8 gifts=False	validation=16.67 %
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=84000001	policy-first=4660.086	warlord-first=5146.288	policy-swapped=3982.221	warlord-swapped=5978.668	win-points=0.0
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=84000002	policy-first=2631.493	warlord-first=7473.579	policy-swapped=5145.172	warlord-swapped=5941.815	win-points=0.0
+pair	AGR,FIR,STN,ART|70|26|8|0	seed=84000003	policy-first=3631.307	warlord-first=6916.547	policy-swapped=5907.285	warlord-swapped=4908.497	win-points=1.0
+finalist	16	key=AGR,FOR,COM,WOD|59|4|4|0	screenFitness=1.000000	policy=lineages=AGR>FOR>COM>WOD raid@59 fortify@4 party=4 gifts=False	validation=16.67 %
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=84000001	policy-first=4174.029	warlord-first=5317.507	policy-swapped=3393.805	warlord-swapped=6226.092	win-points=0.0
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=84000002	policy-first=3972.020	warlord-first=6860.131	policy-swapped=4830.120	warlord-swapped=6015.612	win-points=0.0
+pair	AGR,FOR,COM,WOD|59|4|4|0	seed=84000003	policy-first=4720.881	warlord-first=6288.633	policy-swapped=5417.392	warlord-swapped=5355.733	win-points=1.0
