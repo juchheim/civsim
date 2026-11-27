@@ -1,8 +1,10 @@
 # WP-E5-12 whole-match held-out preflight — 2026-11-16
 
-**Current status — 2026-11-26:** The user explicitly enabled all 50 numeric rows before acceptance, so a second promotion step is not required. The 80-world natural holdout remains unused and must run once against a clean, final Release freeze. The runner now adds report-only observers for power, health, arms lifecycle, institutions, siege, WP-E5-7 denominators, territory, and sea routes so the same matches also support the compatible F-T measurements. Its focused fixtures pass 4/4.
+**Historical status — 2026-11-26:** The user explicitly enabled all 50 numeric rows before acceptance, so a second promotion step is not required. At that time the 80-world natural holdout was still unused. The runner adds report-only observers for power, health, arms lifecycle, institutions, siege, WP-E5-7 denominators, territory, and sea routes so one match cohort can also support compatible F-T measurements. Its focused fixtures passed 4/4.
 
-**Historical 2026-11-16 preflight:** preparation only; no production matches were run at that time. The seed manifest below remains fresh and unscreened.
+**Current status — 2026-11-27:** The 2026-11-16 35M seed block was subsequently consumed in an 80-match run on pre-correction candidate `0f7bdd2`; it is diagnostic and must not be reused for acceptance after the GOV-11 implementation change. The fresh, collision-audited acceptance manifest is [the 2026-11-27 r1 block](../m12-e5-12-natural-seeds-2026-11-27-r1/README.md). The candidate must still be frozen and the complete run has not yet started.
+
+**Historical 2026-11-16 preflight:** preparation only; no production matches had been run at that time. The 35M block below was later consumed by the diagnostic 80-match run and is no longer fresh for acceptance.
 
 ## Cohort
 

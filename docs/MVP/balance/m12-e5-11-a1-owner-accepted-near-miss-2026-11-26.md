@@ -69,3 +69,15 @@ The campaign exited 1 because A1 failed its measured threshold. Its other measur
 This owner exception closes **A1 only** for candidate `a966ec3`. Preserve the nominal failure, threshold, exit code, raw output, and all independent gate requirements.
 
 **Fresh Astra re-review — 2026-11-27:** Astra found no evidence-backed narrow intervention likely to recover the five wins needed to reach 64/80 without risking nearby A3/A4 gates. The current result is rounded 74%; the exact numerator and a current confidence interval are unavailable. Astra endorses PASS BY OWNER EXCEPTION while preserving the measured failure, unchanged 80% target, reused-seed limitation, and `source_unchanged=false` provenance above. No A1 code change is justified.
+
+## Final A1 disposition for corrected GOV-11 candidate `b075e17` — 2026-11-27
+
+**Official gate status: PASS BY OWNER EXCEPTION.** The owner explicitly directed that A1 be accepted if Astra found no defensible solution. Astra's fresh review of `b075e1747c86153b03096db9b46f391040183726`, the prior A1 experiments, raw match outcomes, and early-loss trace found no evidence-backed narrow intervention likely to close the gap without risking adjacent AI gates. The latest measured result remains rounded **74% over 80 matches: FAIL** against the unchanged **80%** nominal threshold. No exact numerator or current-source A1 measurement is claimed for `b075e17`.
+
+The prior A1 cohort is not proven runtime-equivalent to `b075e17`: `ed9a146` regrouped fixed-point multiplications in the conception calculation, which can alter raw fixed-point results even when GOV-11 is absent. This provenance caveat does not alter the owner's explicit exception, but it prevents presenting the old cohort as a measurement of this exact source. Keep the nominal failure, reused-seed limitation, and absence of a fresh `b075e17` A1 run visible. This exception closes A1 for this E5 candidate only and waives no other gate.
+
+- Accepted candidate: `b075e1747c86153b03096db9b46f391040183726`
+- Candidate tree: `f5aa856810c1f0ae67dac942f4407638274298c6`
+- Candidate source aggregate: `299b39031074567c110817f38fdb3180fa2d54c3f5662acdcf1240ecbf7207a6`
+- Measured cohort candidate: `a966ec377a9d650b2b90b4467827c777e115c603`; its pinned output reports rounded 74% over the reused `80000000–80000039` block.
+- Astra assessment: no defensible narrow A1 fix; retain the explicit owner exception and do not claim the measured result met 80%.

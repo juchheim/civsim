@@ -12,7 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parent))
 import run_wp_e5_12_whole_match as runner
 
-MANIFEST = Path(__file__).resolve().parents[1] / "m12-e5-12-natural-seeds-2026-11-16.txt"
+MANIFEST = Path(__file__).resolve().parents[1] / "m12-e5-12-natural-seeds-2026-11-27-r1.txt"
 EXPECTED_E5_OBSERVER_TRACE_FLAGS = (
     "--fief-power-ledger", "--fief-health-trace", "--fief-arms-lifecycle-trace",
     "--fief-institution-trace", "--fief-siege-trace", "--fief-siege-strategist-trace",

@@ -21,7 +21,7 @@ from typing import Any
 
 from cohort_provenance import capture, verify_expected
 
-MANIFEST_SHA256 = "c3ef15f4654a0fb1a0834a61dc6516dfc407493d2a5e7f1e4c8e22684e87b461"
+MANIFEST_SHA256 = "c69840b655fa6127ccf1565cabaecb774db7e4b0834913cc353152d814670af9"
 SEED_COUNT = 80
 MINUTES = 130
 SEAT_ARCHETYPES = ("Builder", "Grower", "Warlord", "Sage")
