@@ -1,6 +1,6 @@
 # B5-13 golden-diff audit — candidate 2fce6aa
 
-**Status: delta inventory complete; strict content validation passes; integration gate remains open** pending the full Release suite.
+**Status: delta inventory complete; strict content validation passes; integration gate remains open** pending a clean full Release suite.
 
 ## Validation progress — 2026-11-27
 
@@ -11,7 +11,7 @@ Strict content validation completed on the frozen candidate source with `dotnet 
 0 error(s), 0 warning(s)
 ```
 
-The full Release `dotnet test CivSim.slnx -c Release --nologo` run is still in progress. B5-13 remains open until that suite completes successfully; this validation does not replace the golden review above.
+The first full Release `dotnet test CivSim.slnx -c Release --nologo` attempt completed with 1,705 passed and one failure. `ViewStoreTests.Building_frames_allocates_nothing_once_warm_and_stays_well_under_a_millisecond` measured 3.292 ms against its <1 ms limit. The run overlapped the WP-E5-7/WP-E5-12 cohorts, M10, A6, and another local E6 test workload, so it is not a clean-host acceptance result. Rerun the full suite once the host is idle. B5-13 remains open; this validation does not replace the golden review above.
 
 Compared with base commit `053bf4c91e39916dda03a8bfd085ea94ea94ad19`, candidate `2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78` changes exactly three files under `tests/golden/`:
 
