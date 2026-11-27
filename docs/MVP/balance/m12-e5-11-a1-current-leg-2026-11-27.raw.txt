@@ -1,0 +1,3 @@
+== M10 AI core: legacy A1-A5/A7 checks at the chapter horizon
+== A1: Warlord AI vs the Council bot (mirrored seeds), >= 80% on Legacy
+  A1: 74% over 80 matches FAIL
