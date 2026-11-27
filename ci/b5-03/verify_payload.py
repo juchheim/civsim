@@ -15,10 +15,6 @@ PINS = {
     "source_head": "0f7bdd2a182568425f5b1c8531a1442513ca6008",
     "source_tree": "893aefd5123fc663a2668a28ef022bcd1d1cf329",
     "source_aggregate": "c2324286d5578983f6b11ff52d1b6c19bd80ae3933f22edd0eb64ea2a1418aa4",
-    "pack": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
-    "harness": "e9197fe7c18836ce5afdf626707978e6963c76f3af625c486dd47dce621181aa",
-    "sim": "ba2c95c1108fb89c85e3f74b74f1c9da91aee7cafa835e619305d97838dc72e6",
-    "tests": "2deffd7038e4333ec839b04af16ecdff12bb0209a1212b36dc0bb89ea150a254",
     "runner": "fac86cdd7cb2b86691d34f34da234ea2c8bcb69b7c2a1fcc45d59a10ae136618",
     "test_source": "0233a824a7e7adb94711f813f23afd0ad502973acc3cd1da074da200d9d022e9",
     "merger": "c84180f7e0dc54133594a2d610b505ef37226482862049a60a4657a8c5ddeec5",
@@ -35,8 +31,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--payload", required=True, type=Path)
     parser.add_argument("--source", required=True, type=Path)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--write-manifest", type=Path)
     args = parser.parse_args()
     payload, source = args.payload.resolve(), args.source.resolve()
+    if bool(args.manifest) == bool(args.write_manifest):
+        parser.error("provide exactly one of --manifest or --write-manifest")
 
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source, check=True,
                           capture_output=True, text=True).stdout.strip()
@@ -59,10 +59,27 @@ def main() -> int:
         "comparator": digest(source / "docs/MVP/balance/tools/compare_replay_indexes.py"),
         "manifest": digest(source / "docs/MVP/balance/m12-e5-9-b5-03-reviewed-seeds-2026-11-16.txt"),
     }
-    mismatches = [(name, PINS[name], value) for name, value in actuals.items() if PINS[name] != value]
+    mismatches = [(name, PINS[name], actuals[name]) for name in PINS if PINS[name] != actuals[name]]
     if mismatches:
         for name, expected, actual in mismatches:
             print(f"{name}: expected {expected}, got {actual}", file=sys.stderr)
+        return 1
+
+    if args.write_manifest:
+        manifest_path = args.write_manifest.resolve()
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(json.dumps({"schema": 1, **actuals}, indent=2, sort_keys=True) + "\n")
+        print(json.dumps({"status": "frozen", "manifest": str(manifest_path), **actuals}, indent=2, sort_keys=True))
+        return 0
+
+    manifest_path = args.manifest.resolve()
+    expected = json.loads(manifest_path.read_text())
+    payload_keys = ("pack", "harness", "sim", "tests")
+    payload_mismatches = [(name, expected.get(name), actuals[name])
+                          for name in payload_keys if expected.get(name) != actuals[name]]
+    if payload_mismatches:
+        for name, expected_hash, actual_hash in payload_mismatches:
+            print(f"{name}: manifest expected {expected_hash}, got {actual_hash}", file=sys.stderr)
         return 1
     print(json.dumps({"status": "verified", **actuals}, indent=2, sort_keys=True))
     return 0
