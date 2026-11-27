@@ -76,7 +76,7 @@ def load_manifest(path: Path, supplied_sha: str) -> dict:
     if any(type(s) is not int or s < 0 for s in seeds) or len(set(seeds)) != EXPECTED_SEEDS:
         raise GateError("manifest seeds must be 40 distinct nonnegative integers")
     if m.get("fixture") != {"seasons": SEASONS, "people": PEOPLE}:
-        raise GateError("manifest fixture must be exactly 64 seasons and 200 people")
+        raise GateError(f"manifest fixture must be exactly {SEASONS} seasons and {PEOPLE} people")
     if m.get("arms") != ARMS:
         raise GateError("manifest arms must match current FiefScenarios exactly")
     return m
