@@ -1,0 +1,79 @@
+{
+  "protocol": "WP-E5-5/F-T3",
+  "preregistration_id": "F-T3-current-source-40-80-season-2026-11-27-r1",
+  "preregistered_at_utc": "2026-11-27T14:53:52Z",
+  "sampling": {
+    "method": "First 40 unused values in a fixed random.Random(20261127) sample of 1,000 candidates from 37,000,000\u201337,999,999, then sorted; no outcome, geography, or progress screening.",
+    "rng": "Python random.Random",
+    "rng_seed": 20261127,
+    "candidate_frame": {
+      "inclusive_min": 37000000,
+      "inclusive_max": 37999999
+    },
+    "candidate_count": 1000,
+    "collision_policy": "Exact collisions were removed before selection; see seed-collision-audit.json."
+  },
+  "seeds": [
+    37032848,
+    37036129,
+    37112080,
+    37144273,
+    37162304,
+    37177184,
+    37247066,
+    37252914,
+    37264316,
+    37287501,
+    37288435,
+    37296768,
+    37403431,
+    37428873,
+    37480052,
+    37497358,
+    37498833,
+    37533980,
+    37536110,
+    37536414,
+    37541832,
+    37551641,
+    37552408,
+    37571831,
+    37604925,
+    37657084,
+    37677421,
+    37711049,
+    37730533,
+    37749786,
+    37770760,
+    37784253,
+    37807881,
+    37823939,
+    37824286,
+    37866278,
+    37922817,
+    37935033,
+    37956221,
+    37984159
+  ],
+  "fixture": {
+    "seasons": 80,
+    "people": 200
+  },
+  "arms": {
+    "treatment": "fief-low-wood-furnace",
+    "control": "fief-low-wood-no-furnace"
+  },
+  "gate": {
+    "mature_window_rule": "Every rolling 12-season window from first held kit output plus 12 seasons through season 80.",
+    "metal_work_share_max": 0.15,
+    "no_exposure": "Incomplete, never a pass."
+  },
+  "pins": {
+    "source_commit": "f0ba124ec1d22d7d4d61f43f8519a94d25107235",
+    "source_tree_sha256": "7d1135f42d47e6ecc8c387020b0cc847291d07cff137d131d40a08f810ae40e3",
+    "pack_sha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "release_harness_sha256": "d9fac40dc0322e147848ef4abb56d825ad9ce18b6715c8676f54956215696bf3",
+    "adjacent_sim_sha256": "5e695b5dcfedfded9af1c96c5d7252de15708650a3963e83e50c72fb2af3d95a",
+    "runner_sha256": "794fa3b7041d96bc1a71ff7f3dc3a9d11eebc714812daaf4397e3dfc60287adf"
+  }
+}
