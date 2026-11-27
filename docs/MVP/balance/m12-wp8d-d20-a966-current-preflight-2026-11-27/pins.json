@@ -1,0 +1,24 @@
+{
+  "candidateHead": "a966ec377a9d650b2b90b4467827c777e115c603",
+  "candidateTree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
+  "sourceAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+  "scopedFileCount": 1177,
+  "packPath": "/private/tmp/e5-closeout-acceptance-a966-finalcheck-20261127/numeric-e5.pack",
+  "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+  "harnessPath": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Harness.dll",
+  "harnessSha256": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+  "simPath": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Sim.dll",
+  "simSha256": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d",
+  "runnerPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/tools/run_fief_land_long_horizon.py",
+  "runnerSha256": "b16be3327a297bd468539f2bbffd5bf9bcfb2713ab9caf64c1155557fcc1d31c",
+  "seatsPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-wp8d-d20-final-code-seats-2026-11-14.tsv",
+  "seatsSha256": "c9a9b3c09e718a17fc72f04c2019bf8d93381bcaf56b18e0346c6843ae32c14b",
+  "outputPath": "/private/tmp/e5-closeout-d20-a966-20261127-01.txt",
+  "outputAbsentAtPreflight": true,
+  "protocol": {
+    "pairs": 36,
+    "armRuns": 72,
+    "minutes": 180,
+    "workers": 8
+  }
+}
