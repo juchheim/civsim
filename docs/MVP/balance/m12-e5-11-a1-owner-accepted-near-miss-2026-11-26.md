@@ -44,3 +44,7 @@ The owner directed that, if Astra found no evidence-backed solution, the near-mi
 - Numeric pack SHA-256: `ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90`
 
 This exception closes A1 for this candidate only. Every other AI, balance, determinism, performance, and technical gate remains independent.
+
+## Final source aggregate extension — 2026-11-27
+
+The same owner-exception pass applies to the closeout source aggregate `e67713fc326672e8543341d56c17b3cd214295a208cdb01a05952120645b4a5e` with numeric pack SHA-256 `ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90`. The only simulation-code changes since Astra reviewed `0f7bdd2` are Fief/Discovery research-cache snapshot preservation and checksum coverage in `2be9d593f92f2ad2aff784820a9ca9c51bee3f56`; research planning and uninterrupted gameplay are unchanged. This carries forward the measured 59/80 result by owner exception and does not claim a new A1 measurement on the final source.
