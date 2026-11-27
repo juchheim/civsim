@@ -1,0 +1,10 @@
+# WP-E5-9 A8 current-source whole-match seed manifest
+# Frozen 2026-11-27 before the current-source run.
+83001001
+83001002
+83001003
+83001004
+83001005
+83001006
+83001007
+83001008
