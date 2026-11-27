@@ -119,9 +119,9 @@ func sync(lane_list: Array, token_list: Array, wreck_list: Array, water_y: float
 	signature = sig
 	_clear()
 	sea_y = water_y
-	if not lane_list.is_empty():
+	if not lane_list.is_empty() or not wreck_list.is_empty():
 		b.kit.ensure_discovery()
-	if lane_list.is_empty():
+	if lane_list.is_empty() and wreck_list.is_empty():   # a wreck can float with no lane drawn (a lost voyage on a route that is not listed)
 		return
 	var line := {"V": PackedVector3Array(), "C": PackedColorArray(), "U": PackedVector2Array(), "U2": PackedVector2Array(), "I": PackedInt32Array()}
 	for l in lane_list:

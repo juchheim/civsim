@@ -9,6 +9,7 @@
 ##   mark_dormant       a grey plate with a pause bar: shuttered, no staff (an empty garden, a society with no scholars, an engine with no engineers)
 ##   mark_blocked       a red caution triangle with a bar and a dot: working cue but blocked (an engine out of coal, a factory out of power, a fort with no garrison)
 ##   mark_flooded       a blue water drop on a dark plate: the coal mine's deep seam has flooded and no engine pumps it
+##   mark_anchor        a pale anchor on a dark plate: a galleon lies on station at its home harbor, its crew out of the defense pool (docs/MVP/39 §7.1, A-17)
 ##   mark_strained      a yellow ring: a colony whose Cohesion is low from sea strain
 ##   colonist_group     the founding of a colony (docs/MVP/39 §7.3): three settlers a tenth tall with bundles, a spade and a crate on the beach, a pennant in the
 ##                      owner's colour planted in the ground; stands beside a beached caravel for the first seasons of a new colony
@@ -41,6 +42,7 @@ static func build(kit) -> void:
 	kit.meshes["mark_dormant"] = _dormant(kit)
 	kit.meshes["mark_blocked"] = _blocked(kit)
 	kit.meshes["mark_flooded"] = _flooded(kit)
+	kit.meshes["mark_anchor"] = _anchor(kit)
 	kit.meshes["mark_strained"] = _ring(kit, YELLOW, false, 2201)
 	kit.meshes["mark_blockaded"] = _ring(kit, RED, true, 2202)
 	kit.meshes["colonist_group"] = _colonists(kit)
@@ -131,6 +133,22 @@ static func _flooded(kit) -> ArrayMesh:
 	b.blob(Vector3(0, -0.005, 0.0046), Vector3(0.0125, 0.0125, 0.002), 7, 3, BLUE, 0.0, BLUE)
 	b.tri(Vector3(0, 0.02, 0.0046), Vector3(-0.0115, 0.0, 0.0046), Vector3(0.0115, 0.0, 0.0046), BLUE, Vector3(0, 0, -1.0))
 	b.blob(Vector3(-0.0045, -0.0025, 0.0062), Vector3(0.0036, 0.0045, 0.001), 4, 2, BLUE_LIGHT, 0.0)
+	return b.commit()
+
+static func _anchor(kit) -> ArrayMesh:
+	var b: M7MeshBuilder = kit._b(2213)
+	b.tag = PLAIN
+	_disc(b, Vector3.ZERO, SIZE, PLATE)
+	var z := 0.0046
+	# the ring at the head, the shank, the stock across it, and two curved arms with a fluke at each tip
+	_ring_plate(b, Vector3(0, 0.0185, z - 0.0004), 0.0032, 0.0052, WHITE)
+	b.box(Vector3(0, -0.0015, z), Vector3(0.0042, 0.0285, 0.002), WHITE)
+	b.box(Vector3(0, 0.0105, z), Vector3(0.0175, 0.0036, 0.002), WHITE)
+	for sx in [-1.0, 1.0]:
+		var base := Vector3(0, -0.0145, z)
+		var tip := Vector3(0.0135 * sx, -0.0055, z)
+		b.quad(base + Vector3(0, -0.002, 0), tip + Vector3(0, -0.002, 0), tip + Vector3(0, 0.0018, 0), base + Vector3(0, 0.002, 0), WHITE, Vector3(0, 0, -1.0))
+		b.tri(tip + Vector3(0.0, 0.0105, 0), tip + Vector3(0.0065 * sx, -0.0012, 0), tip + Vector3(-0.0035 * sx, -0.0012, 0), WHITE, Vector3(0, 0, -1.0))
 	return b.commit()
 
 static func _ring(kit, col: Color, ship: bool, seed: int) -> ArrayMesh:

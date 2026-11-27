@@ -425,6 +425,12 @@ public partial class Game
     /// </summary>
     private void ShowRivalAgeToast(int civ, int era)
     {
+        // KEY-7 (docs/MVP/39 §8.5, A-14): in a Discovery match a rival's Industrial Revolution is a notice in the rival's colour, once per rival, with no place and no clock
+        if (era >= 7 && _session?.Mode == ChapterMode.Discovery)
+        {
+            ShowRivalIndustryNotice(civ);
+            return;
+        }
         string key = $"rival-age-{era}";
         foreach (ToastView view in _toasts)
         {
@@ -438,6 +444,32 @@ public partial class Game
             return;
         }
         ShowAlert($"{UiText.CivName(civ)} entered the {UiText.AgeName(era)} age", ToastKind.Info, "", key: key);
+    }
+
+    /// <summary>Rivals whose Industrial Revolution was announced this session, so each is told once (A-14); cleared with the session.</summary>
+    private readonly HashSet<int> _rivalIndustryTold = new();
+
+    /// <summary>
+    /// A rival completed KEY-7 (docs/MVP/39 §8.5): "The {civ} has completed the Industrial Revolution." in the rival's colour with a gear-and-chimney mark. It is
+    /// told for every rival, met or not, names no place (no map cue unless the capital is already known, and none here) and starts no clock: there is no countdown
+    /// text or chip anywhere in Discovery.
+    /// </summary>
+    private void ShowRivalIndustryNotice(int civ)
+    {
+        if (!_rivalIndustryTold.Add(civ)) return;
+        string key = $"rival-age-7-{civ}";
+        // a Warning card, so it takes a slot from the oldest card when the stack is full (an Info card would be dropped); it is recoloured to the rival below
+        ShowAlert($"The {UiText.CivName(civ)} has completed the Industrial Revolution.", ToastKind.Warning, "", key: key, type: "rival-age");
+        foreach (ToastView view in _toasts)
+        {
+            if (!view.Active || view.Key != key) continue;
+            Color mark = UiTokens.Civ(civ);
+            view.Icon.Glyph = UiGlyph.Gear;
+            view.Icon.Tint = mark;
+            view.Bar.Color = mark;
+            view.Timer = 8f;
+            view.Sticky = false;
+        }
     }
 
     // ---- hidden alert types --------------------------------------------------------------------
@@ -1196,6 +1228,17 @@ public partial class Game
                 }
             case ViewEventKind.FreeFolkFounded:
                 AddChronicle(item, "Refugees founded a Free Folk camp.", ChronicleClass.People, true);
+                break;
+            case ViewEventKind.ColonyFounded:
+                // TER-11 (Discovery): a new settlement across the sea; the map shows a beached caravel and settlers on the shore for a few seconds
+                AddChronicle(item, "Settlers landed across the sea and founded a colony.", ChronicleClass.People, true);
+                ShowAlert("A colony is founded", ToastKind.Milestone, "Your settlers landed across the sea. Colonies are strained by distance and can break away.", item.Tile, key: $"colony-founded-{item.Settlement}");
+                if (item.Tile >= 0) NoteColonyFounded(item.Tile);
+                break;
+            case ViewEventKind.ColonyIndependent:
+                // TER-11 (Discovery): a colony across the sea left; the roll that decides it is yearly and only runs while its Cohesion is low
+                AddChronicle(item, "A colony across the sea broke away and now stands free.", ChronicleClass.Danger, true);
+                ShowAlert("A colony broke away", ToastKind.Warning, "Strained too long and far from home, a colony across the sea declared itself free.", key: "colony-independent");
                 break;
             case ViewEventKind.AllianceFormed:
                 AddChronicle(item, $"Alliance with the {OtherName(item)}.", ChronicleClass.Rivals, true);

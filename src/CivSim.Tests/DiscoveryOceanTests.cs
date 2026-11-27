@@ -133,4 +133,32 @@ public sealed class DiscoveryOceanTests
         Assert.Equal(risk, politics.VoyageRiskPermille(0, home, destination));
         Assert.Equal(seasons, politics.TravelSeasons(0, home, destination));
     }
+
+    [Fact]
+    public void A_lost_voyage_leaves_a_wreck_on_open_water_that_the_owners_frame_shows_for_a_season()
+    {
+        (MatchModel match, SimRunner runner, int home) = Start(ChapterRules.Discovery);
+        Grant(runner, match, 0, "KEY-5", "SEA-04", "KEY-6", "SEA-12");
+        PoliticsSystem politics = match.Politics;
+        int destination = LandTiles().Where(t => politics.DeepSeaTilesOnRoute(0, home, t) > 0).OrderBy(t => politics.SeaTilesOnRoute(0, home, t)).First();
+        int season = 0;
+        while (!politics.VoyageLost(0, home, destination, season)) Assert.True(++season < 5000, "a crossing is lost sooner or later");
+        PoliticsEvent lost = politics.Events.Last(e => e.Kind == PoliticsEventKind.VoyageLost);
+        Assert.True(lost.Tile >= 0, "the loss records where");
+        Assert.False(World.Value.TileAt(lost.Tile).IsLand, "a wreck lies on water");
+
+        var frame = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 0).Build(match, frame);
+        Assert.True(frame.Discovery.WreckCount >= 1);
+        Assert.Contains(Enumerable.Range(0, frame.Discovery.WreckCount), i => frame.Discovery.WreckTile[i] == lost.Tile && frame.Discovery.WreckAge[i] == 0);
+
+        var rival = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 1).Build(match, rival);
+        Assert.Equal(0, rival.Discovery.WreckCount); // another civilization's loss is not the viewer's to see
+
+        runner.Advance(CivSim.Sim.Research.ResearchSystem.SeasonTicks + 5);
+        var later = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 0).Build(match, later);
+        Assert.DoesNotContain(Enumerable.Range(0, later.Discovery.WreckCount), i => later.Discovery.WreckTile[i] == lost.Tile && later.Discovery.WreckAge[i] == 0);
+    }
 }

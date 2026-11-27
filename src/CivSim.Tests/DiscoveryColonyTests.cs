@@ -126,4 +126,86 @@ public sealed class DiscoveryColonyTests
         Assert.False(politics.HasColonyReach(1));
         Assert.False(politics.CutOffBySea(colony));
     }
+
+    [Fact]
+    public void A_colony_that_secedes_shows_as_independent_to_its_old_owner_and_is_told_in_the_Chronicle()
+    {
+        (MatchModel match, SimRunner runner, int colony) = Start(ChapterRules.Discovery);
+        Grant(runner, match, 0, "KEY-5", "SEA-04", "KEY-6", "TER-11");
+        Assert.True(match.Economy.FixtureIsColony(colony));
+        Assert.False(match.Economy.IsBreakawayColony(colony, 0), "a colony that still belongs is not independent");
+
+        var builder = new CivSim.Sim.View.FrameBuilder(match, 0);
+        var before = new CivSim.Sim.View.MatchFrame();
+        builder.Build(match, before);
+        Assert.Equal(0, before.Discovery.Independent);
+
+        match.Economy.FixtureSecede(colony);
+        runner.Advance(CivSim.Sim.Research.ResearchSystem.SeasonTicks + 5); // politics drains the secession at its next season step and makes it Free Folk
+        Assert.False(match.Economy.FixtureIsColony(colony), "a seceded settlement is no longer a colony");
+        Assert.True(match.Economy.IsBreakawayColony(colony, 0));
+        Assert.False(match.Economy.IsBreakawayColony(colony, 1), "only its old owner sees it as a breakaway colony");
+
+        var frame = new CivSim.Sim.View.MatchFrame();
+        builder.Build(match, frame);
+        int row = -1;
+        for (int w = 0; w < frame.SettlementCount; w++) if (frame.SettlementIndex[w] == colony) row = w;
+        Assert.True(row >= 0);
+        Assert.NotEqual(0, frame.SettlementFlags[row] & (ushort)CivSim.Sim.View.SettlementViewFlags.FreeFolk);
+        Assert.Equal(4, frame.Discovery.Colony[row]);
+        Assert.Equal(1, frame.Discovery.Independent);
+        Assert.Contains(frame.Events.Take(frame.EventCount), e => e.Kind == CivSim.Sim.View.ViewEventKind.ColonyIndependent && e.Settlement == colony);
+
+        var rival = new CivSim.Sim.View.MatchFrame();
+        new CivSim.Sim.View.FrameBuilder(match, 1).Build(match, rival);
+        Assert.Equal(0, rival.Discovery.Independent);
+    }
+
+    [Fact]
+    public void A_new_settlement_across_the_sea_is_told_as_a_colony_founding_once_and_a_neighbor_is_not()
+    {
+        (MatchModel match, SimRunner runner, int colony) = Start(ChapterRules.Discovery);
+        Grant(runner, match, 0, "KEY-5", "SEA-04", "KEY-6", "TER-11");
+        var builder = new CivSim.Sim.View.FrameBuilder(match, 0);
+        var frame = new CivSim.Sim.View.MatchFrame();
+        builder.Build(match, frame);
+        builder.Build(match, frame); // primed: from here a new settlement is news
+        int sea = match.Economy.SettlementLite(colony).SiteTile;
+        var people = new List<long>();
+        for (int i = 0; i < frame.FigureCount && people.Count < 6; i++)
+            if (frame.FigureCiv[i] == 0 && frame.FigureAge[i] == (byte)CivSim.Sim.View.AgeBand.Adult) people.Add(frame.FigureId[i]);
+        var land = World.Value;
+        var taken = Enumerable.Range(0, match.Economy.SettlementCount).Select(i => match.Economy.SettlementLite(i).SiteTile).ToHashSet();
+        int site = Enumerable.Range(0, land.TileCount).Where(t => land.TileAt(t).IsLand && !taken.Contains(t)
+                && land.TileAt(t).Biome is Biome.GrasslandSteppe or Biome.OpenWoodland or Biome.TemperateForest or Biome.Savanna
+                && HexGrid.Distance(t, sea, land.Width) is >= 1 and <= 4)
+            .OrderBy(t => HexGrid.Distance(t, sea, land.Width)).First();
+        int founded = match.Economy.FoundSettlement(0, site, people);
+        Assert.True(match.Economy.IsOverseasColony(founded), "the new village is across the water from the capital");
+        runner.Advance(5);
+        builder.Build(match, frame);
+        Assert.Single(frame.Events.Take(frame.EventCount), e => e.Kind == CivSim.Sim.View.ViewEventKind.ColonyFounded && e.Settlement == founded);
+        runner.Advance(5);
+        builder.Build(match, frame);
+        Assert.Single(frame.Events.Take(frame.EventCount), e => e.Kind == CivSim.Sim.View.ViewEventKind.ColonyFounded && e.Settlement == founded); // the log keeps it; nothing told it twice
+
+        var rival = new CivSim.Sim.View.MatchFrame();
+        var rivalBuilder = new CivSim.Sim.View.FrameBuilder(match, 1);
+        rivalBuilder.Build(match, rival);
+        Assert.DoesNotContain(rival.Events.Take(rival.EventCount), e => e.Kind == CivSim.Sim.View.ViewEventKind.ColonyFounded);
+    }
+
+    [Fact]
+    public void Independence_is_told_only_for_a_colony_not_for_an_ordinary_secession()
+    {
+        (MatchModel match, SimRunner runner, int colony) = Start(ChapterRules.Discovery);
+        Grant(runner, match, 0, "KEY-5", "SEA-04", "KEY-6"); // no TER-11: the town across the sea is no colony
+        var builder = new CivSim.Sim.View.FrameBuilder(match, 0);
+        match.Economy.FixtureSecede(colony);
+        runner.Advance(CivSim.Sim.Research.ResearchSystem.SeasonTicks + 5);
+        var frame = new CivSim.Sim.View.MatchFrame();
+        builder.Build(match, frame);
+        Assert.DoesNotContain(frame.Events.Take(frame.EventCount), e => e.Kind == CivSim.Sim.View.ViewEventKind.ColonyIndependent);
+        Assert.Equal(0, frame.Discovery.Independent);
+    }
 }

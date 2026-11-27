@@ -574,6 +574,7 @@ func _settlement_layout_digest(si: int, s: Dictionary, flagships: Dictionary, en
 			h = h * 31 + (1 if int(disc.get("coal_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if int(disc.get("factory_coverage_raw", 0)) > 0 else 0)
 			h = h * 31 + (1 if bool(disc.get("garden_staffed", false)) else 0) + (2 if w.disc_society_staffed else 0) + (4 if w.disc_exchange_staffed else 0)
+			h = h * 31 + int(disc.get("cargo", 0)) * 7 + int(disc.get("crop", 0)) * 13 + hash(disc.get("works", PackedByteArray()))
 		h = h * 31 + int(s.get("ironBuildKind", -1)) * 3 + mini(2, int(s.get("ironBuildPermille", 0)) * 3 / 1000)
 		h = h * 31 + int(s.get("faithForeign", 0)) / 150 + int(s.get("faithOur", 0)) / 150 * 7 + int(s.get("faithCiv", -1)) * 11
 		h = h * 31 + int(s.get("provinceSeat", -1)) * 13 + int(s.get("contract", 0)) * 17
@@ -2536,6 +2537,13 @@ func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_o
 				var gnp := c0 + dir * 1.5 + tangent * 0.34
 				props.add("galleon", Transform3D(Basis(Vector3.UP, atan2(tangent.x, tangent.y)) * Basis.from_scale(Vector3.ONE * 1.0), Vector3(gnp.x, -0.02, gnp.y)),
 					Color(cc.r, cc.g, cc.b, seed))
+				# a galleon that cannot sail wears the caution mark: no harbor or no crew of supplied soldiers (docs/MVP/39 §8.1)
+				var galleon_state := int(M7WorldData.disc_work(w.discovery_settlement(s).get("works", PackedByteArray()), 7).state)
+				if galleon_state == 4:
+					props.add("mark_blocked", _xf(gnp, 0.58, 0.0, 2.2), Color(1.0, 1.0, 1.0, 0.5))
+				elif galleon_state == 1:
+					# a crewed galleon lies on station at its home harbor: its crew is out of the defense pool (docs/MVP/39 §7.1, A-17)
+					props.add("mark_anchor", _xf(gnp, 0.58, 0.0, 2.2), Color(1.0, 1.0, 1.0, 0.5))
 			if w.discovery_active:
 				var disc_h := w.discovery_settlement(s)
 				# HNT-12 (docs/MVP/39 §5, §7.1): a town that sends a fleet to sea has a lugger at its quay and a bank out on the water where the fleet fishes; WAY-10: a navigator
@@ -2553,6 +2561,17 @@ func _harbor(s: Dictionary, t: int, c0: Vector2, seed: float, cc: Color, front_o
 					kit.ensure_discovery()
 					var np := c0 + dir * 0.7 + tangent * 0.13
 					props.add("person_navigator", Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y)), Vector3(np.x, 0.02, np.y)), Color(float(int(s.civ)) + 0.5 * 0.98, 0.0, 0.0, 0.0))
+				# the goods the town really holds that sail: crates on the quay beside the navigator (docs/MVP/39 §7.4), only for a stock above zero
+				if w.discovery_active:
+					var quay_cargo := int(w.discovery_settlement(s).get("cargo", 0))
+					var qk := 0
+					for qc in [[M7WorldData.CARGO_INSTRUMENTS, "cargo_instruments"], [M7WorldData.CARGO_SUGAR, "cargo_sugar"], [M7WorldData.CARGO_COD, "cargo_cod"]]:
+						if (quay_cargo & int(qc[0])) == 0:
+							continue
+						kit.ensure_discovery()
+						var qp := c0 + dir * 0.82 + tangent * (-0.2 + 0.14 * qk)
+						props.add(String(qc[1]), Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.y) + 0.4 * qk).scaled(Vector3.ONE * 1.5), Vector3(qp.x, 0.02, qp.y)), Color(cc.r, cc.g, cc.b, seed))
+						qk += 1
 			var enemy := w.blockaders_of(int(s.get("index", -1)))
 			for k in enemy.size():
 				var civ_b := int(enemy[k])
@@ -2649,6 +2668,7 @@ const MINE_WORKED := 1      # the deposit has produced ore
 const MINE_REACH := 2       # within a settlement's mining reach (terrain overlay only)
 const MINE_DEEP := 4        # a known deposit of depth >= 2 (needs a shaft)
 const MINE_EXHAUSTED := 8   # no ore left; only ever set together with MINE_WORKED
+const MINE_FLOODED := 16    # a worked deep coal seam no engine pumps (Discovery): rides the overlay bytes so the pit is redrawn when it floods or is drained
 
 ## The mesh a deposit of `kind` shows for its byte-1 bits `g` (art_deposits.gd / art_mines.gd), `camp_head` when the mining camp on the
 ## tile has built its mine head. Untouched: the marker. Worked: copper ore, arsenical copper and iron show the adit, or the headframe
@@ -2671,6 +2691,8 @@ static func mine_mesh_name(kind: int, g: int, camp_head: bool) -> String:
 
 const M7_MINED_KINDS := [6, 7, 8, 9, 10, 11, 12]
 const COAL_KIND := 13       # DepositKind.Coal (a Discovery pit, see _deposits)
+const CANE_KIND := 21       # DepositKind.Sugarcane (a Discovery cane field when the realm holds FOD-10)
+var _cane_tiles: Array = []   # the cane tiles drawn as fields by the last `_deposits` pass, so the digest can see an owner change
 
 ## A known deposit shows its marker; once it has produced ore its working replaces the marker on the same spot and turn (or, on a tile
 ## with a mining camp, on the far side of the tile from the camp), see `mine_mesh_name`. A working's pennant takes the colour of the
@@ -2681,6 +2703,7 @@ func _deposits() -> void:
 	if bytes.size() != tiles * 4:
 		return
 	disc_mines.clear()
+	_cane_tiles.clear()
 	var camps := _mining_camps_by_tile()
 	var gallery := _mine_gallery(bytes) if MINE_GALLERY else {}
 	for t in tiles:
@@ -2718,15 +2741,40 @@ func _deposits() -> void:
 			kit.ensure_discovery()
 			var pit_civ: int = int(camps[t][0]) if camps.has(t) else (w.owner[t] if t < w.owner.size() else -1)
 			var pit_cc := M7MeshBuilder.lin(M7WorldData.civ_color(pit_civ) if pit_civ >= 0 else Color("#9c8466"), 0.5)
-			props.add("coal_mine_idle" if spent else "coal_mine_body", _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
-			if not spent:
+			# a deep seam with no pumping engine is flooded (docs/MVP/39 §4.1, doc 38 §5.1): the locked wheel, a dark pool and a blue drop plate; a pumped one works as any
+			var flooded := not spent and (g & MINE_FLOODED) != 0
+			props.add("coal_mine_idle" if spent else ("coal_mine_flooded" if flooded else "coal_mine_body"), _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
+			if flooded:
+				props.add("mark_flooded", _xf(pit_p, w.height_at(pit_p) + 0.41 * pit_scale + 0.1, 0.0, 2.2), Color(1.0, 1.0, 1.0, 0.5))
+			if not spent and not flooded:
 				# the pit's crew (docs/MVP/39 §6): two sooty miners at the shaft head while it is worked
 				for mk in 2:
 					var mp := pit_p + Vector2(0.17 + 0.06 * mk, 0.1 - 0.13 * mk) * (pit_scale / 1.35)
 					props.add("person_miner", _xf(mp, w.height_at(mp), yaw + 1.7 * mk, 1.0), Color(float(maxi(pit_civ, 0)) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 			disc_mines.append({"kind": "coal_mine", "pos": Vector3(pit_p.x, w.height_at(pit_p), pit_p.y), "yaw": yaw, "scale": pit_scale,
-				"state": "idle" if spent else "work", "seed": "coal%d" % t, "tile": t})
+				"state": "idle" if spent else ("flooded" if flooded else "work"), "seed": "coal%d" % t, "tile": t})
 			continue
+		# FOD-10 (docs/MVP/39 §5): a cane tile inside a realm that holds sugar refining is a cane field, cut at harvest in autumn. The sim carries no cane stock, so the field
+		# stands for what the realm can work: its own tile, its own knowledge. It replaces the marker.
+		if w.discovery_active and kind == CANE_KIND and not gallery.has(t):
+			var cane_owner := int(w.owner[t]) if t < w.owner.size() else -1
+			if cane_owner >= 0 and w.has_iron_look(cane_owner, M7WorldData.IRON_CANE):
+				kit.ensure_discovery()
+				_cane_tiles.append(t)
+				var cane_p := w.tile_center(t)
+				props.add("field_cane_cut" if w.season == 2 else "field_cane", _xf(cane_p, w.height_at(cane_p), yaw, 1.7), Color(1.0, 1.0, 1.0, seed))
+				continue
+		# MIN-09 queued (docs/MVP/39 §8.1): a camp the town opened on a coal seam it has not dug yet shows the headframe going up
+		if w.discovery_active and kind == COAL_KIND and (g & MINE_WORKED) == 0 and camps.has(t) and not gallery.has(t):
+			var site_p := w.tile_center(t) + Vector2(cos(MINE_AWAY_FROM_CAMP), sin(MINE_AWAY_FROM_CAMP)) * 0.2
+			var site_placement := _deposit_visual_placement(t, site_p)
+			if not site_placement.is_empty():
+				kit.ensure_discovery()
+				var site_at: Vector2 = site_placement[0]
+				var site_civ := int(camps[t][0])
+				var site_cc := M7MeshBuilder.lin(M7WorldData.civ_color(site_civ) if site_civ >= 0 else Color("#9c8466"), 0.5)
+				props.add("coal_mine_site", _xf(site_at, w.height_at(site_at), yaw, 1.35 * float(site_placement[1])), Color(site_cc.r, site_cc.g, site_cc.b, seed))
+				continue
 		var mesh := mine_mesh_name(kind, g, camp_head)
 		if not kit.meshes.has(mesh + tall):
 			mesh = "deposit%d" % kind
@@ -2816,6 +2864,10 @@ func _deposit_digest() -> int:
 	if w.discovery_active:
 		for sd in w.settlements:
 			h = h * 31 + (1 if bool(w.discovery_settlement(sd).get("canal", false)) else 0)
+		# cane fields follow the realm's sugar knowledge, the tile's owner and the season (cut in autumn)
+		h = h * 31 + w.season * 7 + hash(w.iron_looks)
+		for ct in _cane_tiles:
+			h = h * 31 + int(w.owner[int(ct)]) + 2
 	for cd in w.camp_details:
 		if int(cd[2]) == 1:
 			h = int((h * 31 + int(cd[0]) * 17 + int(cd[1]) * 3 + int(cd[7])) & 0x7fffffff)

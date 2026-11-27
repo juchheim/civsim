@@ -52,6 +52,9 @@ public sealed partial class LivingEconomyModel
         return roll.NextBelow(1000) < (uint)odds;
     }
 
+    /// <summary>Whether a settlement is an overseas colony of its civilization right now (a founding Moment and the colony states read this).</summary>
+    public bool IsOverseasColony(int settlementIndex) => (uint)settlementIndex < (uint)_settlements.Count && IsColony(_settlements[settlementIndex]);
+
     /// <summary>How many settlements are overseas colonies of their civilization (TER-11; a harness readout).</summary>
     public int ColonyCount()
     {
@@ -61,6 +64,9 @@ public sealed partial class LivingEconomyModel
     }
 
     internal bool FixtureIsColony(int settlement) => IsColony(_settlements[settlement]);
+
+    /// <summary>Tests only: the settlement secedes now, as a year-end roll would have made it.</summary>
+    internal void FixtureSecede(int settlement) { SettlementState s = _settlements[settlement]; Secede(s, EnsureCivic(s)); }
 
     internal bool FixtureColonyBreaksAway(int settlement, int cohesion, int season) => ColonyBreaksAway(_settlements[settlement], cohesion, season);
 }

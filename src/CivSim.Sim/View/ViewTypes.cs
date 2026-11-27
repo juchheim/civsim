@@ -324,6 +324,10 @@ public enum ViewEventKind : ushort
     SettlementRevived = 76,
     /// <summary>A Fief settlement suffered a crime or dispute. Settlement = it.</summary>
     FiefLawIncident = 77,
+    /// <summary>An overseas colony left its civilization (TER-11, Discovery only). Settlement = it; A = its people.</summary>
+    ColonyIndependent = 78,
+    /// <summary>The viewer's new settlement across the sea from its capital (TER-11, Discovery only). Settlement = it; Tile = its site.</summary>
+    ColonyFounded = 79,
 }
 
 /// <summary>
@@ -355,7 +359,7 @@ public enum ChronicleKey : ushort
     VillageJoined = 108, EmbargoOnUs = 109, DecreePact = 110,
 
     BlockadeBegan = 111, BlockadeEnded = 112, TributeAgreed = 113, TributeEnded = 114, LeagueJoined = 115, LeagueEnded = 116,
-    SettlementAbandoned = 117, SettlementRevived = 118, FiefLawIncident = 119,
+    SettlementAbandoned = 117, SettlementRevived = 118, FiefLawIncident = 119, ColonyIndependent = 120, ColonyFounded = 121,
 }
 
 /// <summary>Stable dotted names for <see cref="ChronicleKey"/> values: the keys of the front end's localisation table.</summary>
@@ -456,6 +460,8 @@ public static class ViewText
         ChronicleKey.SettlementAbandoned => "alert.settlement.abandoned",
         ChronicleKey.SettlementRevived => "chronicle.settlement.revived",
         ChronicleKey.FiefLawIncident => "chronicle.law.crime_or_dispute",
+        ChronicleKey.ColonyIndependent => "chronicle.colony.independent",
+        ChronicleKey.ColonyFounded => "chronicle.colony.founded",
         _ => "",
     };
 }

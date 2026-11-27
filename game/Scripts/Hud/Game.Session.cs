@@ -115,6 +115,7 @@ public partial class Game
                 _pendingTick[command.A] = _current.Tick;
             }
         _hiddenAlertTypes.Clear();
+        _rivalIndustryTold.Clear();
         foreach (ToastView toast in _toasts) DismissToast(toast);
         _endScreenShown = false;
         _endScreenDismissed = false;

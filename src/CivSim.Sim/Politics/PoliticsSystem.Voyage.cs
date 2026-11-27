@@ -180,6 +180,35 @@ public sealed partial class PoliticsSystem
         return sea;
     }
 
+    /// <summary>
+    /// The tile where a lost voyage ends: the middle of the open water the route crosses (walked from the far end like <see cref="SeaRoute"/>), or -1 with no sea.
+    /// Only the view reads it, to drop a wreck marker; it never feeds back into the simulation.
+    /// </summary>
+    private int WreckTile(int civ, int fromTile, int toTile)
+    {
+        int sea = SeaRoute(civ, fromTile, toTile, out _);
+        if (sea <= 0) return -1;
+        int[] cost = SailFrom(civ, fromTile);
+        Span<int> neighbors = stackalloc int[6];
+        int at = toTile, seen = 0, middle = sea / 2, found = -1;
+        for (int guard = 0; guard < 4096; guard++)
+        {
+            if (!_tileArray[at].IsLand && !_passable[at])
+            {
+                if (seen == middle) found = at;
+                seen++;
+            }
+            if (at == fromTile) break;
+            int count = HexGrid.Neighbors(at, _width, _height, neighbors);
+            int next = -1, best = cost[at];
+            for (int k = 0; k < count; k++)
+                if (cost[neighbors[k]] < best) { best = cost[neighbors[k]]; next = neighbors[k]; }
+            if (next < 0) break;
+            at = next;
+        }
+        return found;
+    }
+
     /// <summary>Shipwreck risk of a trip in permille: 0 on foot, else base plus a step per open-sea tile.</summary>
     public int VoyageRiskPermille(int civ, int fromTile, int toTile)
     {
@@ -245,7 +274,7 @@ public sealed partial class PoliticsSystem
                 returned: turnedBack ? e.Cargo : Fix64.Zero);
         }
         if (!turnedBack) return false;
-        _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind));
+        _events.Add(new PoliticsEvent(_tick, (byte)e.Civ, PoliticsEventKind.VoyageLost, e.TargetCiv, sea, (int)e.Kind, WreckTile(e.Civ, from, to)));
         if (e.Kind is ExpeditionKind.Gift or ExpeditionKind.Barter) _economy.GiveGoods(e.FromSettlement, e.Value);
         else if (e.Kind == ExpeditionKind.Caravan) Unload(e.FromSettlement, e.Good, e.Cargo);
         return true;
@@ -314,7 +343,7 @@ public sealed partial class PoliticsSystem
         int risk = VoyageRiskForSeaTiles(civ, sea, deep);
         ulong entity = (ulong)(fromTile * 8191L + toTile) * 31UL + 4UL;
         if (!RollVoyageLost(risk, entity, season, civ)) return false;
-        _events.Add(new PoliticsEvent(_economy.Tick, (byte)civ, PoliticsEventKind.VoyageLost, -1, sea, 4));
+        _events.Add(new PoliticsEvent(_economy.Tick, (byte)civ, PoliticsEventKind.VoyageLost, -1, sea, 4, WreckTile(civ, fromTile, toTile)));
         return true;
     }
 

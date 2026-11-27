@@ -416,6 +416,46 @@ public partial class Game
                 Step(() => { _yawTarget = Mathf.DegToRad(150.0f); ZoomTo(4.2f); }, 1.4f);
                 Shot("disc-town-c");
                 break;
+            case "disc-states":
+                // the Discovery work states (use the disc-town flags plus --dev-disc-states): dormant and blocked marks, a flooded pit, a wreck, the independent colony flag
+                Step(() => { FrameCapital(); ZoomTo(5.0f); }, 2.5f);
+                Shot("disc-states-a");
+                Step(() => FocusTileNow(DevPitTile, 2.6f), 2.0f);
+                Shot("disc-states-pit");
+                Step(() => FocusTileNow(DevWreckTile, 2.6f), 2.0f);
+                Shot("disc-states-wreck");
+                break;
+            case "disc-more":
+                // cargo crates, an imported crop, a build site, a cane field, the founding Moment and the anchor (the disc-town flags plus --dev-disc-more and --dev-disc-site=factory)
+                Step(() => { FrameCapital(); ZoomTo(7.0f); }, 2.5f);
+                Shot("disc-more-a");
+                Step(() => ZoomTo(4.2f), 1.5f);
+                Shot("disc-more-b");
+                Step(() => { _yawTarget = Mathf.DegToRad(150.0f); ZoomTo(4.2f); }, 1.4f);
+                Shot("disc-more-c");
+                Step(() => { _yawTarget = Mathf.DegToRad(-90.0f); ZoomTo(4.2f); }, 1.4f);
+                Shot("disc-more-d");
+                Step(() => { _yawTarget = Mathf.DegToRad(-90.0f); ZoomTo(6.0f); }, 1.4f);
+                Shot("disc-more-e");
+                Step(() => { _yawTarget = 0f; }, 0.2f);
+                Step(() => FocusTileNow(DevCaneTile, 2.6f), 2.0f);
+                Shot("disc-more-cane");
+                Step(() => FocusTileNow(DevFoundingTile, 2.6f), 2.0f);
+                Shot("disc-more-founding");
+                break;
+            case "rival-key7":
+                // a rival's Industrial Revolution (docs/MVP/39 §8.5, A-14): the notice in the rival's colour, once each, for two rivals, with no place and no clock
+                Step(() => { ShowRivalAgeToast(1, 7); ShowRivalAgeToast(2, 7); ShowRivalAgeToast(1, 7); }, 1.2f);
+                Shot("rival-key7");
+                break;
+            case "disc-crop":
+                // the imported crop on a town's plots: let the town farm for a while first (use the disc-more flags, without --paused)
+                Step(() => { _session!.SetPaused(false); _session.SetSpeedIndex(3); }, 70.0f);
+                Step(() => { _session!.SetPaused(true); FrameCapital(); ZoomTo(4.2f); }, 2.0f);
+                Shot("disc-crop-a");
+                Step(() => { _yawTarget = Mathf.DegToRad(150.0f); ZoomTo(4.2f); }, 1.4f);
+                Shot("disc-crop-b");
+                break;
             case "tools":
                 Step(() => { FrameCapital(); ZoomTo(2.0f); }, 2.0f);
                 Step(() => _session!.SetPaused(true), 0.3f);
@@ -1719,6 +1759,14 @@ public partial class Game
     }
 
     private static void InjectRightDrag(Vector2 from, Vector2 to) => InjectDrag(from, to, MouseButton.Right);
+
+    /// <summary>Capture aid: put the camera on a tile at once, at a zoom (the animated FocusTile is cancelled by the scenario's own zoom steps).</summary>
+    private void FocusTileNow(int tile, float zoom)
+    {
+        if (_current is null || tile < 0 || tile >= _current.Width * _current.Height) return;
+        Vector3 center = TileCenter(tile % _current.Width, tile / _current.Width);
+        MoveCameraTo(new Vector3(center.X, _terrainHeights[tile], center.Z), zoom, instant: true);
+    }
 
     private void CenterOnDepositCluster()
     {

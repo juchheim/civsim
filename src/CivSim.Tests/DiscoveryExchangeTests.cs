@@ -85,6 +85,28 @@ public sealed class DiscoveryExchangeTests
     }
 
     [Fact]
+    public void The_imported_crop_drawn_is_the_one_the_biome_pays_for_and_none_outside_the_exchange()
+    {
+        (MatchModel match, SimRunner runner) = Rig(ChapterRules.Discovery);
+        int home = Home(match, 0);
+        int grass = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome == Biome.GrasslandSteppe);
+        Grant(runner, match, 0, "KEY-5", "KEY-6", "SEA-04", "SEA-12", "FOR-10");
+        match.Economy.FixtureMoveSite(home, grass);
+        Assert.Equal(0, match.Economy.ExchangeCropAt(home)); // knowledge alone, no contact across the sea
+        match.Politics.ForceContact(0, 2);
+        runner.Advance(LivingEconomyModel.SeasonTicks);
+        match.Economy.FixtureMoveSite(home, grass);
+        Assert.Equal(1, match.Economy.ExchangeCropAt(home));
+        int upland = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome is Biome.Taiga or Biome.Tundra or Biome.Mountain);
+        match.Economy.FixtureMoveSite(home, upland);
+        Assert.Equal(2, match.Economy.ExchangeCropAt(home));
+        int desert = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome is Biome.Desert or Biome.Wetland or Biome.Ice or Biome.Peak or Biome.Ocean);
+        match.Economy.FixtureMoveSite(home, desert);
+        Assert.Equal(0, match.Economy.ExchangeCropAt(home));
+        Assert.True(match.Economy.ExchangeCropAt(Home(match, 1)) == 0, "a civilization outside the exchange grows no imported crop");
+    }
+
+    [Fact]
     public void The_exchange_does_nothing_in_Fief()
     {
         (MatchModel match, SimRunner runner) = Rig(ChapterRules.Fief);

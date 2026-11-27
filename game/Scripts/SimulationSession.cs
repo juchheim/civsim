@@ -226,6 +226,8 @@ public sealed class SimulationSession : IDisposable
     public int CountdownYears => Math.Max(1, _match.Rules.CountdownSeasons(_match.Research.Catalog) / 4);
     /// <summary>True when the match plays the opt-in Iron chapter, which ends on KEY-5 rather than KEY-4.</summary>
     public bool IsIron => _match.Rules.IsIron;
+    /// <summary>False in Faith &amp; Fief and Discovery: a rival's final keystone starts no clock there, so no countdown text or chip may be shown.</summary>
+    public bool HasRivalCountdown => _match.Rules.HasRivalCountdown;
     /// <summary>
     /// Seasons left in the Iron Age countdown once a rival has completed KEY-4 (6 years = 24 seasons at the start), or -1 while no
     /// countdown runs. Published by the simulation thread with every frame; the human completing KEY-4 ends the match sooner.

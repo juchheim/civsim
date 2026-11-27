@@ -118,6 +118,9 @@ var viewer_civ := -1                    # the civilization whose view this is (-
 var discovery_active := false           # whether this frame carries the Discovery-only settlement readout (a Discovery match is also a Fief one)
 var disc_lanes := PackedInt32Array()        # Discovery ocean lanes, four ints each: from tile, to tile, civilization, volume permille (docs/MVP/39 §7.2)
 var disc_capital_tile := -1               # the viewer's capital tile: where a colony's tether leads (docs/MVP/39 §7.3)
+var disc_pits := {}                          # worked deep coal pits: tile -> 1 flooded, 2 pumped (docs/MVP/39 §4.1)
+var disc_foundings := PackedInt32Array()    # tiles of colonies founded in the last few seconds: a beached caravel and settlers stand there (docs/MVP/39 §7.3)
+var disc_wrecks := PackedInt32Array()       # voyages the viewer lost in the last season, two ints each: tile, age in ticks (docs/MVP/39 §7.1)
 var disc_society_staffed := false          # the viewer's learned society has a scholar at work / its exchange house is staffed (docs/MVP/39 §8.1)
 var disc_exchange_staffed := false
 var disc_chronometer := false             # the viewer's realm holds a chronometer / a telescope / has resident embassies (bit c = civilization c)
@@ -169,6 +172,18 @@ func fief_settlement(s: Dictionary) -> Dictionary:
 		"arsenal_stocked": bool(s.get("fiefArsenalStocked", false)),
 	}
 
+## Bits of a town's `cargo` mask (DiscoveryFrame.Cargo*): which E6 goods it really holds, each drawn as a crate.
+const CARGO_COAL := 1
+const CARGO_COKE := 2
+const CARGO_GLASS := 4
+const CARGO_PARTS := 8
+const CARGO_ACID := 16
+const CARGO_ALKALI := 32
+const CARGO_PAMPHLETS := 64
+const CARGO_INSTRUMENTS := 128
+const CARGO_SUGAR := 256
+const CARGO_COD := 512
+
 ## Discovery-only, viewer-filtered settlement values; returns an empty dictionary outside a Discovery frame.
 func discovery_settlement(s: Dictionary) -> Dictionary:
 	if not discovery_active:
@@ -185,7 +200,18 @@ func discovery_settlement(s: Dictionary) -> Dictionary:
 		"soot_raw": int(s.get("discSoot", 0)),
 		"canal": bool(s.get("discCanal", false)),
 		"fleet": bool(s.get("discFleet", false)),
+		"cargo": int(s.get("discCargo", 0)),
+		"crop": int(s.get("discCrop", 0)),
+		"works": s.get("discWorks", PackedByteArray()),
 	}
+
+## State of one Discovery work of a town from its `works` bytes (docs/MVP/39 §8.1): {state: 0 none, 1 working, 2 queued, 3 dormant, 4 blocked, reason: int}. With no data (an older
+## frame, a gallery) it answers none, so the caller falls back to its own reading.
+static func disc_work(works: PackedByteArray, kind: int) -> Dictionary:
+	if kind < 0 or kind >= works.size():
+		return {"state": 0, "reason": 0}
+	var packed := int(works[kind])
+	return {"state": packed & 7, "reason": packed >> 3}
 
 ## The siege of a settlement (by its index in the sim): [besieger, engines, seasons, integrity permille, origin tile], or empty when it is not besieged.
 func siege_of(sim_index: int) -> Array:
@@ -291,6 +317,12 @@ func load_frame_data(value: Variant, include_world: bool = false) -> bool:
 	discovery_active = bool(d.get("discoveryActive", false))
 	disc_lanes = d.get("discLanes", PackedInt32Array())
 	disc_capital_tile = int(d.get("discCapitalTile", -1))
+	disc_pits.clear()
+	var pits: PackedInt32Array = d.get("discPits", PackedInt32Array())
+	for pi in range(0, pits.size() - 1, 2):
+		disc_pits[pits[pi]] = pits[pi + 1]
+	disc_wrecks = d.get("discWrecks", PackedInt32Array())
+	disc_foundings = d.get("discFoundings", PackedInt32Array())
 	disc_society_staffed = bool(d.get("discSocietyStaffed", false))
 	disc_exchange_staffed = bool(d.get("discExchangeStaffed", false))
 	disc_chronometer = bool(d.get("discChronometer", false))

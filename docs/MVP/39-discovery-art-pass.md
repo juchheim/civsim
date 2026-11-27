@@ -346,19 +346,43 @@ The renderer never reads sim state directly; it reads the frame. Doc 38 §3.3 sa
 
 The four-course fields already carry their hedges inside the `field_four_*` mesh, so no separate hedge placement is needed.
 
+### Simulation state added for the art (2026-11-27)
+
+The frame gained the state the art had been waiting for. All of it is read from state the sim already kept or derived, none is stored, and every piece is Discovery-only (`DiscoveryFrame`, tests in `DiscoveryStateTests`, `DiscoveryColonyTests`, `DiscoveryOceanTests`):
+
+| Art | Frame data | Drawn by |
+|---|---|---|
+| **Work states** (D-T8): working, queued, dormant (nobody staffs it), blocked (staffed but starved or cut off), with a reason, for the mine, engine, coke oven, factory, garden, society, exchange house and galleon | `DiscoveryFrame.Work` (8 packed bytes a town; state low 3 bits, `DiscoveryWorkReason` above), from `LivingEconomyModel.DiscoveryTown(...).Works` | `core_layout.gd` (`_work_mark`: the grey pause plate for dormant, the red caution triangle for blocked), `world_builder.gd` (the galleon's mark); the work's own mesh now follows the sim's state, not a guess from coal and coverage |
+| **Flooded pit** (A-13): a worked coal seam at depth 3 with no pumping engine; pumped when a fired engine drains it | `DiscoveryFrame.PitTile/PitState` (`DeepCoalPits`); the flooded bit also rides the mine overlay byte (bit 16) so the pit is redrawn when its state changes | `world_builder.gd` (`coal_mine_flooded`, no miners, locked wheel, the blue drop plate `mark_flooded`) |
+| **Wreck marker**: the viewer's voyages lost in the last season | `PoliticsEvent.Tile` on `VoyageLost` (the middle of the open water the route crossed, via `WreckTile`; read by the view only, events are not hashed) and `DiscoveryFrame.WreckTile/WreckAge` | `lane_overlay.gd` (the `wreck` mesh, which now draws even with no lane listed) |
+| **Colony independence** (A-12): a former colony that seceded shows as independent to its old owner | `DiscoveryFrame.Colony` state 4 (`IsBreakawayColony`: seceded, belonged to the viewer, TER-11, across water from the capital; derived from the secession flag, so a re-absorbed town stops showing it); a `ColonyIndependent` Chronicle event (`chronicle.colony.independent`) | `colony_overlay.gd` (struck pennant, free flag, the breakaway pulse) |
+
+What stays as it was: independence is still only the seeded yearly roll in low Cohesion (`ColonyBreaksAway`); the work-state readings are the rules the sim already ran (an engine burns coal with two engineers, a factory needs operatives and power, and so on). "Queued" is a coal pit the town has opened and not yet dug, or any other work the town's build queue is raising (every E6 work is an Iron-chain build, so the frame's `BuildKind` and `BuildPermille` already say which and how far; an earlier draft of this section wrongly said the sim kept no site state). Turnpike tiles are **not** carried: roads are a per-tile grade and the turnpike is a civilization's look bit (`LookTurnpike`), so the toll gate and coach can be drawn render-side where a viewer-owned road meets a town (still to place).
+
+### Second batch: the last pieces of §13's old "not wired" list (2026-11-27)
+
+| Art | Frame data | Drawn by |
+|---|---|---|
+| **Rival KEY-7 notice** (A-14): "The {civ} has completed the Industrial Revolution." in the rival's colour with a gear-and-chimney mark | the research `EraAdvanced` event, which already reaches the frame for every civilization, met or not; the HUD tells each rival once (`rival-age-7-{civ}`) and starts no clock | `Game.Notify.cs` (`ShowRivalIndustryNotice`, a Warning card so a full stack makes room), `UiGlyph.Gear` |
+| **Countdown text fixed:** the "The Iron Age is coming: N years left" toast used to fire on any rival era 4 and up, including in Fief and Discovery, where a rival's keystone starts no clock | `SimulationSession.HasRivalCountdown` (`ChapterRules.HasRivalCountdown`) | `Game.Modals.cs` (`ProcessEndTimeline`) |
+| **Galleon anchor** (A-17): a pale anchor on a dark plate over a galleon at its home harbor while it is crewed and in port (work state working) | the galleon's work state (`DiscoveryFrame.Work`) | `world_builder.gd`, mesh `mark_anchor` (`art_disc_marks.gd`; also in the gallery marks row) |
+| **Colony founding Moment**: a caravel hauled up on the beach with settlers and a planted pennant for twelve seconds, a Chronicle line and a toast | a `ColonyFounded` view event (`LivingEconomyModel.IsOverseasColony`: a new own settlement across the water from the capital, once, when it first appears) | `Game.Notify.cs`, `Game.cs` (`DiscoveryFoundings`), `LowPoly3DView._sync_colonies`, `colony_overlay.gd` |
+| **Build sites** (queued): `factory_site`, the generic `build_site_1..3` for the engine, coke oven and garden, on their outer hex, and in the Learning and Civic hexes for the society and exchange house; `coal_mine_site` on a coal seam where the town has opened a camp and not yet dug | `BuildKind` and `BuildPermille` of the Iron frame; the mining camp | `core_layout.gd`, `world_builder.gd` |
+| **Cargo crates**: coal at the engine and oven, coke at the oven, plate glass, parts, acid and alkali at the factory, pamphlets at the news board, instruments, sugar and salt cod on the quay | `DiscoveryFrame.Cargo`, a mask of the goods the town holds above zero (`LivingEconomyModel.CargoMask`) | `core_layout.gd`, `world_builder.gd` |
+| **Imported crops**: maize or the potato on up to three of a town's plots | `DiscoveryFrame.Crop` (`ExchangeCropAt`: FOR-10 and overseas contact, the same test as the yield bonus, so only where the biome pays) | `core_layout.gd` |
+| **Sugar-cane fields**: `field_cane` on a Sugarcane deposit tile inside the borders of a realm that holds FOD-10, cut (`field_cane_cut`) in autumn | the deposit overlay, the tile owner and the `LookCane` bit. The sim keeps no cane stock, so the field shows what the realm can work, not a measured harvest | `world_builder.gd` (`_deposits`) |
+
+Not carried even now: **tobacco** (the sim's exchange has two staples, maize and the potato), the **pumped pit's pipe and stream**, the **toll gate and coach** on turnpike roads, a galleon **on station away from home** (the sim blockades from the harbor), and the hover **reason line**. A captured check of the crops and the sites on a real, grown town is still wanted: the dev town has no plots and the winter capture hid the crop icons under snow.
+
 ### Not wired, and why
 
-| Piece | Blocked on |
+| Piece | Why |
 |---|---|
-| Flooded coal pit and its marks (A-13) | the sim has no flooding |
-| Wreck marker | the sim has no voyage-loss event to show |
-| Colony independence flag and founding Moment | the sim has no independence state or founding event |
-| Rival KEY-7 banner (A-14) | the sim holds no per-rival timer |
-| Galleon on-station anchor glyph (A-17) | no anchor mesh yet (the crew flag `GalleonCrewed` is in the frame) |
-| Institution marks for dormant and blocked works (A-4) | the frame carries no per-work dormant or blocked state |
-| Toll gate, turnpike, coach and coachman | the frame carries no turnpike tiles |
-| Sugar-cane fields, the Columbian Exchange crops, the extra cargo meshes (coal, coke, glass, parts, acid, alkali, pamphlets, instruments, sugar, cod) | no worked-cane tile or staple in the frame; no quay or cart stock to draw them on |
-| Under-construction meshes (`coal_mine_site`, `factory_site`) | the layout does not yet show a Discovery work going up |
+| Toll gate, turnpike, coach and coachman | roads are a per-tile grade and the turnpike is a civilization's look bit, so placement on roads next to towns is a render-side job not built yet |
+| The pumped pit's pipe and stream | no mesh (a pumped pit draws as a working one) |
+| Tobacco | the sim has no third staple |
+| Galleon on station away from its harbor, escort | the sim has no ship-versus-ship or escort rule (doc 38 §5.2) |
+| Hover reason line for dormant and blocked works | the reason code is in the frame; the text is not written |
 
 ### Acceptance run (A-1 to A-17)
 
@@ -367,7 +391,7 @@ The four-course fields already carry their hedges inside the `field_four_*` mesh
 | A-1 | **Partial.** The gallery (`--scenario=discovery-gallery`, 36 shots) photographs every P0 and P1 item in its states in daylight; night lighting is not captured. |
 | A-2 | **Pass.** At overview zoom (`disc-all`) the star fort, engine house, factory, coal pit and the two ships are told apart in a still. |
 | A-3 | **Pass.** `check_core_layout.py` passes on a Discovery town with the engine, oven, factory and garden: no overlaps, outer works clear of plots. The checker had treated every outer work as a tier of one "fief" chain and flagged any two; it now treats them as independent (a monastery with an arsenal would have tripped it too). |
-| A-4 | **Open.** Working, idle, cold and staffed states read; dormant and blocked marks are not wired (above). |
+| A-4 | **Pass (2026-11-27).** Every E6 institution reads working, dormant or blocked from the sim's own state, with a mark and a reason code; photographed with `--scenario=disc-states --dev-disc-states`. The hover line for the reason is not written. |
 | A-5 | **Over budget on a loaded machine; rerun needed.** One town with every E6 item on (`--dev-disc-works --dev-harbor`) against the same Discovery match without them: frame time +9% (31.9 to 29.2 fps) and +22% (31.3 to 25.7 fps) in two rounds while the machine's load average was 6 to 15 on 10 cores. The spec's rule is that the first run sets the budget, so this is it: **+9% to +22%, to be re-measured quiet**. The smoke columns stay capped (24). |
 | A-6 | **Not measured.** The new people are at most about a dozen a town (two miners a pit, two engineers, three operatives, one botanist, two merchants, two masons); the per-civilization cap is the baseline's. |
 | A-7 | **Pass by inspection.** Every Discovery path sits behind `discovery_active` and the meshes are built on first use (`ensure_discovery`), so Bronze, Iron and Fief build none of them. (Legends, which show in every chapter, are the one deliberate cross-chapter addition: doc 40.) |
@@ -375,7 +399,9 @@ The four-course fields already carry their hedges inside the `field_four_*` mesh
 | A-9 | **Pass (fixed).** The tile card's "KEY-6 ..%" clause was shown in a Discovery match because Discovery also runs the Fief frame; it is now Faith & Fief's alone. The top-bar tooltip and the Discovery section were already gated. |
 | A-10 | **Built, not re-photographed** (`lane_overlay.gd` draws dashed arcs; coastal routes stay dotted). |
 | A-11 | **Pass by construction.** Lanes come from the frame's own visible routes. |
-| A-12 | **Partial.** Content, strained and blockaded wired; independence is not (above). |
-| A-13, A-14, A-17 | **Open** (above). |
+| A-12 | **Pass (2026-11-27).** Content, strained, blockaded and independent are wired; independence fires only through the yearly roll (`DiscoveryColonyTests`). The founding Moment is wired (a `ColonyFounded` event and the beached caravel). |
+| A-13 | **Pass (2026-11-27).** A deep seam with no engine draws flooded with no miners; a fired engine drains it (state tests; photographed). |
+| A-14 | **Pass (2026-11-27).** A rival's KEY-7 raises one notice per rival (`rival-age-7-{civ}`), met or not, with no place and no clock; the Iron countdown toast no longer fires in a chapter with no rival clock. Photographed with `--scenario=rival-key7`. |
+| A-17 | **Pass (2026-11-27).** The anchor shows over a galleon only while its work state is working (crewed, in port); a blocked galleon shows the caution mark instead. Photographed in the gallery (`marks`). |
 | A-15 | **Pass by inspection.** The bastion stages follow the siege integrity track; the sim test shows one cannon needs 3 seasons against a bastion and 2 against a tower wall. |
 | A-16 | **Pass.** The stain appears only beside a working factory or oven and its size follows the soot the town holds (photographed in `disc-town`). |

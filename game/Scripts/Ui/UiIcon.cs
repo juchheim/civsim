@@ -14,6 +14,8 @@ public enum UiGlyph
     Seal, LayerForest, LayerDeposits, LayerTrade, LayerCohesion,
     // Expand / collapse a panel to near full screen (research tree).
     Expand, Collapse,
+    // Discovery (docs/MVP/39 §8.5): a gear beside a chimney, the Industrial Revolution's mark on the rival banner.
+    Gear,
 }
 
 /// <summary>Draws every icon the HUD uses with CanvasItem primitives, so no emoji or icon font is needed.</summary>
@@ -159,6 +161,20 @@ public static class UiDraw
                 ci.DrawLine(P(0.2f, 0.5f), P(0.8f, 0.5f), color, line);
                 ci.DrawLine(P(0.2f, 0.7f), P(0.8f, 0.7f), color, line);
                 break;
+            case UiGlyph.Gear:
+            {
+                Vector2 hub = P(0.36f, 0.6f);
+                ci.DrawArc(hub, Q(0.2f), 0, Mathf.Tau, 24, color, line, true);
+                for (int tooth = 0; tooth < 8; tooth++)
+                {
+                    float ta = tooth * Mathf.Tau / 8f;
+                    DrawRotatedRect(ci, hub + new Vector2(Mathf.Cos(ta), Mathf.Sin(ta)) * Q(0.27f), new Vector2(Q(0.11f), Q(0.11f)), ta, color);
+                }
+                ci.DrawCircle(hub, Q(0.06f), color);
+                ci.DrawRect(new Rect2(P(0.72f, 0.34f), new Vector2(Q(0.13f), Q(0.5f))), color);        // the chimney
+                ci.DrawArc(P(0.8f, 0.24f), Q(0.07f), 0, Mathf.Tau, 12, color, Math.Max(1f, line * 0.6f), true);   // and its puff
+                break;
+            }
             case UiGlyph.Expand:
             case UiGlyph.Collapse:
             {

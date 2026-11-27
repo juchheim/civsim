@@ -342,6 +342,13 @@ public sealed partial class FrameBuilder
                     break;
                 case PoliticsEventKind.VoyageLost:
                     e.Kind = ViewEventKind.VoyageLost; e.Text = ChronicleKey.VoyageLost;
+                    e.Tile = p.Tile; // where the voyage was lost (the wreck marker); -1 before the route was recorded
+                    break;
+                case PoliticsEventKind.Seceded:
+                    // only a colony's independence is told here (Discovery, TER-11); an ordinary secession keeps its Bronze behavior
+                    if (!match.Economy.IsBreakawayColony(p.A, p.Civ)) continue;
+                    e.Kind = ViewEventKind.ColonyIndependent; e.Text = ChronicleKey.ColonyIndependent; e.Tier = ViewEventTier.Milestone;
+                    e.Settlement = p.A; e.Tile = TileOf(p.A);
                     break;
                 case PoliticsEventKind.OrderRefused:
                     e.Kind = ViewEventKind.OrderRefused; e.Text = ChronicleKey.OrderRefused;
@@ -495,6 +502,13 @@ public sealed partial class FrameBuilder
                         _sFree[s] ? ChronicleKey.FreeFolkCampFounded : island ? ChronicleKey.IslandSettled : ChronicleKey.SettlementFounded, ViewEventTier.Info, _sCiv[s], -1);
                     founded.Settlement = s; founded.Tile = _sTile[s]; founded.A = _sFree[s] ? 1 : 0; founded.C = island ? 1 : 0;
                     Append(founded);
+                    if (!_sFree[s] && eco.DiscoveryChain && eco.IsOverseasColony(s))
+                    {
+                        // the founding Moment (docs/MVP/39 §7.3): a settlement across the water from the capital, told once, when it first appears
+                        ViewEvent colony = New(tick, ViewEventKind.ColonyFounded, ChronicleKey.ColonyFounded, ViewEventTier.Milestone, _sCiv[s], -1);
+                        colony.Settlement = s; colony.Tile = _sTile[s];
+                        Append(colony);
+                    }
                 }
             }
             else if (reports)

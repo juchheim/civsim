@@ -722,6 +722,11 @@ public partial class Game : Node3D
                 settlement["discSoot"] = i < frame.Discovery.Soot.Length ? frame.Discovery.Soot[i] : 0L;
                 settlement["discCanal"] = i < frame.Discovery.Canal.Length && frame.Discovery.Canal[i] != 0;
                 settlement["discFleet"] = i < frame.Discovery.Fleet.Length && frame.Discovery.Fleet[i] != 0;
+                settlement["discCargo"] = i < frame.Discovery.Cargo.Length ? (int)frame.Discovery.Cargo[i] : 0;
+                settlement["discCrop"] = i < frame.Discovery.Crop.Length ? (int)frame.Discovery.Crop[i] : 0;
+                // per-work state bytes (docs/MVP/39 §8.1): mine, engine, oven, factory, garden, society, exchange, galleon; low three bits state, the rest the reason
+                if ((i + 1) * DiscoveryFrame.WorkKinds <= frame.Discovery.Work.Length)
+                    settlement["discWorks"] = frame.Discovery.Work.AsSpan(i * DiscoveryFrame.WorkKinds, DiscoveryFrame.WorkKinds).ToArray();
             }
 #if DEBUG
             if (i == forcedWorkAt)
@@ -755,7 +760,7 @@ public partial class Game : Node3D
                 {
                     var discWorks = new int[IronWorkKindCount()];
                     if (settlement.ContainsKey("ironWorks")) ((int[])settlement["ironWorks"]).CopyTo(discWorks, 0);
-                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "print_shop", "harbor" })
+                    foreach (string id in new[] { "atmospheric_engine", "coke_oven", "factory", "castle", "bastion_fort", "botanical_garden", "learned_society", "exchange_house", "print_shop", "harbor", "galleon" })
                         if (IronKindIndex(id) is >= 0 and int discAt) discWorks[discAt] = 1;
                     settlement["ironWorks"] = discWorks;
                     settlement["discCoal"] = 40L << 32;
@@ -763,7 +768,25 @@ public partial class Game : Node3D
                     settlement["discEngineers"] = 2;
                     settlement["discOperatives"] = 3;
                     settlement["discSoot"] = 6L << 32; settlement["discCanal"] = true; settlement["discFleet"] = true;
-                    settlement["discColony"] = HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
+                    settlement["discColony"] = HasArgument("--dev-colony=4") ? 4 : HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
+                    if (HasArgument("--dev-disc-more"))
+                    {
+                        settlement["discCargo"] = 1023; settlement["discCrop"] = 1;   // every crate and the maize staple, to see them
+                        settlement["discWorks"] = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1 };   // every work reads working, so a crewed galleon wears its anchor
+                    }
+                    if (ArgumentValue("--dev-disc-site=") is { } siteName && IronKindIndex(siteName) is >= 0 and int siteAt)
+                    {
+                        discWorks[siteAt] = 0;   // the named work is still going up: no finished one, a build site at 40%
+                        settlement["ironWorks"] = discWorks;
+                        settlement["ironBuildKind"] = siteAt;
+                        settlement["ironBuildPermille"] = 400;
+                    }
+                    if (HasArgument("--dev-disc-states"))
+                    {
+                        // work states as the sim reports them (state | reason << 3): engine blocked (no coal), oven working, factory dormant (no operatives), garden, society and exchange dormant, galleon blocked (no crew)
+                        settlement["discWorks"] = new byte[] { 1, 4 | 2 << 3, 1, 3 | 5 << 3, 3 | 7 << 3, 3 | 8 << 3, 3 | 9 << 3, 4 | 10 << 3 };
+                        settlement["discCoal"] = 0L;
+                    }
                 }
                 if (forcedWorks || forcedSite > 0)
                 {
@@ -1069,6 +1092,9 @@ public partial class Game : Node3D
             ["discoveryActive"] = frame.Discovery.Active,
             ["discLanes"] = DiscoveryLanes(frame, world),
             ["discCapitalTile"] = frame.Discovery.CapitalTile,
+            ["discPits"] = DiscoveryPits(frame, world),
+            ["discWrecks"] = DiscoveryWrecks(frame, world),
+            ["discFoundings"] = DiscoveryFoundings(frame, world),
             ["discSocietyStaffed"] = frame.Discovery.SocietyStaffed,
             ["discExchangeStaffed"] = frame.Discovery.ExchangeStaffed,
             ["discChronometer"] = frame.Discovery.ChronometerHeld,
@@ -1102,6 +1128,85 @@ public partial class Game : Node3D
 
     /// <summary>Viewer-fair E3 map layers: known deposits, mine status, settlement Cohesion bands and compact routes.</summary>
     /// <summary>The Discovery frame's ocean lanes flattened for the renderer: from tile, to tile, civilization, volume in permille, four ints a lane (docs/MVP/39 §7.2).</summary>
+#if DEBUG
+    /// <summary>Tiles the dev work-state aid (<c>--dev-disc-states</c>) picked, so the capture scenario can frame them.</summary>
+    internal static int DevPitTile = -1, DevWreckTile = -1, DevCaneTile = -1, DevFoundingTile = -1;
+#endif
+
+    /// <summary>The viewer's worked deep coal pits, two ints each: tile, state (1 flooded, 2 pumped).</summary>
+    private static int[] DiscoveryPits(MatchFrame frame, WorldView world)
+    {
+        DiscoveryFrame d = frame.Discovery;
+#if DEBUG
+        if (d.Active && d.PitCount == 0 && frame.SettlementCount > 0 && OS.GetCmdlineUserArgs().Contains("--dev-disc-states"))
+        {
+            // dev aid: the coal tile nearest the first settlement shows as a flooded pit
+            int home = frame.SettlementTile[0], coal = -1;
+            for (int tile = 0; tile < frame.Width * frame.Height; tile++)
+                if (world.Deposit[tile] == (byte)DepositKind.Coal && (coal < 0 || HexLayout.Distance(tile, home, frame.Width) < HexLayout.Distance(coal, home, frame.Width))) coal = tile;
+            if (coal >= 0) { DevPitTile = coal; return new[] { coal, 1 }; }
+        }
+#endif
+        if (!d.Active || d.PitCount == 0) return Array.Empty<int>();
+        var flat = new int[d.PitCount * 2];
+        for (int i = 0; i < d.PitCount; i++) { flat[i * 2] = d.PitTile[i]; flat[i * 2 + 1] = d.PitState[i]; }
+        return flat;
+    }
+
+    /// <summary>New colonies the viewer was told of in the last few seconds (docs/MVP/39 §7.3): the tile and when the HUD heard of it. Main thread only.</summary>
+    internal static readonly List<(int Tile, ulong At)> ColonyFoundings = new();
+    private const ulong FoundingShownMs = 12000;
+
+    internal static void NoteColonyFounded(int tile) => ColonyFoundings.Add((tile, Time.GetTicksMsec()));
+
+    /// <summary>The tiles of the foundings still on show: a beached caravel and settlers stand there for a few seconds, then the list empties.</summary>
+    private static int[] DiscoveryFoundings(MatchFrame frame, WorldView world)
+    {
+        ulong now = Time.GetTicksMsec();
+        ColonyFoundings.RemoveAll(f => now - f.At > FoundingShownMs);
+#if DEBUG
+        if (frame.Discovery.Active && ColonyFoundings.Count == 0 && frame.SettlementCount > 0 && OS.GetCmdlineUserArgs().Contains("--dev-disc-more"))
+        {
+            // dev aid: a founding on the land hex next to the first settlement's, on a coast if it can
+            int home = frame.SettlementTile[0], best = -1;
+            for (int tile = 0; tile < frame.Width * frame.Height; tile++)
+            {
+                if (world.Biome[tile] <= 1 || HexLayout.Distance(tile, home, frame.Width) != 2) continue;
+                if (best < 0) best = tile;
+            }
+            if (best >= 0) { DevFoundingTile = best; return new[] { best }; }
+        }
+#endif
+        if (!frame.Discovery.Active || ColonyFoundings.Count == 0) return Array.Empty<int>();
+        var tiles = new int[ColonyFoundings.Count];
+        for (int i = 0; i < tiles.Length; i++) tiles[i] = ColonyFoundings[i].Tile;
+        return tiles;
+    }
+
+    /// <summary>The viewer's voyages lost in the last season, two ints each: tile, age in ticks.</summary>
+    private static int[] DiscoveryWrecks(MatchFrame frame, WorldView world)
+    {
+        DiscoveryFrame d = frame.Discovery;
+#if DEBUG
+        if (d.Active && d.WreckCount == 0 && frame.SettlementCount > 0 && OS.GetCmdlineUserArgs().Contains("--dev-disc-states"))
+        {
+            // dev aid: a wreck on the open-water tile nearest the first settlement, at least four hexes out
+            int home = frame.SettlementTile[0], sea = -1;
+            for (int tile = 0; tile < frame.Width * frame.Height; tile++)
+            {
+                if (world.Biome[tile] > 1) continue;
+                int dist = HexLayout.Distance(tile, home, frame.Width);
+                if (dist >= 4 && (sea < 0 || dist < HexLayout.Distance(sea, home, frame.Width))) sea = tile;
+            }
+            if (sea >= 0) { DevWreckTile = sea; return new[] { sea, 0 }; }
+        }
+#endif
+        if (!d.Active || d.WreckCount == 0) return Array.Empty<int>();
+        var flat = new int[d.WreckCount * 2];
+        for (int i = 0; i < d.WreckCount; i++) { flat[i * 2] = d.WreckTile[i]; flat[i * 2 + 1] = d.WreckAge[i]; }
+        return flat;
+    }
+
     private static int[] DiscoveryLanes(MatchFrame frame, WorldView world)
     {
         DiscoveryFrame d = frame.Discovery;
@@ -1145,6 +1250,9 @@ public partial class Game : Node3D
             if (frame.KnownDeposits[tile] != 0 && world.DepositDepth[tile] >= 2) mine |= 4;
             data[tile * stride + 1] = (byte)mine;
         }
+        // Discovery: a worked deep coal seam no engine pumps is flooded (docs/MVP/39 §4.1); the bit rides the mine byte so the pit is redrawn when its state changes
+        for (int i = 0; i < frame.Discovery.PitCount; i++)
+            if (frame.Discovery.PitState[i] == 1 && (uint)frame.Discovery.PitTile[i] < (uint)tiles) data[frame.Discovery.PitTile[i] * stride + 1] |= 16;
 #if DEBUG
         if (frame.Discovery.Active && OS.GetCmdlineUserArgs().Contains("--dev-disc-works") && frame.SettlementCount > 0)
         {
@@ -1157,8 +1265,16 @@ public partial class Game : Node3D
                 if (first < 0 || d < HexLayout.Distance(first, home, frame.Width)) { second = first; first = tile; }
                 else if (second < 0 || d < HexLayout.Distance(second, home, frame.Width)) second = tile;
             }
-            if (first >= 0) { data[first * stride] = (byte)(DepositKind.Coal + 1); data[first * stride + 1] = 1; }
+            if (first >= 0) { data[first * stride] = (byte)(DepositKind.Coal + 1); data[first * stride + 1] = (byte)(OS.GetCmdlineUserArgs().Contains("--dev-disc-states") ? 1 | 16 : 1); }
             if (second >= 0) { data[second * stride] = (byte)(DepositKind.Coal + 1); data[second * stride + 1] = 1 | 8; }
+        }
+        if (frame.Discovery.Active && OS.GetCmdlineUserArgs().Contains("--dev-disc-more") && frame.SettlementCount > 0)
+        {
+            // dev aid: a sugar-cane deposit on a land tile two hexes from the first settlement, so the cane field shows (when the realm owns it and holds FOD-10)
+            int home = frame.SettlementTile[0], cane = -1;
+            for (int tile = 0; tile < tiles && cane < 0; tile++)
+                if (world.Biome[tile] > 1 && HexLayout.Distance(tile, home, frame.Width) == 3 && data[tile * stride] == 0) cane = tile;
+            if (cane >= 0) { DevCaneTile = cane; data[cane * stride] = (byte)(DepositKind.Sugarcane + 1); }
         }
 #endif
         for (int i = 0; i < frame.SettlementCount; i++)

@@ -22,7 +22,7 @@ CIVSIM_PACK="$PWD/playtest/discovery-numeric-e5.pack" /Applications/Godot_mono.a
 
 `--research-era=6` gives your civilization every project of the ages before Discovery, so you start at the door of Era 6. `--seed=` makes the world repeatable (a normal launch gets a fresh one).
 
-**Dev aids (Debug only):** `--dev-disc-works` puts an engine, coke oven and factory with coal on your biggest town and one ocean lane, so the Discovery map art shows at once; `--legend-debug` fakes three Legends a few frames in (toasts, Chronicle, people sheet, plates) and makes a few people look like Legends; `--paused` starts paused. For screenshots: `--scenario=legends --shots=/abs/dir`.
+**Dev aids (Debug only):** `--dev-disc-works` puts an engine, coke oven and factory with coal on your biggest town and one ocean lane, so the Discovery map art shows at once; `--dev-disc-more` adds every cargo crate, the maize staple, a cane tile and a founding beside your biggest town, and `--dev-disc-site=factory` shows that work going up (`--scenario=disc-more`, `disc-states`, `rival-key7` for captures); `--legend-debug` fakes three Legends a few frames in (toasts, Chronicle, people sheet, plates) and makes a few people look like Legends; `--paused` starts paused. For screenshots: `--scenario=legends --shots=/abs/dir`.
 
 ## What to look at
 
@@ -39,10 +39,10 @@ Tick each as you go; note anything surprising even if it is not on the list.
 **C. Industry and the map**
 5. Coal pits, the atmospheric engine, coke oven, factory: placed on the right towns, working and idle states readable, smoke and wheel moving, soot on the ground? Does a town with no coal look different?
 6. Bastion fort, botanical garden, learned society, exchange house, Renaissance Palace (stages): are they drawn where you expect, and does each state read without a tooltip?
-7. Navigation canals with a barge, luggers and the offshore bank at a fishing harbor, soot under a working factory, hedged four-course fields, and the small cues (observatory, greenhouse, news board, embassy flag): do you see them? (Toll gates, cane fields, crops and cargo are not wired yet: doc 39 §13 lists why.)
+7. Navigation canals with a barge, luggers and the offshore bank at a fishing harbor, soot under a working factory, hedged four-course fields, and the small cues (observatory, greenhouse, news board, embassy flag): do you see them? Also: cargo crates by the works and on the quay, build sites while a work goes up, cane fields on sugar tiles (autumn cut), an imported crop on your plots after overseas contact, and the anchor on a crewed galleon. (Toll gates, coaches, tobacco and the pumped pit's pipe are not wired: doc 39 §13 lists why.)
 
 **D. The sea**
-8. Ocean lanes appear once you can cross deep water; ship tokens; colonies (content, strained, blockaded) with their tether; the galleon at a harbor with the right instruments held.
+8. A colony founded across the sea tells itself (toast, Chronicle, a beached caravel with settlers for a few seconds); a rival finishing the Industrial Revolution is announced once, with no clock. Ocean lanes appear once you can cross deep water; ship tokens; colonies (content, strained, blockaded) with their tether; the galleon at a harbor with the right instruments held.
 9. Do instruments (chronometer, telescope) get made? Does the telescope widen what you see around a town with a lookout post?
 
 **E. War**

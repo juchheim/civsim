@@ -465,6 +465,13 @@ func _half(prefs: Array, kind: String, mesh_name: String, nominal: float, chain:
 		_meta(kind, at[0], "half:s%d+s%d" % [at[1] + 1, posmod(at[1] + 1, 6) + 1], chain, tier))
 	return [at[0], p, s]
 
+## The mark over a Discovery work that is not doing its job (docs/MVP/39 §8.1, doc 38 D-T8): a grey pause plate where nobody staffs it (dormant, state 3), a red caution
+## triangle where it is staffed but starved or cut off (blocked, state 4), hung a hand above the building's top (`top`, its mesh height times its scale). Working, queued and unknown states draw nothing. The reason is the hover line's, not the picture's.
+func _work_mark(p: Vector2, state: int, top: float) -> void:
+	if state != 3 and state != 4:
+		return
+	wb.props.add("mark_dormant" if state == 3 else "mark_blocked", wb._xf(p, w.height_at(p) + top + 0.1, 0.0, 2.2), Color(1.0, 1.0, 1.0, 0.5))
+
 func _whole(prefs: Array, kind: String, mesh_name: String, nominal: float, chain: String = "", tier: String = "", fixed_scale: float = 0.0) -> Variant:
 	var hi := _take_whole(prefs)
 	var district_q := int(prefs[0]) if not prefs.is_empty() else -1
@@ -768,15 +775,27 @@ func settlement(si: int, s: Dictionary, c: Vector2, flagship: Dictionary) -> voi
 	if w.discovery_active:
 		wb.kit.ensure_discovery()
 		var disc_civic := w.discovery_settlement(s)
+		var civic_states: PackedByteArray = disc_civic.get("works", PackedByteArray())
 		if w.iron_works(s, "learned_society") > 0:
-			var ls = _whole([Q.LEARNING] + big, "learned_society", "learned_society" if w.disc_society_staffed else "learned_society_idle", 1.8)
+			# the town's own society reading when the frame has it, else the realm's (a gallery or an older frame)
+			var soc := int(M7WorldData.disc_work(civic_states, 5).state)
+			var soc_on := (soc == 1) if soc != 0 else w.disc_society_staffed
+			var ls = _whole([Q.LEARNING] + big, "learned_society", "learned_society" if soc_on else "learned_society_idle", 1.8)
 			if ls != null:
 				wb.civic_sites.append({"kind": "learned_society", "p": ls[1], "y": w.height_at(ls[1]), "yaw": _face(ls[1]), "civ": _civ, "seed": _seed, "tile": _t})
+				_work_mark(ls[1], soc, 1.8 * 0.175)
+		if build_pm > 0 and build_id == "learned_society" and w.iron_works(s, "learned_society") <= 0:
+			_whole([Q.LEARNING] + big, "site", site_mesh, 1.3)
+		if build_pm > 0 and build_id == "exchange_house" and w.iron_works(s, "exchange_house") <= 0:
+			_whole([Q.CIVIC] + big, "site", site_mesh, 1.3)
 		if w.iron_works(s, "exchange_house") > 0:
-			var xh = _whole([Q.CIVIC] + big, "exchange_house", "exchange_house" if w.disc_exchange_staffed else "exchange_house_idle", 1.6)
+			var exs := int(M7WorldData.disc_work(civic_states, 6).state)
+			var ex_on := (exs == 1) if exs != 0 else w.disc_exchange_staffed
+			var xh = _whole([Q.CIVIC] + big, "exchange_house", "exchange_house" if ex_on else "exchange_house_idle", 1.6)
 			if xh != null:
 				wb.civic_sites.append({"kind": "exchange_house", "p": xh[1], "y": w.height_at(xh[1]), "yaw": _face(xh[1]), "civ": _civ, "seed": _seed, "tile": _t})
-				if w.disc_exchange_staffed:
+				_work_mark(xh[1], exs, 1.6 * 0.177)
+				if ex_on:
 					_door_figures("person_merchant", xh[1], 2, 0.3)   # a merchant or two at the door while the house is staffed
 		if w.iron_works(s, "renaissance_palace") > 0 or (build_id == "renaissance_palace" and build_pm > 0):
 			var palace_stage := clampi(1 + build_pm * 3 / 1000, 1, 4) if build_id == "renaissance_palace" and build_pm > 0 else 4
@@ -1502,6 +1521,24 @@ func _fief_outer_site(candidates: Array, taken: Dictionary, kind: String, mesh: 
 	_dropped.append(kind)
 	return null
 
+## The plots (farmed tiles) within `rings` hexes of the settlement's, nearest first, for the few things that stand on a town's fields.
+func _plot_tiles_near(rings: int) -> Array:
+	var out := []
+	var seen := {_t: true}
+	var frontier := [_t]
+	for ring in rings:
+		var next := []
+		for tile in frontier:
+			for k in 6:
+				var nb := w.neighbour(int(tile), k)
+				if nb >= 0 and not seen.has(nb):
+					seen[nb] = true
+					next.append(nb)
+					if w.is_land(nb) and w.plot_kind[nb] >= 0:
+						out.append(nb)
+		frontier = next
+	return out
+
 func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> void:
 	var K := M7WorldData.Kind
 	var tint := Color(_cc.r, _cc.g, _cc.b, _seed)
@@ -1528,12 +1565,28 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 			var disc := w.discovery_settlement(s)
 			var burning := int(disc.get("coal_raw", 0)) > 0
 			var powered := int(disc.get("factory_coverage_raw", 0)) > 0
-			for dw in [["atmospheric_engine", "atmospheric_engine", burning, 1.35], ["coke_oven", "coke_oven", burning, 1.5], ["factory", "factory", powered, 1.3],
-					["botanical_garden", "botanical_garden", bool(disc.get("garden_staffed", false)), 1.4]]:
-				if w.iron_works(s, String(dw[0])) <= 0:
-					continue
+			var dstates: PackedByteArray = disc.get("works", PackedByteArray())
+			# a work the sim holds a build of, going up on its hex (docs/MVP/39 §8.1 queued): the iron build state names which and how far
+			var dbuild_k := int(s.get("ironBuildKind", -1))
+			var dbuild_id := String(w.iron_work_ids[dbuild_k]) if dbuild_k >= 0 and dbuild_k < w.iron_work_ids.size() else ""
+			var dbuild_pm := int(s.get("ironBuildPermille", 0))
+			var dcargo := int(disc.get("cargo", 0))
+			for dw in [["atmospheric_engine", "atmospheric_engine", burning, 1.35, 1, 0.303], ["coke_oven", "coke_oven", burning, 1.5, 2, 0.194], ["factory", "factory", powered, 1.3, 3, 0.33],
+					["botanical_garden", "botanical_garden", bool(disc.get("garden_staffed", false)), 1.4, 4, 0.14]]:
 				var dwork := String(dw[0])
+				if w.iron_works(s, dwork) <= 0:
+					if dbuild_pm > 0 and dbuild_id == dwork:
+						var site_name := "factory_site" if dwork == "factory" else "build_site_%d" % (1 + mini(2, dbuild_pm * 3 / 1000))
+						var dsite = _fief_outer_site(outer_fief_sites, taken, dwork, site_name, float(dw[3]) if dwork == "factory" else 1.3, tint)
+						if dsite != null:
+							taken[int(dsite[0])] = true
+					continue
 				var dworking := bool(dw[2])
+				# the sim's own reading of the work (docs/MVP/38 D-T8) wins over the guess from coal and coverage: working shows alive, dormant and blocked show cold with a mark
+				var dread := M7WorldData.disc_work(dstates, int(dw[4]))
+				var dstate := int(dread.state)
+				if dstate != 0:
+					dworking = dstate == 1
 				var dmesh := dwork
 				if dwork == "atmospheric_engine":
 					dmesh = "atmospheric_engine_body" if dworking else "atmospheric_engine_idle"
@@ -1571,6 +1624,24 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 						wb.props.add(staff_mesh, wb._xf(spp, w.height_at(spp), atan2((_c0 - dp).x, (_c0 - dp).y) + PI, 1.0), Color(float(_civ) + 0.5 * 0.98, 0.0, 0.0, 0.0))
 					wb.disc_works.append({"kind": dwork, "pos": Vector3(dp.x, w.height_at(dp), dp.y), "yaw": atan2((_c0 - dp).x, (_c0 - dp).y), "scale": float(dw[3]),
 						"state": "work" if dworking else "idle", "seed": "%s%d" % [dwork, si]})
+					# the goods the town really holds, as crates at the works that use them (docs/MVP/39 §7.4): coal at the engine and the oven, coke at the oven,
+					# the glass chain's goods at the factory; a crate stands only for a stock above zero
+					var crates := []
+					if dwork == "atmospheric_engine" or dwork == "coke_oven":
+						if (dcargo & M7WorldData.CARGO_COAL) != 0:
+							crates.append("cargo_coal")
+					if dwork == "coke_oven" and (dcargo & M7WorldData.CARGO_COKE) != 0:
+						crates.append("cargo_coke")
+					if dwork == "factory":
+						for cg in [[M7WorldData.CARGO_GLASS, "cargo_glass"], [M7WorldData.CARGO_PARTS, "cargo_parts"], [M7WorldData.CARGO_ACID, "cargo_acid"], [M7WorldData.CARGO_ALKALI, "cargo_alkali"]]:
+							if (dcargo & int(cg[0])) != 0:
+								crates.append(String(cg[1]))
+					var cyaw := atan2((_c0 - dp).x, (_c0 - dp).y)
+					for ck in mini(crates.size(), 3):
+						var coff: Vector3 = M7WorldBuilder.rot_y(cyaw) * Vector3((0.3 + 0.1 * ck) * float(dw[3]), 0.0, 0.08)
+						var cpp := Vector2(dp.x + coff.x, dp.y + coff.z)
+						wb.props.add(String(crates[ck]), wb._xf(cpp, w.height_at(cpp), cyaw + 0.3 * ck, 1.5), tint)
+					_work_mark(dp, dstate, float(dw[3]) * float(dw[5]))
 			# the small cues the age's projects leave (docs/MVP/39 §4.10): each stands only where the sim holds its thing and the realm knows the project
 			var cues := []
 			if w.iron_works(s, "learned_society") > 0 and w.disc_society_staffed and w.disc_telescope and w.has_iron_look(_civ, M7WorldData.IRON_SCOPE):
@@ -1583,6 +1654,23 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 				var cplaced = _fief_outer_site(outer_fief_sites, taken, String(cue[0]), String(cue[0]), float(cue[1]), tint)
 				if cplaced != null:
 					taken[int(cplaced[0])] = true
+					if String(cue[0]) == "news_board" and (dcargo & M7WorldData.CARGO_PAMPHLETS) != 0:
+						var np: Vector2 = cplaced[1]
+						var nyaw := atan2((_c0 - np).x, (_c0 - np).y)
+						var noff: Vector3 = M7WorldBuilder.rot_y(nyaw) * Vector3(0.22, 0.0, 0.06)
+						wb.props.add("cargo_pamphlets", wb._xf(Vector2(np.x + noff.x, np.y + noff.z), w.height_at(np), nyaw, 1.5), tint)
+			# FOR-10 (docs/MVP/39 §7.4): once the exchange has brought a new staple the town's fields can grow, a few of its plots carry its crop; the sim says which
+			# staple (maize on the lowlands, the potato on the cool uplands) and pays for it only where the biome takes it
+			var dcrop := int(disc.get("crop", 0))
+			if dcrop > 0:
+				var crop_mesh := "crop_maize" if dcrop == 1 else "crop_potato"
+				var shown := 0
+				for ptile in _plot_tiles_near(2):
+					if shown >= 3:
+						break
+					var cpos := w.tile_center(int(ptile)) + Vector2(0.06, -0.05)
+					wb.props.add(crop_mesh, wb._xf(cpos, w.height_at(cpos) + 0.04, M7WorldData.hash01(int(ptile), 41) * TAU, 1.6), tint)
+					shown += 1
 			# DIP-09 (docs/MVP/39 §4.10): a flag in a guest's colour on the Heart of the capital for each resident embassy
 			if w.disc_capital_tile == _t and w.disc_embassy_mask != 0:
 				var ek := 0

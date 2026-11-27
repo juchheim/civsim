@@ -102,7 +102,8 @@ func setup_frame(frame_data: Dictionary) -> void:
 	print("M7a low-poly world built: ", builder.stats)
 
 ## The viewer's overseas colonies (docs/MVP/39 §7.3): a pennant, a state ring when strained or blockaded, and a tether to the capital. The sim's colony state
-## (0 none, 1 content, 2 strained, 3 blockaded) says which; a colony that has broken away is an ordinary Free Folk town and is not listed. Foundings are not wired.
+## (0 none, 1 content, 2 strained, 3 blockaded, 4 independent) says which; a colony that has broken away keeps its place in the list as state 4: the pennant is struck, the
+## Free Folk flag flies and a pulse spreads. A founding shows a beached caravel and settlers for a few seconds.
 func _sync_colonies() -> void:
 	var colonies: Array = []
 	if world.discovery_active:
@@ -113,7 +114,13 @@ func _sync_colonies() -> void:
 				continue
 			var pos := world.tile_center(int(s.tile))
 			colonies.append({"pos": pos, "capital": capital if world.disc_capital_tile >= 0 else pos, "civ": int(s.civ), "state": state})
-	colony_overlay.sync(colonies, [])
+	# a founding Moment (docs/MVP/39 §7.3): the frame lists the tiles of colonies landed in the last few seconds; a caravel is hauled up on each shore and settlers stand by it
+	var foundings: Array = []
+	var fd := world.disc_foundings
+	for i in fd.size():
+		var at := int(fd[i])
+		foundings.append({"pos": world.tile_center(at), "yaw": M7WorldData.hash01(at, 53) * TAU, "civ": maxi(world.viewer_civ, 0)})
+	colony_overlay.sync(colonies, foundings)
 
 ## Ocean lanes from the Discovery frame (docs/MVP/39 §7.2): a dashed arc between the two harbors of each deep-ocean trade route, a caravel on it (two on a busy one).
 ## Only what the frame lists is drawn; nothing is invented.
@@ -128,7 +135,12 @@ func _sync_ocean_lanes() -> void:
 		tokens.append({"lane": lane_index, "phase": fposmod(0.37 * lane_index, 1.0), "dir": 1, "kind": "caravel"})
 		if volume > 0.6:
 			tokens.append({"lane": lane_index, "phase": fposmod(0.37 * lane_index + 0.5, 1.0), "dir": -1, "kind": "caravel"})
-	lane_overlay.sync(lanes, tokens, [])
+	# a wreck where the viewer's voyage was lost in the last season (docs/MVP/39 §7.1): the frame lists the tile and how many ticks ago
+	var wrecks: Array = []
+	var wr := world.disc_wrecks
+	for i in range(0, wr.size() - 1, 2):
+		wrecks.append({"pos": world.tile_center(int(wr[i])), "seed": int(wr[i])})
+	lane_overlay.sync(lanes, tokens, wrecks)
 
 func update_frame(frame_data: Dictionary) -> void:
 	var started := Time.get_ticks_usec()
@@ -703,7 +715,7 @@ func show_discovery_gallery() -> Vector3:
 		[["bastion_1", 1.0, 1.0], ["bastion_2", 1.0, 1.0], ["bastion_3", 1.0, 1.0], ["bastion_4", 1.0, 1.0], ["bastion_4_idle", 1.0, 1.0]],
 		[["galley", 0.8, 1.3], ["cog", 0.8, 1.3], ["caravel", 0.75, 1.3], ["galleon", 0.9, 1.3]],
 		[["field_three_0", 1.1, 1.0], ["field_four_0", 1.1, 1.0], ["field_four_1", 1.1, 1.0], ["field_four_2", 1.1, 1.0], ["field_four_3", 1.1, 1.0], ["hedge_line", 0.4, 1.4]],
-		[["colony_pennant", 0.4, 1.6], ["mark_dormant", 0.3, 2.4], ["mark_blocked", 0.3, 2.4], ["mark_flooded", 0.3, 2.4], ["mark_strained", 0.3, 2.4], ["mark_blockaded", 0.3, 2.4]],
+		[["colony_pennant", 0.4, 1.6], ["mark_dormant", 0.3, 2.4], ["mark_blocked", 0.3, 2.4], ["mark_flooded", 0.3, 2.4], ["mark_anchor", 0.3, 2.4], ["mark_strained", 0.3, 2.4], ["mark_blockaded", 0.3, 2.4]],
 		# P1: the coke oven, the navigation canal tile, the lock and a barge on it (the barge is set by hand below), the toll gate
 		[["coke_oven", 0.5, 1.5], ["coke_oven_idle", 0.5, 1.5], ["canal_nav_straight", 0.9, 1.0], ["canal_nav_lock", 0.9, 1.0], ["toll_gate", 0.5, 1.8]],
 		# P1: the garden, the society and the exchange house, working and idle
