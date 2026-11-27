@@ -10,7 +10,7 @@ This replaces the consumed 2026-11-16 whole-match block for acceptance. The earl
 - WP-E5-12 runner SHA-256: `0cbcd4288c031c8c408225ca1e63fed957207a739375f65d15d43b16cf29b562`
 - Provenance helper SHA-256: `496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a`
 - Runner fixture SHA-256: `f7ce61a473def91e31dcf55f6cfaa49a5fa6e0878fda8e09148e6b33613a90b1`
-- Collision audit: all 80 exact seed tokens were absent from 5,398 seed manifests, run metadata, preflight records, and named seed ledgers scanned under `/Users/ejuchheim/Projects/CivSim` and `/private/tmp` on 2026-11-27. The 47M block also does not overlap the registered WP-E5-7 46M calibration/holdout block.
+- Collision audit: [seed-collision-audit.json](seed-collision-audit.json) records that all 80 exact seed tokens were absent from 5,398 seed manifests, run metadata, preflight records, and named seed ledgers scanned under `/Users/ejuchheim/Projects/CivSim` and `/private/tmp` on 2026-11-27. The 47M block also does not overlap the registered WP-E5-7 46M calibration/holdout block.
 - Exposure policy: natural Fief, 130 simulated minutes, no geography/progress/outcome screening, and no `--grant-e5`.
 
 ## Acceptance protocol
