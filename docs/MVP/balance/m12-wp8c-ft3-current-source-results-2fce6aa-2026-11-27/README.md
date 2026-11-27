@@ -25,3 +25,7 @@ The four incomplete seeds are **not** treated as passes or removed. The raw trac
 - Analysis SHA-256: `ba23f7a4d6f0e66283027998bdfc5d03120672788e9785f247c158d4bf5e4375`
 
 Preserved `raw/` contains the analysis, exact manifest, all 80 arm logs, and `SHA256SUMS.txt`. F-T3 remains open. Next, diagnose why the fixed low-wood furnace fixture lacks 12 late-period charcoal-demand seasons in those seeds. Preserve the current incomplete cohort; any changed fixture or acceptance rule requires a new freeze and preregistration.
+
+## Follow-up exposure probe (diagnostic only)
+
+A one-seed run at 400 people for seed `36269804` used the same frozen source, pack, Harness, Sim, furnace factor, and 64-season horizon, changing only the controlled fixture size. It still recorded **zero** positive planned-charcoal demand seasons in the measured late period; the run produced 0.49 L of iron ore and 0.24 L of bloomery iron/wrought iron, all in season 2. This suggests that simply increasing fixture population does not create sustained late-period furnace demand. It does not establish why the source or demand stops, and it is not acceptance evidence. The raw run is preserved as `raw/diagnostic-people400-seed-36269804.txt` with the same hash inventory.
