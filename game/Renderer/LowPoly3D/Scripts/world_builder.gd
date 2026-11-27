@@ -2733,6 +2733,7 @@ const MINE_WORKED := 1      # the deposit has produced ore
 const MINE_REACH := 2       # within a settlement's mining reach (terrain overlay only)
 const MINE_DEEP := 4        # a known deposit of depth >= 2 (needs a shaft)
 const MINE_EXHAUSTED := 8   # no ore left; only ever set together with MINE_WORKED
+const MINE_PUMPED := 32    # a worked deep coal seam an engine keeps drained (Discovery): the pit gets its pump pipe and stream
 const MINE_FLOODED := 16    # a worked deep coal seam no engine pumps (Discovery): rides the overlay bytes so the pit is redrawn when it floods or is drained
 
 ## The mesh a deposit of `kind` shows for its byte-1 bits `g` (art_deposits.gd / art_mines.gd), `camp_head` when the mining camp on the
@@ -2808,7 +2809,8 @@ func _deposits() -> void:
 			var pit_cc := M7MeshBuilder.lin(M7WorldData.civ_color(pit_civ) if pit_civ >= 0 else Color("#9c8466"), 0.5)
 			# a deep seam with no pumping engine is flooded (docs/MVP/39 §4.1, doc 38 §5.1): the locked wheel, a dark pool and a blue drop plate; a pumped one works as any
 			var flooded := not spent and (g & MINE_FLOODED) != 0
-			props.add("coal_mine_idle" if spent else ("coal_mine_flooded" if flooded else "coal_mine_body"), _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
+			var pumped := not spent and not flooded and (g & MINE_PUMPED) != 0
+			props.add("coal_mine_idle" if spent else ("coal_mine_flooded" if flooded else ("coal_mine_pumped_body" if pumped else "coal_mine_body")), _xf(pit_p, w.height_at(pit_p), yaw, pit_scale), Color(pit_cc.r, pit_cc.g, pit_cc.b, seed))
 			if flooded:
 				props.add("mark_flooded", _xf(pit_p, w.height_at(pit_p) + 0.41 * pit_scale + 0.1, 0.0, 2.2), Color(1.0, 1.0, 1.0, 0.5))
 			if not spent and not flooded:

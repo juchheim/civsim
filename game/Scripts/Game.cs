@@ -771,7 +771,7 @@ public partial class Game : Node3D
                     settlement["discColony"] = HasArgument("--dev-colony=4") ? 4 : HasArgument("--dev-colony=3") ? 3 : HasArgument("--dev-colony=1") ? 1 : 2; // a colony in a state, to see the overlay
                     if (HasArgument("--dev-disc-more"))
                     {
-                        settlement["discCargo"] = 1023; settlement["discCrop"] = 1;   // every crate and the maize staple, to see them
+                        settlement["discCargo"] = 1023; settlement["discCrop"] = OS.GetCmdlineUserArgs().Contains("--dev-disc-tobacco") ? 3 : 1;   // every crate and the maize staple, to see them
                         settlement["discWorks"] = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1 };   // every work reads working, so a crewed galleon wears its anchor
                     }
                     if (ArgumentValue("--dev-disc-site=") is { } siteName && IronKindIndex(siteName) is >= 0 and int siteAt)
@@ -1154,13 +1154,13 @@ public partial class Game : Node3D
     {
         DiscoveryFrame d = frame.Discovery;
 #if DEBUG
-        if (d.Active && d.PitCount == 0 && frame.SettlementCount > 0 && OS.GetCmdlineUserArgs().Contains("--dev-disc-states"))
+        if (d.Active && d.PitCount == 0 && frame.SettlementCount > 0 && (OS.GetCmdlineUserArgs().Contains("--dev-disc-states") || OS.GetCmdlineUserArgs().Contains("--dev-disc-pumped")))
         {
             // dev aid: the coal tile nearest the first settlement shows as a flooded pit
             int home = frame.SettlementTile[0], coal = -1;
             for (int tile = 0; tile < frame.Width * frame.Height; tile++)
                 if (world.Deposit[tile] == (byte)DepositKind.Coal && (coal < 0 || HexLayout.Distance(tile, home, frame.Width) < HexLayout.Distance(coal, home, frame.Width))) coal = tile;
-            if (coal >= 0) { DevPitTile = coal; return new[] { coal, 1 }; }
+            if (coal >= 0) { DevPitTile = coal; return new[] { coal, OS.GetCmdlineUserArgs().Contains("--dev-disc-pumped") ? 2 : 1 }; }
         }
 #endif
         if (!d.Active || d.PitCount == 0) return Array.Empty<int>();
@@ -1266,9 +1266,9 @@ public partial class Game : Node3D
             if (frame.KnownDeposits[tile] != 0 && world.DepositDepth[tile] >= 2) mine |= 4;
             data[tile * stride + 1] = (byte)mine;
         }
-        // Discovery: a worked deep coal seam no engine pumps is flooded (docs/MVP/39 §4.1); the bit rides the mine byte so the pit is redrawn when its state changes
+        // Discovery: a worked deep coal seam no engine pumps is flooded (16), one an engine drains is pumped (32) (docs/MVP/39 §4.1); the bit rides the mine byte so the pit is redrawn when its state changes
         for (int i = 0; i < frame.Discovery.PitCount; i++)
-            if (frame.Discovery.PitState[i] == 1 && (uint)frame.Discovery.PitTile[i] < (uint)tiles) data[frame.Discovery.PitTile[i] * stride + 1] |= 16;
+            if (frame.Discovery.PitState[i] is 1 or 2 && (uint)frame.Discovery.PitTile[i] < (uint)tiles) data[frame.Discovery.PitTile[i] * stride + 1] |= (byte)(frame.Discovery.PitState[i] == 1 ? 16 : 32);
 #if DEBUG
         if (frame.Discovery.Active && OS.GetCmdlineUserArgs().Contains("--dev-disc-works") && frame.SettlementCount > 0)
         {
@@ -1281,7 +1281,7 @@ public partial class Game : Node3D
                 if (first < 0 || d < HexLayout.Distance(first, home, frame.Width)) { second = first; first = tile; }
                 else if (second < 0 || d < HexLayout.Distance(second, home, frame.Width)) second = tile;
             }
-            if (first >= 0) { data[first * stride] = (byte)(DepositKind.Coal + 1); data[first * stride + 1] = (byte)(OS.GetCmdlineUserArgs().Contains("--dev-disc-states") ? 1 | 16 : 1); }
+            if (first >= 0) { data[first * stride] = (byte)(DepositKind.Coal + 1); data[first * stride + 1] = (byte)(OS.GetCmdlineUserArgs().Contains("--dev-disc-pumped") ? 1 | 32 : OS.GetCmdlineUserArgs().Contains("--dev-disc-states") ? 1 | 16 : 1); }
             if (second >= 0) { data[second * stride] = (byte)(DepositKind.Coal + 1); data[second * stride + 1] = 1 | 8; }
         }
         if (frame.Discovery.Active && OS.GetCmdlineUserArgs().Contains("--dev-disc-more") && frame.SettlementCount > 0)

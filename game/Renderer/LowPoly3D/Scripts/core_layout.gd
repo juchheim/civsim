@@ -1660,10 +1660,10 @@ func _outer(s: Dictionary, si: int, st: Array, decor: Array, aqueduct_at) -> voi
 						var noff: Vector3 = M7WorldBuilder.rot_y(nyaw) * Vector3(0.22, 0.0, 0.06)
 						wb.props.add("cargo_pamphlets", wb._xf(Vector2(np.x + noff.x, np.y + noff.z), w.height_at(np), nyaw, 1.5), tint)
 			# FOR-10 (docs/MVP/39 §7.4): once the exchange has brought a new staple the town's fields can grow, a few of its plots carry its crop; the sim says which
-			# staple (maize on the lowlands, the potato on the cool uplands) and pays for it only where the biome takes it
+			# staple (maize on the temperate lowlands, the potato on the cool uplands, tobacco on the hot lowlands) and pays for it only where the biome takes it
 			var dcrop := int(disc.get("crop", 0))
 			if dcrop > 0:
-				var crop_mesh := "crop_maize" if dcrop == 1 else "crop_potato"
+				var crop_mesh := "crop_maize" if dcrop == 1 else ("crop_potato" if dcrop == 2 else "crop_tobacco")
 				var shown := 0
 				for ptile in _plot_tiles_near(2):
 					if shown >= 3:

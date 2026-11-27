@@ -717,7 +717,7 @@ func show_discovery_gallery() -> Vector3:
 	batch.chunk_size = 100.0
 	# [mesh, width it needs, scale]; the coal mine's body gets its wheel and the engine its beam fitted at the pivot
 	var rows := [
-		[["coal_mine", 0.7, 1.35], ["coal_mine_idle", 0.7, 1.35], ["coal_mine_flooded", 0.7, 1.35], ["coal_mine_site", 0.6, 1.35]],
+		[["coal_mine", 0.7, 1.35], ["coal_mine_idle", 0.7, 1.35], ["coal_mine_flooded", 0.7, 1.35], ["coal_mine_pumped", 0.7, 1.35], ["coal_mine_site", 0.6, 1.35]],
 		[["atmospheric_engine", 0.7, 1.35], ["atmospheric_engine_idle", 0.7, 1.35], ["factory", 0.75, 1.3], ["factory_cold", 0.75, 1.3], ["factory_site", 0.7, 1.3]],
 		[["bastion_1", 1.0, 1.0], ["bastion_2", 1.0, 1.0], ["bastion_3", 1.0, 1.0], ["bastion_4", 1.0, 1.0], ["bastion_4_idle", 1.0, 1.0]],
 		[["galley", 0.8, 1.3], ["cog", 0.8, 1.3], ["caravel", 0.75, 1.3], ["galleon", 0.9, 1.3]],

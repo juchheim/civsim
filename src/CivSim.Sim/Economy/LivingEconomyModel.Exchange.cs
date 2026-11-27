@@ -32,15 +32,17 @@ public sealed partial class LivingEconomyModel
     private Fix64 ExchangeFeverFactor(int civ) => DiscoveryChain && InExchange(civ) ? ExchangeFever : Fix64.One;
 
     /// <summary>
-    /// The imported staple a settlement's fields grow for the picture (docs/MVP/39 §7.4): 0 none (outside the exchange, or a biome that takes neither), 1 maize on the
-    /// warm and temperate lowlands, 2 the potato on the cool uplands. The same test as the yield bonus, so nothing is drawn that the sim does not pay.
+    /// The imported crop a settlement's fields show for the picture (docs/MVP/39 §7.4): 0 none (outside the exchange, or a biome that takes neither), 1 maize on the
+    /// temperate lowlands, 2 the potato on the cool uplands, 3 tobacco on the hot lowlands (savanna and tropical forest). All three are the same x1.2 imported-staple
+    /// bonus and the same biome test as the yield, so nothing is drawn that the sim does not pay; tobacco is only the hot lowlands' picture of it, not a fourth good.
     /// </summary>
     public int ExchangeCropAt(int settlementIndex)
     {
         if (!DiscoveryChain || (uint)settlementIndex >= (uint)_settlements.Count) return 0;
         SettlementState s = _settlements[settlementIndex];
         if (!InExchange(s.Civilization) || !CanGrowImportedStaple(s)) return 0;
-        return (Biome)_world.Tile(s.SiteTile).BiomeId is Biome.Taiga or Biome.Tundra or Biome.Mountain ? 2 : 1;
+        Biome biome = (Biome)_world.Tile(s.SiteTile).BiomeId;
+        return biome is Biome.Taiga or Biome.Tundra or Biome.Mountain ? 2 : biome is Biome.Savanna or Biome.TropicalForest ? 3 : 1;
     }
 
     internal Fix64 FixtureExchangeCropYield(int settlementIndex) => ExchangeCropYield(_settlements[settlementIndex]);

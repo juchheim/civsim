@@ -272,8 +272,10 @@ public partial class Game
 
         int supplySettlement = _mapOverlay == 8 && visibility == TileVisibility.Visible ? SettlementAtTile(frame, tile) : -1;
         bool showSupply = supplySettlement >= 0;
-        _tileExtra!.Visible = shift || showSupply;
-        if (shift || showSupply)
+        // Discovery (docs/MVP/39 A-4): a town's idle or stopped works say why, without Shift, so the grey mark on the map never needs a manual
+        string works = visibility == TileVisibility.Visible ? DiscoveryWorkLines(frame, tile) : "";
+        _tileExtra!.Visible = shift || showSupply || works.Length > 0;
+        if (shift || showSupply || works.Length > 0)
         {
             string extra = "";
             if (shift)
@@ -336,6 +338,7 @@ public partial class Game
                     }
                 }
             }
+            if (works.Length > 0) extra = works + (extra.Length > 0 ? "\n" : "") + extra;
             if (showSupply) extra += (extra.Length > 0 ? "\n\n" : "") + SupplyNetworkDetails(frame, supplySettlement);
             UiKit.SetText(_tileExtra, extra);
         }
@@ -343,6 +346,26 @@ public partial class Game
         _tileHint!.Visible = showHint;
         if (showHint) { UiKit.SetText(_tileHint, ownSettlement >= 0 ? "Hold Shift for more · Click to pin and rename" : "Hold Shift for more · Click to pin"); if (_cardTile != tile) _tileHintsShown++; }
         PositionTileCard(screen);
+    }
+
+    /// <summary>The idle or stopped Discovery works of the viewer's own live town on <paramref name="tile"/>, one line each (empty when all run or it is not a Discovery match).</summary>
+    private static string DiscoveryWorkLines(MatchFrame frame, int tile)
+    {
+        if (!frame.Discovery.Active || frame.ViewerCiv < 0) return "";
+        for (int s = 0; s < frame.SettlementCount; s++)
+        {
+            SettlementViewFlags flags = (SettlementViewFlags)frame.SettlementFlags[s];
+            if (frame.SettlementTile[s] == tile && frame.SettlementCiv[s] == frame.ViewerCiv &&
+                (flags & (SettlementViewFlags.Own | SettlementViewFlags.Remembered | SettlementViewFlags.FreeFolk)) == SettlementViewFlags.Own)
+            {
+#if DEBUG
+                if (OS.GetCmdlineUserArgs().Contains("--dev-disc-states"))   // the dev aid's forced states, so a capture shows the text
+                    return DiscoveryWorkText.Lines(new DiscoveryFrame { Active = true, Pumping = new byte[] { 1 }, Work = new byte[] { 1, 4 | 2 << 3, 1, 3 | 5 << 3, 3 | 7 << 3, 3 | 8 << 3, 3 | 9 << 3, 4 | 10 << 3 } }, 0);
+#endif
+                return DiscoveryWorkText.Lines(frame.Discovery, s);
+            }
+        }
+        return "";
     }
 
     /// <summary>The viewer's own live settlement on <paramref name="tile"/> (its sim index), or -1.</summary>

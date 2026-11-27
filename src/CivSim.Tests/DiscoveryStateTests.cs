@@ -173,4 +173,33 @@ public class DiscoveryStateTests
                 Assert.Equal(reason, CivSim.Sim.View.DiscoveryFrame.WorkReasonOf(packed));
             }
     }
+
+    [Fact]
+    public void Every_stopped_or_idle_work_has_a_reason_line_and_a_working_one_has_none()
+    {
+        foreach (DiscoveryWorkReason reason in System.Enum.GetValues<DiscoveryWorkReason>())
+        {
+            if (reason == DiscoveryWorkReason.None) continue;
+            Assert.True(CivSim.Sim.View.DiscoveryWorkText.Reason(reason).Length > 0, $"{reason} has no words");
+            foreach (DiscoveryWorkState state in new[] { DiscoveryWorkState.Dormant, DiscoveryWorkState.Blocked })
+            {
+                string line = CivSim.Sim.View.DiscoveryWorkText.Line(CivSim.Sim.View.DiscoveryFrame.WorkEngine, CivSim.Sim.View.DiscoveryFrame.PackWork(new DiscoveryWork(state, reason)));
+                Assert.StartsWith("Atmospheric engine · " + (state == DiscoveryWorkState.Dormant ? "idle" : "stopped") + ": ", line);
+            }
+        }
+        byte working = CivSim.Sim.View.DiscoveryFrame.PackWork(new DiscoveryWork(DiscoveryWorkState.Working, DiscoveryWorkReason.None));
+        Assert.Equal("", CivSim.Sim.View.DiscoveryWorkText.Line(CivSim.Sim.View.DiscoveryFrame.WorkFactory, working));
+        Assert.StartsWith("Coal pit · working", CivSim.Sim.View.DiscoveryWorkText.Line(CivSim.Sim.View.DiscoveryFrame.WorkMine, working, pumped: true));
+    }
+
+    [Fact]
+    public void A_towns_reason_lines_follow_the_state_the_sim_reports()
+    {
+        BronzeFixture f = Town(Discovery(SteamKit));
+        f.Economy.FixtureSetIronWork(0, Engine, 1);
+        var d = new CivSim.Sim.View.DiscoveryFrame { Active = true, Work = new byte[CivSim.Sim.View.DiscoveryFrame.WorkKinds] };
+        d.Work[CivSim.Sim.View.DiscoveryFrame.WorkEngine] = CivSim.Sim.View.DiscoveryFrame.PackWork(Works(f).Engine);
+        Assert.Equal("Atmospheric engine · idle: no engineer to tend it", CivSim.Sim.View.DiscoveryWorkText.Lines(d, 0));
+        Assert.Equal("", CivSim.Sim.View.DiscoveryWorkText.Lines(d, 1)); // no such row
+    }
 }

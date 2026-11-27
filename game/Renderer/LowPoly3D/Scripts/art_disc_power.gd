@@ -11,6 +11,8 @@
 ##   coal_mine         the body with the wheel fixed on it, working: a full tub on the rail, a big coal stack, the lamp lit
 ##   coal_mine_idle    no miners staffed: an empty tub, a small stack, the lamp dark
 ##   coal_mine_flooded the deep seam has flooded and no engine pumps it: black water in the collar, a puddle round it, the tub gone, the lamp dark
+##   coal_mine_pumped  a deep seam an engine keeps drained: working as above, plus a cast riser from the collar, a piped run on trestles and a thin stream into a ditch pool
+##                     (`coal_mine_pumped_body` is the same without the wheel, for the rig)
 ##   coal_mine_site    the headframe going up: two raised legs, a pile of timbers and sawhorses on the stain
 ##   atmospheric_engine_body  a brick engine house with a tall wall the beam passes through, a squat boiler with its firebox, a tall chimney, a water tank on
 ##                            posts and a coal heap; the pump head at the foot of the beam's outer end
@@ -75,6 +77,8 @@ static func build(kit) -> void:
 	kit.meshes["coal_mine"] = _mine(kit, "work", true)
 	kit.meshes["coal_mine_idle"] = _mine(kit, "idle", true)
 	kit.meshes["coal_mine_flooded"] = _mine(kit, "flooded", true)
+	kit.meshes["coal_mine_pumped_body"] = _mine(kit, "pumped", false)
+	kit.meshes["coal_mine_pumped"] = _mine(kit, "pumped", true)
 	kit.meshes["coal_mine_site"] = _mine_site(kit)
 	kit.meshes["atmospheric_engine_body"] = _engine(kit, true, false)
 	kit.meshes["atmospheric_engine_beam"] = _beam(kit)
@@ -178,7 +182,7 @@ static func _frame(b: M7MeshBuilder, raised: float) -> void:
 static func _mine(kit, state: String, wheel: bool) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(1700)
 	b.tag = PLAIN
-	var working := state == "work"
+	var working := state == "work" or state == "pumped"
 	var flooded := state == "flooded"
 	# the coal-black stain of the ground, two rings of it
 	b.prism(Vector3(0, 0.0, 0.01), 0.2, 0.19, 0.004, 12, STAIN, STAIN, 0.2, 0.16)
@@ -237,7 +241,38 @@ static func _mine(kit, state: String, wheel: bool) -> ArrayMesh:
 		b.tag = EMISSIVE
 		b.box(Vector3(0.12, 0.022, 0.042), Vector3(0.011, 0.012, 0.003), LAMP)
 		b.tag = PLAIN
+	if state == "pumped":
+		_pump(b)
 	return b.commit()
+
+## A deep seam an engine keeps drained (docs/MVP/39 §4.1, doc 38 §5.1): a cast pipe climbs from the shaft collar, a flanged run on timber trestles carries the water out
+## across the yard, and a thin stream arcs from its spout into a ditch pool. The pit works as any other (wheel, miners, coal); this is what says why it can.
+static func _pump(b: M7MeshBuilder) -> void:
+	var c := SHAFT
+	var riser_top := Vector3(-0.078, 0.064, 0.002)
+	var run_end := Vector3(-0.15, 0.05, 0.078)
+	b.box(Vector3(c.x - 0.04, 0.006, c.z + 0.012), Vector3(0.026, 0.012, 0.026), STONE, STONE_LIGHT)
+	b.pole(Vector3(c.x - 0.04, 0.012, c.z + 0.012), riser_top, 0.0055, CAST, 6)
+	b.pole(Vector3(c.x - 0.022, 0.02, c.z + 0.004), Vector3(c.x - 0.04, 0.026, c.z + 0.012), 0.004, CAST, 5)
+	b.box(riser_top, Vector3(0.016, 0.01, 0.016), CAST_LIGHT, CAST)
+	b.pole(riser_top, run_end, 0.0052, CAST, 6)
+	for t in [0.28, 0.62]:
+		var p := riser_top.lerp(run_end, t)
+		b.box(Vector3(p.x, p.y * 0.5, p.z), Vector3(0.012, p.y, 0.012), TIMBER_DARK, TIMBER)
+		b.box(p, Vector3(0.016, 0.004, 0.016), CAST_LIGHT)
+	# the spout turns down and the stream falls from it into a pool in the yard
+	b.pole(run_end, run_end + Vector3(-0.002, -0.014, 0.004), 0.0052, CAST, 6)
+	var from := run_end + Vector3(-0.002, -0.014, 0.004)
+	var to := Vector3(-0.17, 0.004, 0.138)
+	var prev := from
+	for k in 1 + 6:
+		var u := k / 6.0
+		var q := from.lerp(to, u)
+		q.y = lerpf(from.y, to.y, u * u)
+		b.pole(prev, q, 0.0026, WATER_LIGHT.lightened(0.18), 4)
+		prev = q
+	b.prism(Vector3(to.x, 0.0, to.z + 0.004), 0.032, 0.03, 0.003, 8, WATER, WATER_LIGHT, 0.4, 0.12)
+	b.prism(Vector3(to.x - 0.026, 0.0, to.z + 0.03), 0.014, 0.013, 0.003, 6, WATER, WATER_LIGHT, 0.9, 0.12)
 
 static func _mine_site(kit) -> ArrayMesh:
 	var b: M7MeshBuilder = kit._b(1702)

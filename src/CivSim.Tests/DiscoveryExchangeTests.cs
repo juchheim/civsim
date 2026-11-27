@@ -100,6 +100,10 @@ public sealed class DiscoveryExchangeTests
         int upland = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome is Biome.Taiga or Biome.Tundra or Biome.Mountain);
         match.Economy.FixtureMoveSite(home, upland);
         Assert.Equal(2, match.Economy.ExchangeCropAt(home));
+        int hot = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome is Biome.Savanna or Biome.TropicalForest);
+        match.Economy.FixtureMoveSite(home, hot);
+        Assert.Equal(3, match.Economy.ExchangeCropAt(home));
+        Assert.Equal(Fix64.FromRatio(12, 10), match.Economy.FixtureExchangeCropYield(home)); // tobacco is paid exactly as maize is
         int desert = Enumerable.Range(0, World.Value.TileCount).First(t => World.Value.TileAt(t).Biome is Biome.Desert or Biome.Wetland or Biome.Ice or Biome.Peak or Biome.Ocean);
         match.Economy.FixtureMoveSite(home, desert);
         Assert.Equal(0, match.Economy.ExchangeCropAt(home));

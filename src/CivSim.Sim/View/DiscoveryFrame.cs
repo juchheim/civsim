@@ -19,7 +19,7 @@ public sealed class DiscoveryFrame
     public byte[] Fleet = Array.Empty<byte>();
     /// <summary>Per own town: which E6 goods it holds a stock of (a mask of <c>Cargo*</c>), drawn as crates at the works and the quay (docs/MVP/39 §7.4). Only what the town really holds.</summary>
     public ushort[] Cargo = Array.Empty<ushort>();
-    /// <summary>Per own town: the imported staple its fields grow in the Columbian Exchange (FOR-10 with overseas contact): 0 none, 1 maize (warm and temperate lowlands), 2 potato (cool uplands).</summary>
+    /// <summary>Per own town: the imported staple its fields grow in the Columbian Exchange (FOR-10 with overseas contact): 0 none, 1 maize (temperate lowlands), 2 potato (cool uplands), 3 tobacco (hot lowlands: the same imported-staple bonus, drawn as the leaf crop).</summary>
     public byte[] Crop = Array.Empty<byte>();
     public const ushort CargoCoal = 1, CargoCoke = 2, CargoGlass = 4, CargoParts = 8, CargoAcid = 16, CargoAlkali = 32, CargoPamphlets = 64, CargoInstruments = 128, CargoSugar = 256, CargoCod = 512;
 

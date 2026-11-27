@@ -417,11 +417,16 @@ public partial class Game
                 Shot("disc-town-c");
                 break;
             case "disc-states":
-                // the Discovery work states (use the disc-town flags plus --dev-disc-states): dormant and blocked marks, a flooded pit, a wreck, the independent colony flag
+                // the Discovery work states (use the disc-town flags plus --dev-disc-states; add --dev-disc-pumped for a pumped pit with its pipe and stream): dormant and blocked marks, the reason lines on the town's card, a flooded (or pumped) pit, a wreck, the independent colony flag
                 Step(() => { FrameCapital(); ZoomTo(5.0f); }, 2.5f);
                 Shot("disc-states-a");
+                Step(() => { _pinnedTile = _current!.SettlementTile[0]; RefreshTileCardNow(new Vector2(800.0f, 300.0f)); }, 1.0f);
+                Shot("disc-states-card");
+                Step(() => { _pinnedTile = -1; HideTileCard(); }, 0.4f);
                 Step(() => FocusTileNow(DevPitTile, 2.6f), 2.0f);
                 Shot("disc-states-pit");
+                Step(() => FocusTileNow(DevPitTile, 1.7f), 1.5f);
+                Shot("disc-states-pit-close");
                 Step(() => FocusTileNow(DevWreckTile, 2.6f), 2.0f);
                 Shot("disc-states-wreck");
                 break;
