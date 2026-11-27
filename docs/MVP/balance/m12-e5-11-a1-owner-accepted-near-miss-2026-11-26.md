@@ -81,3 +81,17 @@ The prior A1 cohort is not proven runtime-equivalent to `b075e17`: `ed9a146` reg
 - Candidate source aggregate: `299b39031074567c110817f38fdb3180fa2d54c3f5662acdcf1240ecbf7207a6`
 - Measured cohort candidate: `a966ec377a9d650b2b90b4467827c777e115c603`; its pinned output reports rounded 74% over the reused `80000000–80000039` block.
 - Astra assessment: no defensible narrow A1 fix; retain the explicit owner exception and do not claim the measured result met 80%.
+
+## Final A1 disposition for current E5 closeout candidate 2fce6aa — 2026-11-27
+
+**Official gate status: PASS BY OWNER APPROVAL.** The owner has explicitly approved treating the near-miss result as passing for E5. Astra's fresh review of current candidate 2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78 found no defensible, narrow A1 fix; further speculative tuning risks nearby AI gates and lacks causal evidence.
+
+The prior measured 74% over 80 matches remains a failure against the unchanged 80% nominal target. It must not be relabeled as an 80% result. It was measured on the earlier a966ec3 runtime, and Astra found that GOV-11's conception-probability change means it is not proven runtime-equivalent to current 2fce6aa. Therefore, the 74% result is the rationale for the owner's exception, not a current-source A1 measurement.
+
+A separate current-source M10 run on the frozen 2fce6aa build has reported A1 at 76% over 80 matches; its full campaign and final provenance capture remain in progress. This result is also below the nominal threshold and is accepted under the same explicit owner approval. Preserve both raw outcomes and their distinct provenance. The 80% metric and threshold remain unchanged; this exception closes A1 only and waives no other AI or technical gate.
+
+- Accepted candidate: 2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78
+- Candidate tree: de5be3c634f2b806c87f0b9ea49cde8352f0f4d5
+- Candidate source aggregate: 227902576ec15604a8399d395b170d55305ad0e50823e30fd49087d8f742342b
+- Astra's current-source assessment: no defensible narrow intervention; official PASS BY OWNER APPROVAL is appropriate under the owner's instruction.
+- Current-source M10 output (still running): /private/tmp/e5-closeout-ai-check-m10-2fce6aa.log; final hash and metadata will be recorded after completion.
