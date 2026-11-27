@@ -48,3 +48,24 @@ This exception closes A1 for this candidate only. Every other AI, balance, deter
 ## Final source aggregate extension — 2026-11-27
 
 The same owner-exception pass applies to the closeout source aggregate `e67713fc326672e8543341d56c17b3cd214295a208cdb01a05952120645b4a5e` with numeric pack SHA-256 `ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90`. The only simulation-code changes since Astra reviewed `0f7bdd2` are Fief/Discovery research-cache snapshot preservation and checksum coverage in `2be9d593f92f2ad2aff784820a9ca9c51bee3f56`; research planning and uninterrupted gameplay are unchanged. This carries forward the measured 59/80 result by owner exception and does not claim a new A1 measurement on the final source.
+
+## Final A1 disposition for candidate `a966ec3` — 2026-11-27
+
+**Official gate status: PASS BY OWNER EXCEPTION.** Astra's fresh review found no defensible, evidence-backed A1 intervention. Per the owner's direction, the near-miss is accepted for E5 closeout. The measured A1 result remains **74% over 80 matches: FAIL** against the unchanged **80%** nominal threshold. This is an explicit acceptance exception; it does not change the metric or threshold.
+
+The completed M10 campaign is runtime-equivalent to candidate `a966ec377a9d650b2b90b4467827c777e115c603`. Its metadata correctly records `source_unchanged=false`: it began at `8774ebdfa7dfe078fbcf366390bd5d830db6769a` and ended at `a966ec377a9d650b2b90b4467827c777e115c603`. The only `content/`, `src/`, or `game/` difference between those revisions is the A8 test file `src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs`; runtime source did not change. Preserve the false flag and this explanation rather than relabeling the run as exact-head evidence. The measured Sim and Harness binaries and numeric pack match the pinned artifacts below. The campaign reused the registered `80000000–80000039` block (40 mirrored seeds / 80 matches), so it is current-candidate runtime validation, not a fresh held-out sample.
+
+- Accepted candidate: `a966ec377a9d650b2b90b4467827c777e115c603`
+- Candidate source aggregate: `e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048`
+- Measured M10 candidate: `8774ebdfa7dfe078fbcf366390bd5d830db6769a` (runtime-equivalent as described above)
+- Measured Harness SHA-256: `0224459af3d84c3c61773b4324798d246b26e75b445adc41c8b0297a074dd950`
+- Measured Sim SHA-256: `51562e50ab950f85e500d995b475cbe5a86b8f99ac688260a283fb9989d349d7`
+- Numeric pack SHA-256: `ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90`
+- Run metadata: [bundled run metadata](m12-e5-9-m10-a966-current-validation-2026-11-27/run_metadata.json) (SHA-256 `71f1756b25521ec1d2c06d7c76141bc52ced76edb74518ea0f85607d0e8fa49e`)
+- Raw M10 output: [bundled raw output](m12-e5-9-m10-a966-current-validation-2026-11-27/raw-output.txt) (SHA-256 `3dba9c9d0f881d8b226c5147d2afc7d9878315cedd0c18ad8bf030fb4e3b3c52`)
+
+The campaign exited 1 because A1 failed its measured threshold. Its other measured M10 gates passed: A2, A3, A4, A5, A7, B27, B28 (14/14), B29 (159/159), B30, and B31 (50%). A6 and A8 remain separate gates. The current output reports only rounded `74% over 80`; it does not establish an exact numerator, so the historical `59/80` baseline remains attributed only to its original run.
+
+This owner exception closes **A1 only** for candidate `a966ec3`. Preserve the nominal failure, threshold, exit code, raw output, and all independent gate requirements.
+
+**Fresh Astra re-review — 2026-11-27:** Astra found no evidence-backed narrow intervention likely to recover the five wins needed to reach 64/80 without risking nearby A3/A4 gates. The current result is rounded 74%; the exact numerator and a current confidence interval are unavailable. Astra endorses PASS BY OWNER EXCEPTION while preserving the measured failure, unchanged 80% target, reused-seed limitation, and `source_unchanged=false` provenance above. No A1 code change is justified.

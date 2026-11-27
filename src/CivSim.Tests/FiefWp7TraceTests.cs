@@ -175,7 +175,8 @@ public sealed class FiefWp7TraceTests
 
         Assert.Equal(quiet.ComputeChecksum(), traced.ComputeChecksum());
         Assert.Contains(rows, row => row.Contains("wp7-gov11-growth", System.StringComparison.Ordinal));
-        string paired = rows.First(row => row.Contains("wp7-gov11-growth", System.StringComparison.Ordinal));
+        string paired = rows.First(row => row.Contains("wp7-gov11-growth", System.StringComparison.Ordinal) &&
+            row.Contains("gov11=true", System.StringComparison.Ordinal));
         Assert.Contains("controlConceptionChance=", paired, System.StringComparison.Ordinal);
         Assert.Contains("treatmentConceptionChance=", paired, System.StringComparison.Ordinal);
         Assert.Contains("keyedRoll=", paired, System.StringComparison.Ordinal);
@@ -184,6 +185,11 @@ public sealed class FiefWp7TraceTests
         Assert.Contains("pairedBasis=same_figure_same_state_same_keyed_roll", paired, System.StringComparison.Ordinal);
         Assert.Contains("actualMode=treatment", paired, System.StringComparison.Ordinal);
         Assert.Contains("actualConceptionChance=", paired, System.StringComparison.Ordinal);
+        long controlRaw = long.Parse(paired.Split(' ').Single(token => token.StartsWith("controlConceptionChance=", System.StringComparison.Ordinal)).Split('=')[1]);
+        long treatmentRaw = long.Parse(paired.Split(' ').Single(token => token.StartsWith("treatmentConceptionChance=", System.StringComparison.Ordinal)).Split('=')[1]);
+        Fix64 controlChance = Fix64.FromRaw(controlRaw);
+        Fix64 treatmentChance = Fix64.FromRaw(treatmentRaw);
+        Assert.Equal(controlChance * Fix64.FromRatio(11, 10), treatmentChance);
     }
 
     [Fact]

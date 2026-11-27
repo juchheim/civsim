@@ -1,5 +1,7 @@
 # WP-E5-7 GOV-11 same-state City-year protocol (2026-11-16)
 
+> **Superseded for the primary GOV-11 growth acceptance metric on 2026-11-27.** The r2 20-seed calibration completed but failed its population-endpoint screen: estimate 1.000657 (seed-clustered 95% interval 1.000505–1.000829). That metric does not correspond to the agreed 1.1 growth-rate modifier. See the [replacement probability-effect preregistration](m12-e5-7-gov11-growth-prereg-2026-11-27-r1/README.md). The same-state four-season population comparison below remains a secondary diagnostic. The old 80-seed r2 holdout is not run or reused.
+
 **Status: instrumentation/protocol only; no qualifying calibration or holdout cohort exists.** The initial implementation was developed in an isolated copy based on content/src/game aggregate `5ee659bd7303b24190f59ad01299f4d7430e18ce3adb0441470cab96b1452733`; the reviewed runner and paired-measurement work is now present in the dirty `civsim-e5` checkout. That aggregate describes the implementation snapshot, not a currently frozen candidate. Existing candidate pins in the preregistration are stale for launch: the source-to-binary relationship is unverified, the checkout remains dirty, and the numeric scratch pack must be deliberately selected and frozen. No numeric E5 row, including draft D20 values, is promoted or separately approved by this protocol.
 
 ## Paired measurement

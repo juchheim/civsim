@@ -1,0 +1,144 @@
+{
+  "artifacts": {
+    "a8-rows.jsonl": {
+      "bytes": 660500,
+      "sha256": "948c3837d8808cceafccb861e840bec0c131cb908743a0c5190dc80a61ca5d2e"
+    },
+    "a8-summary.json": {
+      "bytes": 2664,
+      "sha256": "de506c25bfe79bc326bd7bdc7bf54ce542d7f258332c533fd3c0ef1d09e60651"
+    }
+  },
+  "build": {
+    "command": [
+      "dotnet",
+      "build",
+      "src/CivSim.Tests/CivSim.Tests.csproj",
+      "--configuration",
+      "Release"
+    ],
+    "exitCode": 0,
+    "log": "/var/folders/sx/zhsq0sld501725xpp2j3s5740000gn/T/fief-a8-build-60246.log",
+    "logBytes": 730,
+    "logSha256": "cf792b593abbb8c916eeffb42b6d1ab25a339e0758389c19d42851d3ec84f701",
+    "seconds": 3.0
+  },
+  "env": {
+    "CIVSIM_A8_DOP": "4",
+    "CIVSIM_A8_INTERVAL": "16",
+    "CIVSIM_A8_MINUTES": "64",
+    "CIVSIM_A8_OUT": "/private/tmp/e5-closeout-acceptance-a966-a8-whole-match-20261127-02",
+    "CIVSIM_A8_PACK": "/private/tmp/e5-closeout-acceptance-8774-b5/numeric-e5.pack",
+    "CIVSIM_A8_SEEDS": "83000001,83000002,83000003,83000004,83000005,83000006,83000007,83000008",
+    "CIVSIM_A8_TIERB": "1"
+  },
+  "output": {
+    "command": [
+      "dotnet",
+      "test",
+      "src/CivSim.Tests/CivSim.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--no-build",
+      "--filter",
+      "FullyQualifiedName~CivSim.Tests.FiefWholeMatchFogFairnessTests.Whole_fief_matches_are_invariant_to_unseen_state_and_respond_to_visible_state"
+    ],
+    "exitCode": 0,
+    "log": "/private/tmp/e5-closeout-acceptance-a966-a8-whole-match-20261127-02/test.log",
+    "logBytes": 315,
+    "logSha256": "ae07be52ac54b9bdd228455f73f28fbf6675cb6c9ec2652742f7e23286b99135",
+    "seconds": 1754.375
+  },
+  "pins": {
+    "dop": 4,
+    "harnessSha256": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+    "hashHelperSha256": "7cb7fa0d6a47885364d6f968fc07f1431cff85957148beace52650520f49c916",
+    "head": "a966ec377a9d650b2b90b4467827c777e115c603",
+    "intervalSeasons": 16,
+    "minutes": 64,
+    "packSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+    "runnerSha256": "9315432889dba189cbe162848011ae7be8c5521d7f964419dd3c2ed08d462bdc",
+    "seedManifestSha256": "0a30c74a3738c65f55d2f34c68ea01225df2cccea6d9c6f7e99d8b1b8d346ad6",
+    "seeds": [
+      83000001,
+      83000002,
+      83000003,
+      83000004,
+      83000005,
+      83000006,
+      83000007,
+      83000008
+    ],
+    "simSha256": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d",
+    "sourceAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+    "sourceTree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
+    "testAssemblySha256": "279035650540e27f496a123fa87fbfd5392ece252005ca8665b5aa9d9a457023",
+    "testSourceSha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2",
+    "validatorSha256": "cc3204ed9de950f17a49c2824883f08acf8b73131ff0f222c1413698c06f52e6"
+  },
+  "postflight": {
+    "binaries": {
+      "harnessDll": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+      "pack": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+      "simDll": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d"
+    },
+    "paths": {
+      "harnessDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Tests/bin/Release/net10.0/CivSim.Harness.dll",
+      "pack": "/private/tmp/e5-closeout-acceptance-8774-b5/numeric-e5.pack",
+      "simDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Tests/bin/Release/net10.0/CivSim.Sim.dll"
+    },
+    "snapshot": {
+      "contentSrcGameAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+      "head": "a966ec377a9d650b2b90b4467827c777e115c603",
+      "tree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef"
+    },
+    "testSource": {
+      "path": "src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs",
+      "sha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2"
+    }
+  },
+  "postflightErrors": [],
+  "preflight": {
+    "binaries": {
+      "harnessDll": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+      "pack": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+      "simDll": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d"
+    },
+    "paths": {
+      "harnessDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Tests/bin/Release/net10.0/CivSim.Harness.dll",
+      "pack": "/private/tmp/e5-closeout-acceptance-8774-b5/numeric-e5.pack",
+      "simDll": "/private/tmp/e5-closeout-candidate-20261127/src/CivSim.Tests/bin/Release/net10.0/CivSim.Sim.dll"
+    },
+    "snapshot": {
+      "contentSrcGameAggregateSha256": "e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048",
+      "head": "a966ec377a9d650b2b90b4467827c777e115c603",
+      "tree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef"
+    },
+    "testSource": {
+      "path": "src/CivSim.Tests/FiefWholeMatchFogFairnessTests.cs",
+      "sha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2"
+    }
+  },
+  "seeds": [
+    83000001,
+    83000002,
+    83000003,
+    83000004,
+    83000005,
+    83000006,
+    83000007,
+    83000008
+  ],
+  "status": "completed",
+  "testBinaries": {
+    "CivSim.Harness.dll": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+    "CivSim.Tests.dll": "279035650540e27f496a123fa87fbfd5392ece252005ca8665b5aa9d9a457023"
+  },
+  "testSourceSha256": "af56ce81c521c773375056a3f07ddc902e7c1351ca2c12490b75d415718f41c2",
+  "toolPins": {
+    "hashHelperSha256": "7cb7fa0d6a47885364d6f968fc07f1431cff85957148beace52650520f49c916",
+    "runnerSha256": "9315432889dba189cbe162848011ae7be8c5521d7f964419dd3c2ed08d462bdc",
+    "validatorSha256": "cc3204ed9de950f17a49c2824883f08acf8b73131ff0f222c1413698c06f52e6"
+  },
+  "unchangedDuringRun": true
+}

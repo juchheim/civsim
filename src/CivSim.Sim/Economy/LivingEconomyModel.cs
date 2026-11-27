@@ -4171,9 +4171,9 @@ public sealed partial class LivingEconomyModel : ISimModel
             }
             else if (figure.Female && figure.Age is >= 14 and < 45)
             {
-                Fix64 targetFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization) * FiefCityGrowthMultiplier(settlement);
+                Fix64 targetFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization);
                 Fix64 cityGrowthMultiplier = FiefCityGrowthMultiplier(settlement);
-                Fix64 conceptionChance = Fix64.One / (Fix64.One / targetFertility - Fix64.FromInt(3));
+                Fix64 baseConceptionChance = Fix64.One / (Fix64.One / targetFertility - Fix64.FromInt(3));
                 if (!conceptionCapKnown)
                 {
                     trackedFoodCap = FoodCap(settlement);
@@ -4185,13 +4185,14 @@ public sealed partial class LivingEconomyModel : ISimModel
                 Fix64 density = cap <= Fix64.Zero ? Fix64.One : Fix64.Min(Fix64.One, Fix64.FromInt(populationAtStart) / cap);
                 Fix64 crowding = Fix64.One;
                 for (int power = 0; power < 6; power++) crowding *= density;
-                conceptionChance *= priorSeasonFoodSecurity * fertilityHealth * (Fix64.One - crowding);
+                Fix64 conceptionChance = baseConceptionChance * priorSeasonFoodSecurity * fertilityHealth *
+                    (Fix64.One - crowding) * cityGrowthMultiplier;
                 if (FoodWorkAttributionTraceEnabled)
                 {
                     eligibleAttempts++;
                     trackedDensity = density;
                     trackedCrowding = crowding;
-                    trackedBaseChance = Fix64.One / (Fix64.One / targetFertility - Fix64.FromInt(3));
+                    trackedBaseChance = baseConceptionChance;
                     trackedChance = conceptionChance;
                 }
                 Pcg32 birth = Pcg32.ForStream(_seed, BirthStream, (ulong)figure.Id, season);
@@ -4201,14 +4202,12 @@ public sealed partial class LivingEconomyModel : ISimModel
                 {
                     bool charter = HasProject(settlement.Civilization, "GOV-11");
                     Fix64 controlFertility = Fix64.Parse("0.13") * FertilityMultiplier(settlement.Civilization);
-                    Fix64 treatmentFertility = controlFertility * FiefCityGrowthMultiplierTreatment(settlement);
                     Fix64 controlChance = Fix64.One / (Fix64.One / controlFertility - Fix64.FromInt(3));
                     controlChance *= priorSeasonFoodSecurity * fertilityHealth * (Fix64.One - crowding);
-                    Fix64 treatmentChance = Fix64.One / (Fix64.One / treatmentFertility - Fix64.FromInt(3));
-                    treatmentChance *= priorSeasonFoodSecurity * fertilityHealth * (Fix64.One - crowding);
+                    Fix64 treatmentChance = controlChance * FiefCityGrowthMultiplierTreatment(settlement);
                     bool controlConceived = birthRoll < Fix64.Clamp(controlChance, Fix64.Zero, Fix64.One);
                     bool treatmentConceived = birthRoll < Fix64.Clamp(treatmentChance, Fix64.Zero, Fix64.One);
-                    FiefWp7TraceObserverForDiagnostics($"wp7-gov11-growth seed={_seed} season={season} civ={settlement.Civilization} settlement={settlement.Id} figure={figure.Id} city=true gov11={charter.ToString().ToLowerInvariant()} actualMode={(FiefWp7SuppressGov11GrowthForDiagnostics ? "control_suppressed" : "treatment")} growthMultiplier={cityGrowthMultiplier.Raw} actualConceptionChance={conceptionChance.Raw} actualOutcome={(conceived ? "conception" : "no_conception")} controlFertilityInput={controlFertility.Raw} treatmentFertilityInput={treatmentFertility.Raw} controlConceptionChance={controlChance.Raw} treatmentConceptionChance={treatmentChance.Raw} keyedRoll={birthRoll.Raw} controlOutcome={(controlConceived ? "conception" : "no_conception")} treatmentOutcome={(treatmentConceived ? "conception" : "no_conception")} pairedBasis=same_figure_same_state_same_keyed_roll");
+                    FiefWp7TraceObserverForDiagnostics($"wp7-gov11-growth seed={_seed} season={season} civ={settlement.Civilization} settlement={settlement.Id} figure={figure.Id} city=true gov11={charter.ToString().ToLowerInvariant()} actualMode={(FiefWp7SuppressGov11GrowthForDiagnostics ? "control_suppressed" : "treatment")} growthMultiplier={cityGrowthMultiplier.Raw} actualConceptionChance={conceptionChance.Raw} actualOutcome={(conceived ? "conception" : "no_conception")} fertilityInput={controlFertility.Raw} controlConceptionChance={controlChance.Raw} treatmentConceptionChance={treatmentChance.Raw} keyedRoll={birthRoll.Raw} controlOutcome={(controlConceived ? "conception" : "no_conception")} treatmentOutcome={(treatmentConceived ? "conception" : "no_conception")} pairedBasis=same_figure_same_state_same_keyed_roll");
                 }
                 if (conceived)
                 {

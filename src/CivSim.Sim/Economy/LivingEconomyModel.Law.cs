@@ -2,7 +2,7 @@ using CivSim.Sim.Numerics;
 
 namespace CivSim.Sim.Economy;
 
-/// <summary>Minimal Fief charter interpretation (GOV-11): a City-tier settlement is chartered once its civilization completes GOV-11.</summary>
+/// <summary>Minimal Fief charter interpretation (GOV-11): a City-tier settlement is chartered once its civilization completes GOV-11; the charter multiplies conception probability by 1.1.</summary>
 public sealed partial class LivingEconomyModel
 {
     private Fix64 FiefCityGrowthMultiplier(SettlementState settlement)
