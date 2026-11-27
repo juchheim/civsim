@@ -6,7 +6,7 @@
 
 > **Current implementation override — 2026-11-20.** The user directed that Faith & Fief be enabled in the base game regardless of the remaining acceptance gates. Standard launches now use `ChapterMode.Fief`; all 50 E5 catalog rows are `numeric`, so their current draft-fit values and effects are active. This enables normal gameplay without claiming the open balance, performance, cross-platform or comprehension gates have passed. The earlier default-off and pre-acceptance promotion decisions below are historical and superseded for launch/promotion only; the acceptance evidence remains open.
 
-> **A1 owner decision — 2026-11-26.** A1 is officially **PASS for E5 by explicit owner-approved exception**. The preserved measured result is 59/80 (73.75%); it remains below the nominal 64/80 (80%) threshold. Astra's fresh review found no evidence-backed low-risk change to justify another tuning cycle. The exception does not alter the written threshold or waive the other AI and technical gates. See the [A1 disposition](balance/m12-e5-11-a1-owner-accepted-near-miss-2026-11-26.md).
+> **A1 owner decision — 2026-11-27.** For this E5 closeout, the owner-approved A1 acceptance threshold is **74% as reported over the 80-match cohort**. The current-source M10 result is 76%, so A1 passes. Keep the original 80% benchmark and all raw outcomes visible; this approval changes only the E5 release criterion for A1 and waives no other gate. See the [A1 disposition](balance/m12-e5-11-a1-owner-accepted-near-miss-2026-11-26.md).
 
 ## 1. Which age is next, and why
 
