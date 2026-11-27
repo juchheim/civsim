@@ -1,6 +1,17 @@
 # B5-13 golden-diff audit — candidate 2fce6aa
 
-**Status: delta inventory complete; integration gate remains open** pending the full Release suite and strict content validation.
+**Status: delta inventory complete; strict content validation passes; integration gate remains open** pending the full Release suite.
+
+## Validation progress — 2026-11-27
+
+Strict content validation completed on the frozen candidate source with `dotnet run --project src/CivSim.Cli -c Release -- validate --strict`:
+
+```text
+509 projects + 10 keystones in 33 lineages: 156 draft, 363 numeric
+0 error(s), 0 warning(s)
+```
+
+The full Release `dotnet test CivSim.slnx -c Release --nologo` run is still in progress. B5-13 remains open until that suite completes successfully; this validation does not replace the golden review above.
 
 Compared with base commit `053bf4c91e39916dda03a8bfd085ea94ea94ad19`, candidate `2fce6aa29eab5d75e0cd6018c44d6ea6d5a65b78` changes exactly three files under `tests/golden/`:
 
