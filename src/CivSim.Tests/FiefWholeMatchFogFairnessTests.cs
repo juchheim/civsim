@@ -631,7 +631,9 @@ public sealed class FiefWholeMatchFogFairnessTests
     /// Horse-source knowledge is a one-way latch (Seen stays Seen), so on live matches it is usually already set. For the rotating
     /// observer this builds a controlled triple from the live state: a reference clone whose latch is reset to Unknown with every
     /// horse herd moved to unexplored tiles; a hidden clone (herd tiles and counts varied among unexplored tiles; must match the
-    /// reference); and a visible clone (one herd on an explored home tile; must flip the observer's knowledge).
+    /// reference); and a visible clone (one herd on an explored home tile; must flip the observer's knowledge). If natural map
+    /// generation produced no horse herd, the test clones convert one existing wild-herd slot to a controlled horse herd so the
+    /// same positive and negative controls still run for that frozen seed.
     /// </summary>
     private static void AddHorseTriple(List<(Row Row, MatchModel Copy, SimRunner CopyRunner, MatchModel? Against, string? Expect)> pending,
         List<Row> rows, MatchModel match, ContentPack pack, ulong seed, int season, int observer, long tick)
@@ -644,9 +646,17 @@ public sealed class FiefWholeMatchFogFairnessTests
         var herds = new List<int>();
         for (int i = 0; i < match.Economy.WildHerdCount; i++)
             if (match.Economy.WildHerd(i).Species == HerdSpecies.Horse) herds.Add(i);
+        bool syntheticHorse = false;
+        if (herds.Count == 0 && match.Economy.WildHerdCount > 0)
+        {
+            // This is a controlled test fixture in the clones only. Without it, a natural map
+            // lacking horses records an unapplied positive control rather than testing the mind.
+            herds.Add(0);
+            syntheticHorse = true;
+        }
         if (home < 0 || pool.Length == 0 || herds.Count == 0)
         {
-            string why = home < 0 ? "observer has no settlement" : pool.Length == 0 ? "no unexplored tiles beyond margin" : "world has no horse herd";
+            string why = home < 0 ? "observer has no settlement" : pool.Length == 0 ? "no unexplored tiles beyond margin" : "world has no wild-herd slot";
             if (home < 0)
             {
                 hiddenRow.Eligible = false;
@@ -665,6 +675,7 @@ public sealed class FiefWholeMatchFogFairnessTests
             st.Belief.HorseSource = HorseSourceKnowledge.Unknown;
             for (int k = 0; k < herds.Count; k++)
             {
+                if (syntheticHorse && k == 0) SetWildHerdSpecies(c.Economy, herds[k], HerdSpecies.Horse);
                 int tile = varied ? pool[rng.Next(pool.Length)] : pool[(k * 7) % pool.Length];
                 int count = varied ? rng.Next(1, 20) : 5;
                 c.Economy.FixtureSetWildHerd(herds[k], tile, Fix64.FromInt(count));
@@ -683,6 +694,15 @@ public sealed class FiefWholeMatchFogFairnessTests
         pending.Add((new Row { Seed = seed, Season = season, Observer = observer, Kind = "horse-reference", Applied = false }, reference, rr, null, null));
         pending.Add((hiddenRow, hidden, new SimRunner(hidden, int.MaxValue, tick), reference, null));
         pending.Add((visibleRow, visibleClone, new SimRunner(visibleClone, int.MaxValue, tick), reference, "horse source"));
+    }
+
+    private static void SetWildHerdSpecies(LivingEconomyModel economy, int herdIndex, HerdSpecies species)
+    {
+        Array herds = (Array)typeof(LivingEconomyModel)
+            .GetField("_wildHerds", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(economy)!;
+        object herd = herds.GetValue(herdIndex)!;
+        herd.GetType().GetField("Species", BindingFlags.Instance | BindingFlags.Public)!.SetValue(herd, species);
     }
 
     private static string ExpectedLabel(string kind) => kind switch
