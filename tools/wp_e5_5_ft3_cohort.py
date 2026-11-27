@@ -12,6 +12,7 @@ from fractions import Fraction
 from pathlib import Path
 
 SEASONS, PEOPLE, WINDOW, EXPECTED_SEEDS = 80, 200, 12, 40
+MIN_ELIGIBLE_PAIRS = 30
 ONE_RAW = 1 << 32
 WORK_CEILING_RAW = 15 * ONE_RAW // 100
 FUEL_DEMAND_MIN = 12
@@ -208,11 +209,22 @@ def analyze(records: list[dict], seeds: list[int]) -> dict:
                       "furnace_attributed_clearings": extra_clearings, "clearing_status": clearing,
                       "material_residual_status": "PASS" if t["wood_balance_residual_raw"] == 0 else "FAIL",
                       "status": "FAIL" if fail else "INCOMPLETE" if incomplete else "PASS"})
-    status = "FAIL" if any(p["status"] == "FAIL" for p in pairs) else "INCOMPLETE" if errors or len(pairs) != len(seeds) or any(p["status"] != "PASS" for p in pairs) else "PASS"
+    eligible = [p for p in pairs if p["status"] == "PASS"]
+    censored = [p for p in pairs if p["status"] == "INCOMPLETE"]
+    if any(p["status"] == "FAIL" for p in pairs):
+        status = "FAIL"
+    elif errors or len(pairs) != len(seeds) or len(eligible) < MIN_ELIGIBLE_PAIRS:
+        status = "INCOMPLETE"
+    else:
+        status = "PASS"
     return {"protocol": "WP-E5-5/F-T3", "gate_rule": "D13: <=15% for every mature rolling 12-season window",
             "threshold_raw": WORK_CEILING_RAW, "seasons": SEASONS, "people": PEOPLE, "window_seasons": WINDOW,
             "expected_seed_count": len(seeds), "expected_arm_seed_rows": len(expected),
-            "received_arm_seed_rows": len(records), "pairs": pairs, "errors": errors, "status": status}
+            "received_arm_seed_rows": len(records), "pairs": pairs, "errors": errors,
+            "cohort_eligibility": {"minimum_eligible_pairs": MIN_ELIGIBLE_PAIRS,
+                                   "eligible_pairs": len(eligible), "eligible_seeds": [p["seed"] for p in eligible],
+                                   "censored_pairs": len(censored), "censored_seeds": [p["seed"] for p in censored]},
+            "status": status}
 
 def fixture_checks() -> None:
     def arm(name, shares=None, seed=7, no_exp=0, first_kit=5, demand=12, fuel_raw=0, clear=0):
@@ -242,6 +254,19 @@ def fixture_checks() -> None:
     assert result["status"] == "FAIL" and result["pairs"][0]["treatment"]["work_fail_windows"]
     no_exposure = analyze([arm("treatment", no_exp=1), arm("control")], seeds)
     assert no_exposure["status"] == "INCOMPLETE" and no_exposure["pairs"][0]["work_status"] == "NO_EXPOSURE_INCOMPLETE"
+    many_seeds = list(range(40))
+    records = []
+    for seed in many_seeds:
+        demand = 12 if seed < 30 else 0
+        records.extend([arm("treatment", seed=seed, demand=demand), arm("control", seed=seed)])
+    exposure_sufficient = analyze(records, many_seeds)
+    assert exposure_sufficient["status"] == "PASS"
+    assert exposure_sufficient["cohort_eligibility"]["eligible_pairs"] == 30
+    assert exposure_sufficient["cohort_eligibility"]["censored_pairs"] == 10
+    records[58] = arm("treatment", seed=29, demand=0)
+    exposure_insufficient = analyze(records, many_seeds)
+    assert exposure_insufficient["status"] == "INCOMPLETE"
+    assert exposure_insufficient["cohort_eligibility"]["eligible_pairs"] == 29
     # The opt-in harness telemetry parser accepts the exact machine-row shape and maturity boundary.
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "one-arm.txt"
@@ -261,7 +286,7 @@ def fixture_checks() -> None:
         assert "pin mismatch" in str(e)
     else:
         raise AssertionError("wrong pins accepted")
-    print("fixture checks passed: missing/duplicate arms, wrong pins, every-window semantics, no-exposure")
+    print("fixture checks passed: missing/duplicate arms, wrong pins, every-window semantics, censor sufficiency, no-exposure")
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
