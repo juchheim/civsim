@@ -1,0 +1,9 @@
+seed=20261019 ticks=7200 bot=grower commands=27
+final=8243a9f72aba5291
+digest=69da0f91a8b8eb66
+civarchetype projects  K1 min  K2 min  K3 min  era  Insight/yr  KH share  people  legacy
+0  Grower          23    11.7       -       -    1        73.0      10 %      30      88
+1  Builder         24     8.2       -       -    1        68.7      11 %      30      92
+2  Sage            25     8.6       -       -    1        60.9      13 %      31      95
+3  Wanderer        31     6.5       -       -    1        80.3      13 %      31     118
+research determinism check passed

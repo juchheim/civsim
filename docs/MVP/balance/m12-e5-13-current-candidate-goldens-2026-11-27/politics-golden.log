@@ -1,0 +1,23 @@
+  [min 5] claimed 2.5% settlements 1/1/1/1 era 0000
+  min   9.0  civ0 Aware other=1 a=3 b=0
+  min  10.0  civ2 Aware other=3 a=3 b=0
+  [min 10] claimed 2.5% settlements 1/1/1/1 era 1111
+  min  14.7  civ2 Contact other=3 a=2 b=2
+  [min 15] claimed 5.8% settlements 2/2/2/2 era 1111
+  min  19.9  civ0 Contact other=1 a=0 b=0
+  [min 20] claimed 7.1% settlements 2/2/3/2 era 1111
+  min  21.5  civ1 Gift other=0 a=5 b=10
+  min  23.5  civ1 Gift other=0 a=5 b=10
+  min  23.7  civ0 Gift other=1 a=5 b=10
+  min  23.7  civ3 Gift other=2 a=5 b=10
+After 24 min: claimed 9.6% of habitable land; raids 0 (ok 0), gifts 4, barter 0, wars 0, captures 0, skirmishes 0
+  civ0: owns 126 tiles (2.1%), dominion 573.7, reach 12, era 2
+  civ1: owns 142 tiles (2.4%), dominion 580.4, reach 12, era 2
+  civ2: owns 162 tiles (2.7%), dominion 646.7, reach 12, era 2
+  civ3: owns 142 tiles (2.4%), dominion 599.2, reach 12, era 2
+  civ0-civ1: relations 25
+  civ2-civ3: relations 5
+seed=20261019 ticks=14400 archetypes=Balanced,Balanced,Balanced,Balanced
+final=8dff024561450efe
+digest=8002412cf628ef95
+politics determinism check passed

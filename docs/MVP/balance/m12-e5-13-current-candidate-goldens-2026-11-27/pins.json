@@ -1,0 +1,14 @@
+{
+  "candidateHead": "a966ec377a9d650b2b90b4467827c777e115c603",
+  "candidateTree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
+  "numericPackSha256": "ef8602092c1adda628a2862f1fc84fba4a40e6f2ab292b95fb40fa988aecbc90",
+  "harnessSha256": "1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7",
+  "simSha256": "90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d",
+  "logs": {
+    "content-pack-golden.log": "fcf55957d9b3bc55dfc47faca58cd7e2be774fd3f0e4220d4a7c639a0f37c43b",
+    "politics-golden.log": "cdeeb596cf3584e18c09fe600999cf10a12750c0773bfe46beb609b1aae802f2",
+    "research-golden.log": "21319a93591a97500c81860d90731711238e1f01fc80d6cf2f1fea91147102e7",
+    "strict-validation.log": "17af56d8919fea222cc1e1db2672f7b82e8e23cca50944cbfd5c44ba3d7293d6",
+    "toy-golden.log": "76f26689fff340b6a8e1280784dff3c55a2b3cf09d4a7b30c02741304b6d0562"
+  }
+}
