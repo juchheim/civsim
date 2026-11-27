@@ -160,6 +160,28 @@ public class MatchModelTests
     }
 
     [Fact]
+    public void Fief_snapshot_preserves_cached_research_outputs_and_dirty_phase()
+    {
+        CivControl[] controls = Enumerable.Repeat(CivControl.Council, 4).ToArray();
+        MatchModel live = MatchModel.Create(Seed, TestPack.Pack, World.Value, Archetypes, controls,
+            playerCouncil: false, rules: ChapterRules.Fief);
+        for (int civ = 0; civ < live.Research.CivCount; civ++)
+            live.Research.FixtureSetInsightCache(civ, Fix64.FromInt(100 + civ), Fix64.FromInt(20 + civ),
+                Fix64.FromInt(5 + civ), dirty: civ % 2 == 1);
+
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true)) live.WriteSnapshot(writer);
+        stream.Position = 0;
+        MatchModel resumed = MatchModel.Create(Seed, TestPack.Pack, World.Value, Archetypes, controls,
+            playerCouncil: false, rules: ChapterRules.Fief);
+        using (var reader = new BinaryReader(stream)) resumed.ReadSnapshot(reader);
+
+        for (int civ = 0; civ < live.Research.CivCount; civ++)
+            Assert.Equal(live.Research.FixtureInsightCache(civ), resumed.Research.FixtureInsightCache(civ));
+        Assert.Equal(live.ComputeChecksum(), resumed.ComputeChecksum());
+    }
+
+    [Fact]
     public void A_captured_settlement_keeps_a_valid_weir_without_the_captors_research()
     {
         const ulong seed = 20261348;

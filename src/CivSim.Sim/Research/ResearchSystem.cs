@@ -37,6 +37,8 @@ public sealed partial class ResearchSystem : IResearchView
     public const int AiResearchSelectionDelayTicks = 3 * TicksPerGameSecond;
     private const int StepsPerYear = 60;
     private const int MaxQueue = 8;
+    private const uint FiefInsightSnapshotMagic = 0x48434149; // "IACH" little-endian
+    private const int FiefInsightSnapshotVersion = 1;
 
     private static readonly Fix64 PTeachBase = Fix64.FromRatio(25, 100);
     private static readonly Fix64 PTeachMax = Fix64.FromRatio(95, 100);
@@ -70,6 +72,21 @@ public sealed partial class ResearchSystem : IResearchView
     private Fix64[][]? _diagnosticKnowHowGenerated;
     // Harness-only switch used to exercise the draft Fief tree after KEY-5 without promoting its numeric rows.
     internal bool DiagnosticDraftProjectGrantsEnabled { get; set; }
+
+    internal void FixtureSetInsightCache(int civ, Fix64 insight, Fix64 commons, Fix64 knowHow, bool dirty)
+    {
+        CivResearch state = _civs[civ];
+        state.InsightPerYear = insight;
+        state.CommonsPerYear = commons;
+        state.KnowHowPerYear = knowHow;
+        state.InsightDirty = dirty;
+    }
+
+    internal (Fix64 Insight, Fix64 Commons, Fix64 KnowHow, bool Dirty) FixtureInsightCache(int civ)
+    {
+        CivResearch state = _civs[civ];
+        return (state.InsightPerYear, state.CommonsPerYear, state.KnowHowPerYear, state.InsightDirty);
+    }
 
     private readonly Fix64 _commonsCoef, _commonsExp, _elderCommons, _knowHowOfCommons, _lowTies;
     private readonly Fix64 _eraLag, _diffusionStep, _diffusionFloor, _eraBoon, _calibration;
@@ -1113,6 +1130,16 @@ public sealed partial class ResearchSystem : IResearchView
         h.Add(_tick);
         if (Rules.HasMode) h.Add((int)Rules.Mode); // Bronze adds nothing, so legacy checksums are unchanged; Iron (1) and Fief (2) differ
         foreach (CivResearch civ in _civs) civ.Hash(ref h);
+        // Fief can change living research inputs after the season-end Insight refresh. These cached outputs remain
+        // authoritative until the next refresh, so include them in the Fief state checksum as well as its snapshot.
+        if (Rules.IsFief)
+            foreach (CivResearch civ in _civs)
+            {
+                h.Add(civ.InsightPerYear);
+                h.Add(civ.CommonsPerYear);
+                h.Add(civ.KnowHowPerYear);
+                h.Add(civ.InsightDirty);
+            }
         foreach (int f in _firstBy) h.Add(f);
         foreach (bool k in _contact) h.Add(k);
         _source.Hash(ref h);
@@ -1127,6 +1154,19 @@ public sealed partial class ResearchSystem : IResearchView
         foreach (int f in _firstBy) w.Write(f);
         foreach (bool k in _contact) w.Write(k);
         _source.WriteSnapshot(w);
+        if (Rules.IsFief)
+        {
+            w.Write(FiefInsightSnapshotMagic);
+            w.Write(FiefInsightSnapshotVersion);
+            w.Write(_civs.Length);
+            foreach (CivResearch civ in _civs)
+            {
+                w.Write(civ.InsightPerYear.Raw);
+                w.Write(civ.CommonsPerYear.Raw);
+                w.Write(civ.KnowHowPerYear.Raw);
+                w.Write(civ.InsightDirty);
+            }
+        }
     }
 
     public void ReadSnapshot(BinaryReader r)
@@ -1138,6 +1178,7 @@ public sealed partial class ResearchSystem : IResearchView
         for (int i = 0; i < _firstBy.Length; i++) _firstBy[i] = r.ReadInt32();
         for (int i = 0; i < _contact.Length; i++) _contact[i] = r.ReadBoolean();
         _source.ReadSnapshot(r);
+        (Fix64 Insight, Fix64 Commons, Fix64 KnowHow, bool Dirty)[]? fiefInsightCache = ReadFiefInsightSnapshot(r);
         if (_source.NeedsKnowHowMigration)
             _source.MigrateKnowHow(_catalog.LineageCodes.Count, (civ, lineage) => _civs[civ].KnowHow[lineage]);
         _events.Clear();
@@ -1146,7 +1187,37 @@ public sealed partial class ResearchSystem : IResearchView
         {
             RefreshPeople(c);
             RebuildDerived(c);
-            RefreshInsight(c);
+            if (fiefInsightCache is null)
+                RefreshInsight(c);
+            else
+            {
+                _civs[c].InsightPerYear = fiefInsightCache[c].Insight;
+                _civs[c].CommonsPerYear = fiefInsightCache[c].Commons;
+                _civs[c].KnowHowPerYear = fiefInsightCache[c].KnowHow;
+                _civs[c].InsightDirty = fiefInsightCache[c].Dirty;
+            }
         }
+    }
+
+    private (Fix64 Insight, Fix64 Commons, Fix64 KnowHow, bool Dirty)[]? ReadFiefInsightSnapshot(BinaryReader r)
+    {
+        if (!Rules.IsFief) return null;
+        Stream stream = r.BaseStream;
+        if (!stream.CanSeek) throw new InvalidDataException("Fief snapshots require a seekable stream for the optional research-cache trailer.");
+        if (stream.Length - stream.Position < sizeof(uint)) return null;
+        long start = stream.Position;
+        if (r.ReadUInt32() != FiefInsightSnapshotMagic)
+        {
+            stream.Position = start;
+            return null; // Older Fief snapshot; retain the historical rebuild behavior.
+        }
+        if (r.ReadInt32() != FiefInsightSnapshotVersion)
+            throw new InvalidDataException("The snapshot has an unsupported Fief research-cache trailer.");
+        if (r.ReadInt32() != _civs.Length)
+            throw new InvalidDataException("Fief research-cache snapshot civilization count differs from the match.");
+        var cache = new (Fix64 Insight, Fix64 Commons, Fix64 KnowHow, bool Dirty)[_civs.Length];
+        for (int c = 0; c < cache.Length; c++)
+            cache[c] = (Fix64.FromRaw(r.ReadInt64()), Fix64.FromRaw(r.ReadInt64()), Fix64.FromRaw(r.ReadInt64()), r.ReadBoolean());
+        return cache;
     }
 }
