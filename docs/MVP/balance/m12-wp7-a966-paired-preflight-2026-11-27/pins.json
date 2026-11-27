@@ -1,6 +1,6 @@
 {
   "schema": "civsim.wp-e5-7-gov11-paired-preflight/v1",
-  "status": "pinned_preflight_not_run",
+  "status": "calibration_r1_failed_before_simulation; retry_pinned_not_started",
   "candidate": {
     "head": "a966ec377a9d650b2b90b4467827c777e115c603",
     "tree": "aa860512e8f97f6e1c35ebe5548e32f5159e73ef",
@@ -22,7 +22,7 @@
     "manifestSha256": "f2edf753fd3f26e86e49c22385d2e857192b69cf796f36e1bdbdc079a287742d",
     "seedCount": 20,
     "minutes": 130,
-    "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r1"
+    "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r2"
   },
   "holdout": {
     "manifest": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-e5-7-gov11-prereg-2026-11-16-r2/holdout-seeds.txt",
@@ -34,7 +34,7 @@
   },
   "tools": {
     "runnerPath": "docs/MVP/balance/tools/run_wp7_paired_cohort.py",
-    "runnerSha256": "8225a5067a83433b1ead499e0a40594bb07f400a6cb147bf541b94fa4a3b68e4",
+    "runnerSha256": "ea7af356ff34536d908fb108ecc78c4209228988f989662f7566b5ee31330c00",
     "provenanceHelperPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/tools/cohort_provenance.py",
     "provenanceHelperSha256": "496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a",
     "analyzerPath": "/private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/tools/analyze_fief_gov11_city_year_pairs.py",
@@ -46,6 +46,13 @@
     "pairedFlag": "--fief-wp7-paired",
     "workers": 4,
     "criteriaSource": "m12-e5-7-measurement-protocol-audit-2026-11-15.md",
-    "launchState": "calibration may run beside deterministic WP-E5-12 cohort; performance cohorts remain gated on idle host"
+    "launchState": "calibration r1 failed at harness record-dir guard before simulation; r2 uses fresh root and same untouched calibration seeds; performance cohorts remain gated on idle host"
+  }
+  ,
+  "priorAttempt": {
+    "outputRoot": "/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r1",
+    "status": "failed_before_simulation",
+    "simulatedMatches": 0,
+    "reason": "runner pre-created per-seed replay directory; Harness requires an absent --record-dir"
   }
 }

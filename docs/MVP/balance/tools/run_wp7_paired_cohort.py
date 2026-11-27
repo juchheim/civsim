@@ -166,7 +166,6 @@ def main() -> int:
         log_path = output / "logs" / f"{seed}.log"
         replay_dir = output / "replays" / str(seed)
         replay_path = replay_dir / f"{seed}.replay"
-        replay_dir.mkdir(parents=True, exist_ok=False)
         command = [dotnet, str(harness), "fief-match", "--pack", str(pack), "--seed", str(seed),
                    "--minutes", str(args.minutes), "--fief-wp7-paired", "--record-dir", str(replay_dir)]
         started = dt.datetime.now(dt.timezone.utc).isoformat()

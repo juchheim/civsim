@@ -14,7 +14,9 @@ The calibration run must finish and be analyzed before opening holdout output. H
 
 ## Launch state
 
-The 20-seed calibration is being launched while the independent WP-E5-12 cohort continues. Both are fixed-seed deterministic balance runs, and neither measures runtime performance; the available host has capacity for the four calibration workers. The 80-seed holdout remains sealed until calibration analysis is complete. The 20-seed and 80-seed runs use distinct absent output directories outside the repository. The runner's metadata captures `dotnet --info`, operating-system and architecture details, all match commands, trace counts, replay hashes, and final provenance. B5-11 performance cohorts still require an idle host.
+Calibration attempt r1 failed before simulation: the wrapper pre-created each replay directory, but Harness requires `--record-dir` to name an absent directory. The run recorded zero simulated matches and exposed no outcomes. The wrapper was corrected to leave each replay directory absent; its new SHA-256 is pinned in [pins.json](pins.json). Retry r2 uses the same registered 20 calibration seeds and the fresh output root `/private/tmp/e5-closeout-wp7-a966-calibration-20261127-r2`. Do not reuse the failed r1 output root.
+
+The 20-seed calibration can run while the independent WP-E5-12 cohort continues. Both are fixed-seed deterministic balance runs, and neither measures runtime performance; the available host has capacity for the four calibration workers. The 80-seed holdout remains sealed until calibration analysis is complete. The 20-seed and 80-seed runs use distinct absent output directories outside the repository. The runner's metadata captures `dotnet --info`, operating-system and architecture details, all match commands, trace counts, replay hashes, and final provenance. B5-11 performance cohorts still require an idle host.
 
 The frozen command shape for calibration is:
 
@@ -26,7 +28,7 @@ python3 /private/tmp/e5-closeout-evidence-20261127/docs/MVP/balance/tools/run_wp
   --sim-dll /private/tmp/e5-closeout-candidate-20261127/src/CivSim.Harness/bin/Release/net10.0/CivSim.Sim.dll \
   --seeds-file /private/tmp/e5-closeout-candidate-20261127/docs/MVP/balance/m12-e5-7-gov11-prereg-2026-11-16-r2/calibration-seeds.txt \
   --role calibration --minutes 130 --workers 4 \
-  --output-dir /private/tmp/e5-closeout-wp7-a966-calibration-20261127-r1 \
+  --output-dir /private/tmp/e5-closeout-wp7-a966-calibration-20261127-r2 \
   --expected-head a966ec377a9d650b2b90b4467827c777e115c603 \
   --expected-tree aa860512e8f97f6e1c35ebe5548e32f5159e73ef \
   --expected-source-aggregate e0b43203a6622829816f85b924e986995bffd474a82a78ce819272025a117048 \
@@ -34,7 +36,7 @@ python3 /private/tmp/e5-closeout-evidence-20261127/docs/MVP/balance/tools/run_wp
   --expected-harness-sha256 1cd422d06fe28e9383eebb0d00dd4de551d3a7b81eee11429f50586cc4e8baf7 \
   --expected-sim-sha256 90fe2bed466ec7dc6903e27e4d6a1324d26af5fc5c1d082641e2fd7dd687c86d \
   --expected-seeds-sha256 f2edf753fd3f26e86e49c22385d2e857192b69cf796f36e1bdbdc079a287742d \
-  --expected-runner-sha256 8225a5067a83433b1ead499e0a40594bb07f400a6cb147bf541b94fa4a3b68e4 \
+  --expected-runner-sha256 ea7af356ff34536d908fb108ecc78c4209228988f989662f7566b5ee31330c00 \
   --expected-provenance-helper-sha256 496f1064b4b02f3e28c8aaff33140a8b2e13d7f8e1a785a68a8cd32f0138a10a
 ```
 
