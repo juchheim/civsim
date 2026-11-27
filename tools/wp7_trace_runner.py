@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 PROTOCOL = "WP-E5-7/GOV-11"
-PROVISIONAL_CRITERIA = "autonomous_d20_working_criteria_not_separately_user_approved"
+PROVISIONAL_CRITERIA = "autonomous_gov11_conception_probability_criteria_not_separately_user_approved"
 MINUTES = 130
 TRACE_FLAG = "--fief-wp7-paired"
 COHORT_SIZES = {"calibration": 20, "holdout": 80}
@@ -29,6 +29,7 @@ PAIR_PREFIXES = (
     "wp7-gov11-city-year-pair-excluded ",
     "wp7-gov11-city-year-pair-censored ",
 )
+GROWTH_PREFIX = "wp7-gov11-growth "
 MATCH_TERMINAL_PREFIX = "wp7-match-terminal "
 ALLOWED_MATCH_STATUSES = {"chapter_end", "horizon_censored", "run_stopped"}
 SOURCE_ROOTS = ("content/", "src/", "game/")
@@ -133,7 +134,7 @@ def candidate_snapshot(source: str | Path, pack: str | Path, harness: str | Path
     if "Release" not in harness_path.parts or "net10.0" not in harness_path.parts:
         raise ValueError("Harness and Sim must come from the Release net10.0 output directory")
     source_info = source_snapshot(source_root)
-    analyzer = source_root / "docs/MVP/balance/tools/analyze_fief_gov11_city_year_pairs.py"
+    analyzer = source_root / "docs/MVP/balance/tools/analyze_fief_gov11_growth_effect.py"
     runner = Path(__file__).resolve()
     if not analyzer.is_file():
         raise ValueError(f"GOV-11 analyzer is missing: {analyzer}")
@@ -253,8 +254,27 @@ def parse_output(raw_text: str, expected_seed: int) -> dict[str, Any]:
     if not fields.get("endReason") or not fields.get("season", "").isdigit():
         raise ValueError("terminal row lacks endReason or numeric season")
 
-    counts = {"eligible_pairs": 0, "excluded_pairs": 0, "censored_pairs": 0}
+    counts = {"eligible_pairs": 0, "excluded_pairs": 0, "censored_pairs": 0,
+              "growth_trace_rows": 0, "chartered_growth_opportunities": 0}
     for line_no, line in enumerate(raw_text.splitlines(), 1):
+        if line.startswith(GROWTH_PREFIX):
+            row = {}
+            for token in line.split()[1:]:
+                if "=" in token:
+                    key, value = token.split("=", 1)
+                    row[key] = value
+            if row.get("seed") != str(expected_seed):
+                raise ValueError(f"GOV-11 growth trace row on line {line_no} has a missing or mismatched seed")
+            counts["growth_trace_rows"] += 1
+            if row.get("gov11") == "true":
+                control = row.get("controlConceptionChance", "")
+                treatment = row.get("treatmentConceptionChance", "")
+                if not control.isdigit() or not treatment.isdigit() or int(treatment) < int(control):
+                    raise ValueError(f"GOV-11 growth trace row on line {line_no} has invalid paired chances")
+                if row.get("pairedBasis") != "same_figure_same_state_same_keyed_roll":
+                    raise ValueError(f"GOV-11 growth trace row on line {line_no} lacks its paired keyed-roll basis")
+                counts["chartered_growth_opportunities"] += int(control) > 0
+            continue
         kind = next((prefix for prefix in PAIR_PREFIXES if line.startswith(prefix)), None)
         if kind is None:
             continue

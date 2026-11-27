@@ -8,7 +8,7 @@ The implementation now applies the charter's 1.1 multiplier to final conception 
 
 ## Frozen acceptance rule
 
-- Run each natural Fief seed for 130 simulated minutes with `--fief-wp7-trace`; do not screen seeds or grant GOV-11.
+- Run each natural Fief seed for 130 simulated minutes with `--fief-wp7-paired`, which also emits the per-opportunity growth rows; do not screen seeds or grant GOV-11.
 - The primary outcome is, per seed, the sum of treatment conception probabilities divided by the sum of control probabilities for same-figure, same-state, same-keyed-roll opportunities in live City settlements whose civilization has GOV-11.
 - A seed is an independent cluster. The estimate is the geometric mean of the per-seed ratios. Use a 10,000-replicate seed-cluster bootstrap with RNG seed `20261127` for the 95% percentile interval.
 - A pass requires at least 20 independent exposed seeds, point estimate 1.08–1.12, and a 95% interval containing 1.10. Report expected and observed seed counts, no-exposure seeds, zero-control-chance rows, eligible female-season opportunities, expected conception totals, paired realized outcome deltas, and the paired whole-city population-factor result as a secondary diagnostic. Do not impute missing or censored observations.

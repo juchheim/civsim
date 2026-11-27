@@ -27,7 +27,7 @@ def fixture(root: Path, cohort_role: str = "calibration", seed_count: int | None
     (source / "content/rules.json").write_text("{}\n")
     (source / "src/sim.cs").write_text("frozen source\n")
     (source / "game/view.gd").write_text("# frozen view\n")
-    analyzer = source / "docs/MVP/balance/tools/analyze_fief_gov11_city_year_pairs.py"
+    analyzer = source / "docs/MVP/balance/tools/analyze_fief_gov11_growth_effect.py"
     analyzer.write_text("# frozen analyzer\n")
     subprocess.run(["git", "-C", str(source), "init", "-q"], check=True)
     subprocess.run(["git", "-C", str(source), "config", "user.email", "test@example.invalid"], check=True)
