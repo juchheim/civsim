@@ -1,5 +1,7 @@
 # 42 — Modern (E8): Grid, Engine, Broadcast and the Choices That End the Game
 
+> **Nuclear decision changed by the owner, 2026-11-28.** Nuclear weapons are **usable**, not deterrent only ("otherwise using them as a deterrent is hollow"). The atomic rows are E8 rows, so **E8 builds the whole arsenal** (§5.8a); E9 ([43 §6.5](43-information-age.md), which holds the full rules and numbers) adds only the uplink, Charter and end-rule interactions. D10, §5.8, §5.9, §8.6 Q6, M-T11, WP-E8-11 and the risks below are updated to match. The owner also confirmed doc 42's recommendations for whole-match length, a rival ending your game (by the Apex only), building the Dominion victory and allowing sabotage ([43](43-information-age.md), table A1 to A10).
+>
 > **Planning draft, 2026-11-28.** The E8 counterpart of [41 — Industry](41-industry-age.md) (approved by the owner, commit `0f10a27`) and [38 — Discovery](38-discovery-age.md): which age comes after Industry, an audit of what exists, the mechanisms and their prices, pacing, gates, work packages, decisions and risks. Because the owner wants the endgame to "sort of begin with decisions made in E8", §8 frames **the endgame as a whole** (E8, E9 and the end of the match) and offers three shapes for it. E9 itself is not designed here. **E8 never changes an E7 rule**; every E8 number is a **draft input to an oracle**, not a fitted value.
 >
 > Audit baseline: worktree `civsim-e6`, branch `codex/e6-discovery` at `0f10a27`. *(verified)* means read from the catalog, registries or source in that tree; *(assumed)* means taken from docs or from doc 41's plan, which is not built yet. Doc 41's approved decisions are treated as settled: E7 Industry, KEY-7 to KEY-8, 55 projects plus KEY-8, breadth 20, about 32 minutes, draft era base 110,000. Sources: [01 §7, §8](01-game-structure.md), [02 §8.3, §13](02-research-structure.md), [03 §4.1](03-research-catalog.md), [04 §2, §8](04-research-paths.md), [05 §13-14](05-simulation-structure.md), [09](09-population-and-health.md), [13](13-contact-and-conflict.md), [14 §3.3, §7](14-ai-opponents.md), [17](17-vertical-slice.md), [22 §3](22-bronze-age.md), [28 §17](28-production-gap.md), [41](41-industry-age.md).
@@ -32,7 +34,7 @@ Industry set the machine against the people who work it. **Modern sets the natio
 | **Grid and engine** | The power station and grid reach every connected town; oil and the engine put power on wheels and wings. | Oil is a gated deposit; grids are lines that can be cut; emissions start counting against everyone (climate stress). |
 | **Plenty and the transition** | Assembly lines, fertilizer, refrigeration, antibiotics: famine nearly ends and lives lengthen. | Births fall (fertility ×0.55): growth slows, cities grow up not out, and Insight must come from schools and labs, not headcount. |
 | **Voice and image** | Telephone, radio, cinema and television carry culture into rival lands (soft claim). | Soft power works both ways; it moves Cohesion and Legacy, never land by itself. |
-| **Blocs and the bomb** | International organizations, pacts, central banks and trade orders bind civilizations together. | Pacts drag partners into wars; deterrence stops conquest but freezes borders; arms control costs readiness. |
+| **Blocs and the bomb** | International organizations, pacts, central banks and trade orders bind civilizations together; the bomb makes a war against a nuclear power a gamble with a city. | Pacts drag partners into wars; a usable bomb invites a world coalition, an embargo and a Legacy penalty against whoever strikes first; arms control costs readiness. |
 | **The race begins** | Rocketry, the transistor and the computer point straight at the Apex. | Every E8 free pick is also Apex preparation (§3.2): a civilization that skips oil, rockets or aviation pays for it in E9. |
 
 ## 3. Scope audit
@@ -74,7 +76,7 @@ Ids take the next free numbers after doc 41's (GOV-16 is taken there). All era 8
 | NRG-17 | Emission Controls | M | NRG-09, CHM-13, MED-13 | Engines and power stations emit −30% at a cost (their output −10%); the only E8 brake on climate stress | [05 §14](05-simulation-structure.md) starts climate stress in E8, but every mitigation row (CHM-14, BLD-16, NRG-13 to 16, DIP-15) is E9 |
 | WAY-15 | Orbital Launch | W | INQ-17, MET-17 | A Wonder built at a launch site: Legacy as a Wonder, one-time map reveal of the contacted world, and a 20% cost cut on WAY-13 satellites for its builder | E8 has no Wonder; the space race is the most legible endgame signal, and it points at a KEY-10 prerequisite |
 
-**Considered and not proposed:** a separate ideology lineage (the Charter covers it without real-world ideology labels), espionage as a full system in E8 (only the service; sabotage itself is E9), a nuclear "use" project (see D10), moving E9 rows down into E8 (E9's KEY-10 prerequisites must stay in E9).
+**Considered and not proposed:** a separate ideology lineage (the Charter covers it without real-world ideology labels), espionage as a full system in E8 (only the service; sabotage itself is E9), a separate nuclear "use" project (WAR-16 itself carries use, D10), moving E9 rows down into E8 (E9's KEY-10 prerequisites must stay in E9).
 
 ### 3.4 Code ceilings *(verified unless noted)*
 
@@ -127,10 +129,22 @@ ART-12 cinema and ART-13 broadcasting project a **soft claim**: culture pressure
 DIP-12 opens a **world assembly** of contacted civilizations that votes on sanctions and embargoes, one vote each (P), on seeded schedules. DIP-16 forms **pacts** (blocs). TRD-13 damps E7's boom and bust; TRD-14's trade order raises trade with all contacted civilizations +30% and diffusion. TER-14 turns colonies that broke away into autonomous allies. BEL-14 human rights make razing and wars of annihilation impossible and raise the Legacy penalty for atrocities. **GOV-17 World Charter** is §8.4's commitment.
 
 ### 5.8 War, deterrence and the race (H)
-DEF-12 trenches make front-line tiles near-impossible to take by infantry; WAR-15 tanks and aircraft break them and add air raids that DEF-13 radar cuts −60%. WAR-16 nuclear weapons are a **deterrent**: a civilization with DEF-14 cannot be the target of a war of conquest (raids and proxy pressure stay possible). DIP-13 arms control lowers catastrophe risk and military upkeep. **Climate stress** ([05 §14](05-simulation-structure.md)) begins: every civilization's emissions add to one world value, and above a threshold it raises the frequency of seeded droughts, floods and storms for everyone (P: +50% at full stress in E8; E9 owns the rest). WAY-15 Orbital Launch and WAR-19 intelligence open the race.
+DEF-12 trenches make front-line tiles near-impossible to take by infantry; WAR-15 tanks and aircraft break them and add air raids that DEF-13 radar cuts −60%. WAR-16 nuclear weapons are **usable** (owner decision, 2026-11-28; §5.8a). DEF-14 is **second-strike capability**, not a ban on war, and DIP-13 is the arms-control treaty. **Climate stress** ([05 §14](05-simulation-structure.md)) begins: every civilization's emissions add to one world value, and above a threshold it raises the frequency of seeded droughts, floods and storms for everyone (P: +50% at full stress in E8; E9 owns the rest). WAY-15 Orbital Launch and WAR-19 intelligence open the race.
+
+### 5.8a Nuclear weapons: what E8 builds (D10, owner decision)
+The full rules and draft numbers are in [43 §6.5](43-information-age.md); E8 builds all of them because every atomic row is E8 *(verified: INQ-16, NRG-12, WAR-16, DEF-14, DIP-13 are era 8; no catalog row names missiles or missile defense)*. In short:
+1. **Warheads** come from an **enrichment works** (unlocked by WAR-16; a grid-powered, staffed City structure) at one per 8 seasons, with upkeep.
+2. **Delivery** by bomber from an airfield (TRN-15, WAR-15; range 25; DEF-13 radar shoots one down on a 50% roll) or by rocket (INQ-17; any seen tile; cannot be stopped). A strike needs a state of war, is a `Strike` command, and is public at launch, so the target can answer in the same season.
+3. **A strike** kills 60% of one town, destroys every structure within 1 tile, leaves fallout to 2 tiles that fades 5% a year (no founding or claiming above 50), adds a climate-stress pulse and a short world harvest loss.
+4. **Deterrence:** WAR-16's public test tells the world; warhead counts are hidden except through WAR-19 intelligence or a treaty. **DEF-14 makes warheads survive any strike (second strike).** AIs always retaliate; the human has a "Retaliate if struck" standing order, on by default. Wars against nuclear powers are allowed, but the AI prices in retaliation, so they are rare.
+5. **First use** (striking someone who has not struck) costs 15% of Legacy, an Aggressor mark, Relations −60 with everyone, an automatic assembly embargo and the coalition's attention; the Charter changes the price (Concord loses its Charter, Renown pays double, Ascendancy less).
+6. **DIP-13 treaties** cap both sides at 3 warheads with mutual verification; the catalog's "catastrophe risk −90%" cuts a yearly accident roll.
+7. **The AI fires first only** when at war, when its forecast Legacy after every penalty is still better, and when it faces elimination or the loss of its capital (or, in E9, a rival about to win the Apex); never first at a second-strike holder unless facing elimination.
+
+**E9 adds:** strikes on Apex uplinks, the Charter capstones' nuclear clauses and the Concord umbrella, the halved Apex bonus for an Aggressor, and elimination by strikes as an end reason.
 
 ### 5.9 Deliberately not in E8
-No Apex uplinks (E9), no sabotage orders (E9), no satellites (E9), no internet or data links (E9), no nuclear use order (D10), no money or debt (the D12 rule of [38](38-discovery-age.md) stands), no scripted events, no project that creates people.
+No Apex uplinks (E9), no sabotage orders (E9), no satellites (E9), no internet or data links (E9), no second nuclear weapon type and no missile defense (§5.8a), no money or debt (the D12 rule of [38](38-discovery-age.md) stands), no scripted events, no project that creates people.
 
 ## 6. Match structure: the ModernChapter contract
 
@@ -219,7 +233,7 @@ GOV-17's commitment is once per match, never reversible, public (rivals know it 
 | **Ascendancy** (power and deterrence) | WAR, DEF and the industrial lineages −15%; levies drilled ×1.2 | Relations with every non-ally drift −1 a year; never wins an assembly vote against a Concord member | Coalition-against-leader triggers sooner against it |
 | **Renown** (culture and science) | ART, COM, LRN and INQ −15%; soft-claim range ×1.5; Thriving ×1.1 | Weakest defense: no deterrence bonus, pacts cost double to join | Seen as harmless until it leads, then soft claim provokes Relations loss |
 
-These are cost and behavior levers that go through existing terms (the diffusion floor, Relations, Cohesion, Legacy). None creates a new score.
+These are cost and behavior levers that go through existing terms (the diffusion floor, Relations, Cohesion, Legacy). None creates a new score. **Nuclear stance (owner decision of 2026-11-28):** Concord is bound by no first use (first use voids its Charter and dissolves its pacts) and gives pact partners an umbrella; Ascendancy has a declared first-use doctrine (rivals price its threat ×1.5, its first-use penalty ×0.75); Renown pays double for first use and loses its soft claim. Full rules in [43 §6.5 and §9](43-information-age.md).
 
 ### 8.5 Rules every shape needs
 - **Leader definition:** one number, the end-screen Legacy (`CivLegacy`, research Legacy plus Dominion), used by DIP-10 (E7), the coalition plan and any warning.
@@ -233,7 +247,7 @@ These are cost and behavior levers that go through existing terms (the diffusion
 3. **Dominion victory: build it or retire it?** It first becomes reachable in E7.
 4. **One finish or several?** Shape 1 (one race) or Shape 2 (three roads).
 5. **The Charter:** accept Concord, Ascendancy and Renown (neutral names, no real-world ideologies), and is the choice irreversible?
-6. **Nuclear weapons:** deterrent only, or a usable weapon with a catastrophe and Legacy penalty ([05 §12](05-simulation-structure.md))?
+6. **Nuclear weapons:** ~~deterrent only, or a usable weapon~~ **Decided by the owner 2026-11-28: usable** (§5.8a; [43 §6.5](43-information-age.md)).
 7. **Sabotage:** may the human and the AI sabotage uplinks (the catalog says yes), and may bloc partners?
 8. **Retire button and elimination:** accept both rules of §8.5?
 9. **Climate:** a bounded shared climate stress from E8 (recommended), or none until E9?
@@ -253,8 +267,9 @@ These are cost and behavior levers that go through existing terms (the diffusion
 | M-T6 | **Soft claim:** never flips a tile alone | Seeded cases |
 | M-T7 | **Blocs and assembly:** votes, pacts and embargoes by their rules; leaving costs as stated | Replay cases |
 | M-T8 | **Charters:** each Charter's win share in four-AI free-for-alls within the A5 band (no Charter above 30% more wins than its share) | AI tournament |
-| M-T9 | **Deterrence and war:** trenches, tanks, air, radar and deterrence on the force tables | Isolated trials plus live attrition |
+| M-T9 | **War:** trenches, tanks, air, radar and bomber interception on the force tables; retaliation in the war value | Isolated trials plus live attrition |
 | M-T10 | Apex readiness at KEY-9: how many of the 14 Apex-prep rows each archetype has done | Diagnostic for E9 |
+| M-T11 | **Nuclear restraint and rules:** first use in at most 1 four-AI match of 10; no first strike at a second-strike holder unless facing elimination; every strike's deaths, destruction, fallout, world harvest loss, climate pulse and penalties follow [43 §6.5](43-information-age.md) and replay identically | AI tournament plus seeded strike fixtures |
 
 ## 10. What the player sees
 
@@ -268,7 +283,7 @@ Own worktree and branch (`civsim-e8`, `codex/e8-modern`), started only when E7's
 |---|---|---|---|---|
 | **WP-E8-0 Scope** | This doc; owner answers §8.6 Q1 to Q5 and D1 to D5 | Answers recorded | S | — |
 | WP-E8-1 Oracles | `e8_research_oracle.py`, `e8_anchors.py` (from E7's live fit), power, climate and combat oracles | `--check` passes; base printed for 30/32/35 | M | 2, 3 |
-| WP-E8-2 Content typing | 65 + KEY-9 typed in place (draft), the five new rows, goods (crude, fuel, aluminium, alloys, plastics, silicon, fertilizer), structures (power station, grid line, dam, reactor, oil well, refinery, highway, airfield, studio, lab, launch site), roles (researcher, operator), V25, era base and breadth 22, KEY-9 requires GOV-17 (D5) | Strict validation clean; draft inert | L | 1, 3 |
+| WP-E8-2 Content typing | 65 + KEY-9 typed in place (draft), the five new rows, goods (crude, fuel, aluminium, alloys, plastics, silicon, fertilizer, warhead), structures (enrichment works, power station, grid line, dam, reactor, oil well, refinery, highway, airfield, studio, lab, launch site), roles (researcher, operator), V25, era base and breadth 22, KEY-9 requires GOV-17 (D5) | Strict validation clean; draft inert | L | 1, 3 |
 | WP-E8-3 Audit | `e8-audit`: oil-seep and bauxite reach per start (the E6 coal lesson), river sites for dams, coastal and continental spread for the Apex's ≥ 15-tile uplink spacing | Report; no worldgen change | M | 1, 2 |
 | **WP-E8-4 Mode plumbing** | `Modern = 5`, ceiling 8, KEY-9 ends it, `ModernChain`, `Key9`, isolation tests | Older goldens byte-identical | S | first |
 | WP-E8-5 Grid and power | System A | Ledger conserves | L | after 4 |
@@ -278,7 +293,8 @@ Own worktree and branch (`civsim-e8`, `codex/e8-modern`), started only when E7's
 | WP-E8-9 Voice and soft claim | System F | M-T6 | M | 8 |
 | WP-E8-10 World order and Charter | System G, GOV-17 choice, pacts, assembly | M-T7, M-T8 on fixtures | L | 9 |
 | WP-E8-11 War and climate | System H, climate stress | M-T5, M-T9 | L | 10 |
-| WP-E8-12 AI and forecast | KEY-9 routing, Charter choice, bloc logic, `ApexRace` scoring stub (reads only, no E9 actions) | Stock AI reaches KEY-9 unaided | M | after 5 to 11 |
+| WP-E8-11a Nuclear arsenal | §5.8a: enrichment works and warheads, bomber and rocket delivery, `Strike` command and the retaliation standing order, strike effects and the fallout array, DEF-14 second strike, DIP-13 treaties and accidents, first-use penalties, the AI's retaliation-aware war value and first-use rule | M-T11 on fixtures; seeded strike replays identical | L | 11 |
+| WP-E8-12 AI and forecast | KEY-9 routing, Charter choice, bloc logic, nuclear posture (build, deter, retaliate; first use only by the §5.8a rule), `ApexRace` scoring stub (reads only, no E9 actions) | Stock AI reaches KEY-9 unaided; M-T11 | M | after 5 to 11a |
 | WP-E8-13 View, promotion and pacing | `ModernFrame`, cards, Charter Moment; promote all 66 rows together; `modern-match --grant-e8`; base sweep | M-T1 on fit seeds | L | — |
 | WP-E8-14 Large sample and playtest | 80+ matches, held out, owner hand playtest | All gates; owner approval | L | — |
 
@@ -298,6 +314,7 @@ Own worktree and branch (`civsim-e8`, `codex/e8-modern`), started only when E7's
 | B8-08 Climate | M-T5 |
 | B8-09 World order | M-T6, M-T7, M-T8 |
 | B8-10 War | M-T9 |
+| B8-10a Nuclear | M-T11; no strike without war; a human with "Retaliate if struck" on always answers; fallout decays exactly |
 | B8-11 AI | A1-A8 in Modern; Legend ≥ 60% vs Warlord; Charter shares within A5 |
 | B8-12 Performance | Mean tick ≤ 4 ms at E8 p95 population; figure budget at 1:250 |
 | B8-13 Comprehension | ≥ 5/8 uncoached players explain their Charter's price and one shared-world effect (climate, bloc or soft claim) |
@@ -328,7 +345,7 @@ Own worktree and branch (`civsim-e8`, `codex/e8-modern`), started only when E7's
 | D7 | Late-project doubling (D9) | Keep it (36 of 60 rows); fit the base with it. | Please confirm |
 | D8 | Soft claim | Never flips land by itself; it moves Cohesion and Legacy only. | Please confirm |
 | D9 | Climate stress | Start it in E8, shared and bounded, only from emissions; E9 owns the full system. | Please confirm |
-| D10 | Nuclear weapons | Deterrent only in E8 (no use order); revisit in E9 with the endgame. | **Yes** |
+| D10 | Nuclear weapons | **Decided by the owner 2026-11-28: usable** (was "deterrent only"). E8 builds the arsenal of §5.8a; the sizes and prices to confirm are listed as D13 to D17 in [43 §13.2](43-information-age.md) (strike size, DEF-14 as second strike instead of a ban on war, the price of first use, the human's retaliation order, no missile defense). | Settled; details to confirm in doc 43 |
 | D11 | Rival countdown on KEY-9 | None (as since E5). | No |
 | D12 | Era base | Type **400,000** as the first input (not 1,700,000) and fit it live; expect 320,000 to 525,000. | No |
 | D13 | Bauxite | Give aluminium no hidden gate: either no `[Has: Bauxite]` or a bauxite guarantee, chosen after the audit. | No |
@@ -344,3 +361,4 @@ Own worktree and branch (`civsim-e8`, `codex/e8-modern`), started only when E7's
 - **Climate stress is shared,** so one dirty civilization can hurt a clean one; keep the bound tight in E8.
 - **Performance:** grids, motor traffic, air and the largest populations yet; measure the tick budget early, and keep 1:250 ready for the view.
 - **Endgame drift:** if E9 is designed before §8.6 is answered, it will design its own ending. Answer those questions first.
+- **A usable bomb can end a match abruptly and feel unfair** (D10). E8 is where it first appears, so E8 carries the guards: a public test when anyone gets the bomb, an alert when a hostile rival can deliver, a launch you can answer in the same season, one town per strike, radar against bombers, second strike, treaties, and a first-use price so high that the AI strikes first only when it would otherwise be eliminated or lose its capital (M-T11). Build and test the rules with seeded fixtures before the AI may use them; if play still feels unfair, shrink the strike, do not hollow out the deterrent.
