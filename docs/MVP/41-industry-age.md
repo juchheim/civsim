@@ -166,7 +166,7 @@ No global climate, no electric grid, no oil, no motor vehicles, no money or debt
 
 - **Saves, replays, hashes:** mode byte 4; a Discovery save never becomes Industry; every older mode stays byte-identical, and E7 state is written only in Industry.
 - **Default chapter:** the base game stays on Discovery until E7 is promoted and the owner approves the hand playtest; then the base game plays Industry, as the owner directed for every built age on 2026-11-28. `--chapter=discovery` keeps the old ending (D1).
-- **Legacy:** current rules unchanged (Mastery `2 × (era + 1)`, Wonder built `25 × (era + 1)`, Thriving). Dominion unchanged; [07b](07b-territory-findings.md) expects the map to fill and conquest wins to become possible in early-to-late E7, so Dominion endings must be reported separately.
+- **Legacy:** current rules unchanged (Mastery `2 × (era + 1)`, Wonder built `25 × (era + 1)`, Thriving). Dominion scoring unchanged. **Dominion victory is built with E7** (owner, 2026-11-28; [43 §8.1a](43-information-age.md)): ≥ 50% of habitable land and ≥ 2× the runner-up for 5 years ([01 §7.2](01-game-structure.md)); **any civilization's Dominion, a rival's included, ends the match for everyone**; the 40% warning and the running five-year clock are broadcast to the human; a human beaten this way gets a proper end screen ("The {civ} rules the world", rank, final shares) and the replay records reason and winner. *Timing check:* doc 01 says the earliest win is "around minute 120 (late Industry era)" and [07b](07b-territory-findings.md) gives 113 to 121, but those minutes come from the balance model's calendar (E7 from minute 98); on today's plan E7 runs from about minute 130 to 162 ([43 §7.3](43-information-age.md)), so minute 120 now falls in late E6, and the live map fills faster than 07b. Treat "first reachable in E7" as unverified; WP-E7-3 measures it.
 - **Representation:** simulation 1:1; the catalog's 1:100 applies to the view only if the figure budget (600 a civilization) is exceeded.
 
 ## 7. Pacing: 30 to 35 minutes, aiming for 32
@@ -229,7 +229,7 @@ Own worktree and branch (`civsim-e7`, branch `codex/e7-industry`), never the sha
 | WP-E7-1 Oracles | `e7_research_oracle.py`, `e7_anchors.py`, power, health and combat oracles (§7.3) | `--check` passes; draft base and breadth printed for 30/32/35 min | M | 2, 3 |
 | WP-E7-2 Content typing | 55 + KEY-8 typed in place (effects, practice, flavor, Moment; all `draft`), the twelve new rows, goods (wrought iron, steel, cement, fertilizer, gas/coal-tar, dye, rifles, microscope), structures, roles (puddler, telegraphist, teacher), recipes, V24 (E7 promoted together), era base and breadth 20 | `validate --strict` clean; draft rows inert; pack golden refreshed at merge | L | 1, 3 |
 | WP-E7-3 Audit | `e7-audit` over seeds 1-10,000: coal reserves against E7 burn, offshore fish stock, rail geometry, colony counts, which E7 era rows post-KEY-7 Discovery rivals already use | Report; no worldgen change | M | 1, 2 |
-| **WP-E7-4 Mode plumbing** | `Industry = 4`, ceiling 7, KEY-8 ends it, `IsDiscovery` to containment, `IsIndustry`, `IndustryChain`, `Key8`, `--mode industry`, isolation tests | All older goldens byte-identical | S | first |
+| **WP-E7-4 Mode plumbing** | `Industry = 4`, ceiling 7, KEY-8 ends it, `IsDiscovery` to containment, `IsIndustry`, `IndustryChain`, `Key8`, `--mode industry`, isolation tests; the **Dominion victory** for any winner (end reason, winner field, 40% warning and clock to the human, end screen; [43 §8.1a](43-information-age.md)) | All older goldens byte-identical | S | first |
 | WP-E7-5 Steam, iron, steel | System A | Ledger conserves; mills, converter, firedamp tests | L | after 4 |
 | WP-E7-6 Rail, wire, sea | System B | Link, cut, coal-range, overfishing tests | L | after 5 (rails need wrought iron) |
 | WP-E7-7 Factory town | Pollution, strikes, boom and bust, housing, gas, smoke abatement | N-T5, N-T6 on fixtures | L | after 5 |
@@ -250,7 +250,7 @@ Own worktree and branch (`civsim-e7`, branch `codex/e7-industry`), never the sha
 | B7-01 Isolation | Toy, worldgen, research, politics, Bronze, Iron, Fief **and Discovery** goldens and checksums byte-identical; E7 inert before own KEY-7 and in every older mode |
 | B7-02 Completeness | 56 nodes typed with costs, practice, flavor, Moment; strict validation clean; registries resolve |
 | B7-03 Determinism | 1,000 Industry matches replay exactly; snapshot continuation exact; macOS arm64 and Windows x64 agree on an industry-v1 golden |
-| B7-04 Mode and end | End clauses, ties, KEY-7 continuation, KEY-8 threshold, old-save modes |
+| B7-04 Mode and end | End clauses, ties, KEY-7 continuation, KEY-8 threshold, old-save modes; a rival's and the human's Dominion each end the match on the season the clock completes |
 | B7-05 Pacing | N-T1 |
 | B7-06 Coal and power | N-T2, N-T3; exact input/output conservation |
 | B7-07 Rail and sea | N-T4, N-T9; voyages and links conserve people and goods |
@@ -288,6 +288,7 @@ Own worktree and branch (`civsim-e7`, branch `codex/e7-industry`), never the sha
 - **E6 and E5 numbers can still move**, and E6 was refitted three times for that reason. Re-anchor `e7_anchors.py` after any change below E7.
 - **Coal may run out.** Rails, steamships, mills and engines all burn it; if basins empty inside the age, coal-poor civilizations stall. WP-E7-3 measures it before any number is typed.
 - **The price can become a trap.** Pollution, strikes and secession feed each other; the 10% death ceiling, a strike cap per town and the existing secession thresholds must stop a spiral.
+- **A rival's Dominion can end a match before E8 and E9 exist.** The match then simply ends there with the Legacy standings as today; the 40% warning, the visible clock and the AI coalition are the guards.
 - **Optional systems may never run** (the E4 and E6 lesson). Ten free picks and `--grant-e7` from the first slice are the guard.
 - **E7 era rows may already leak.** Post-KEY-7 rivals in today's Discovery matches use E7 reach 50 and perhaps claim radius 7; Industry may only formalise what already happens. Audit first.
 - **`IsDiscovery` is an identity check.** Missing one of its call sites switches E6 systems off in Industry; a test must assert every E6 system runs in Industry.
