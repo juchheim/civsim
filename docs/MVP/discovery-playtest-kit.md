@@ -1,6 +1,6 @@
 # Discovery hand playtest: launch and checklist
 
-Status: 2026-11-27. For the owner to play; nothing here changes the game. Discovery is a **debug-build** chapter: it is reachable only with `--discovery-playtest`, so build the Debug game.
+Status: 2026-11-28. For the owner to play; nothing here changes the game. Since 2026-11-28 Discovery is the base game's default chapter in every build (a standard launch plays E0 to E6); `--discovery-playtest` is kept as an alias. The dev aids below and the skip-ahead flags are still **debug-build** only, so build the Debug game for them.
 
 ## Launch
 

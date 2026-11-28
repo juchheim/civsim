@@ -85,9 +85,7 @@ public partial class Game
         _session = replacement;
         DisplayServer.WindowSetTitle(_session.Mode == ChapterMode.Fief
             ? $"CivSim — {_look.Name} · Faith & Fief"
-            : _session.Mode == ChapterMode.Discovery
-                ? $"CivSim — {_look.Name} · DISCOVERY PLAYTEST"
-                : $"CivSim — {_look.Name}");
+            : $"CivSim — {_look.Name}");
         if (!_session.Frames.TryAcquire() || _session.Frames.Current is null)
             throw new InvalidOperationException("The replacement simulation did not publish its initial frame.");
         _previous = _session.Frames.Previous;
@@ -153,11 +151,11 @@ public partial class Game
         string detail = selectedMode switch
         {
             ChapterMode.Fief => $"Faith & Fief chapter. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
-            ChapterMode.Discovery => $"DISCOVERY PLAYTEST. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
+            ChapterMode.Discovery => $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
             ChapterMode.Bronze => $"Bronze Age. Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
             _ => $"Rivals: {DifficultyName(difficulty)}. Seed {seed}.",
         };
-        ShowToast(selectedMode == ChapterMode.Discovery ? "Discovery playtest" : "New match", ToastKind.Info, detail, key: "new-match");
+        ShowToast("New match", ToastKind.Info, detail, key: "new-match");
     }
 
     /// <summary>Per rendered frame: end-of-match detection and replay status.</summary>

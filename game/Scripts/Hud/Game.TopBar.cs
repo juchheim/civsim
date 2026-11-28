@@ -287,12 +287,12 @@ public partial class Game
         UiKit.SetText(_civSettlementsLabel!, $"people · {settlements} {(settlements == 1 ? "settlement" : "settlements")}");
         int era = frame.CivEra[civ];
         UiSkin.SetViewerEra(era);
-        UiKit.SetText(_ageLabel!, _session.Mode == ChapterMode.Discovery
-            ? "DISCOVERY · " + UiText.AgeName(era).ToUpperInvariant()
-            : UiText.AgeName(era).ToUpperInvariant() + " AGE");
+        UiKit.SetText(_ageLabel!, UiText.AgeName(era).ToUpperInvariant() + " AGE");
         _ageLabel!.TooltipText = _session.Mode == ChapterMode.Fief
             ? $"Faith & Fief chapter · {UiText.AgeName(era)} Age. KEY-6 Printing Revolution ends the match."
-            : UiText.AgeName(era);
+            : _session.Mode == ChapterMode.Discovery
+                ? $"{UiText.AgeName(era)} Age. KEY-7 Industrial Revolution ends the match."
+                : UiText.AgeName(era);
         int done = frame.CivBreadthDone[civ], needed = Math.Max(1, (int)frame.CivBreadthNeeded[civ]);
         UiKit.SetText(_ageCountLabel!, $"{Math.Min(done, needed)}/{needed}");
         _ageCountLabel!.TooltipText = $"Only completed regular {UiText.AgeName(era)} Age projects add to the next-age count. Required older-age projects unlock the route but don't add to this count. Projects in progress don't count yet.";

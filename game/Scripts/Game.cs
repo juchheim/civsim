@@ -147,8 +147,6 @@ public partial class Game : Node3D
             _session = new SimulationSession(seed, pack, startMinute, viewerCiv, CivSim.Game.Ui.UiSettings.Load().Difficulty, ReadChapter());
             if (_session.Mode == CivSim.Sim.Research.ChapterMode.Fief)
                 DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · Faith & Fief");
-            else if (_session.Mode == CivSim.Sim.Research.ChapterMode.Discovery)
-                DisplayServer.WindowSetTitle($"CivSim — {_look.Name} · DISCOVERY PLAYTEST");
             _width = _session.WorldView.Width;
             _height = _session.WorldView.Height;
             _terrainHeights = MakeHeights(_session.WorldView);
@@ -338,14 +336,17 @@ public partial class Game : Node3D
         return 0;
     }
 
-    /// <summary>New matches play the full Faith &amp; Fief chapter unless a chapter is selected explicitly.</summary>
+    /// <summary>
+    /// New matches play the whole game: every existing age, Discovery (E6) included, ending with the Industrial Revolution (KEY-7). An earlier chapter can still be
+    /// selected explicitly (<c>--chapter=fief|iron|bronze</c>, or <c>--fief-playtest</c>) for inspection and replays; saves and replays keep the chapter they were made in.
+    /// </summary>
     private static CivSim.Sim.Research.ChapterMode ReadChapter()
     {
-#if DEBUG
-        if (HasArgument("--discovery-playtest")) return CivSim.Sim.Research.ChapterMode.Discovery;
-#endif
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
+            if (string.Equals(arg, "--discovery-playtest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(arg, "--chapter=discovery", StringComparison.OrdinalIgnoreCase))
+                return CivSim.Sim.Research.ChapterMode.Discovery;
             if (string.Equals(arg, "--fief-playtest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(arg, "--chapter=fief", StringComparison.OrdinalIgnoreCase))
                 return CivSim.Sim.Research.ChapterMode.Fief;
@@ -354,7 +355,7 @@ public partial class Game : Node3D
             if (string.Equals(arg, "--chapter=bronze", StringComparison.OrdinalIgnoreCase))
                 return CivSim.Sim.Research.ChapterMode.Bronze;
         }
-        return CivSim.Sim.Research.ChapterMode.Fief;
+        return CivSim.Sim.Research.ChapterMode.Discovery;
     }
 
     private static int ReadViewerCiv()
@@ -1149,10 +1150,8 @@ public partial class Game : Node3D
 
     /// <summary>Viewer-fair E3 map layers: known deposits, mine status, settlement Cohesion bands and compact routes.</summary>
     /// <summary>The Discovery frame's ocean lanes flattened for the renderer: from tile, to tile, civilization, volume in permille, four ints a lane (docs/MVP/39 §7.2).</summary>
-#if DEBUG
-    /// <summary>Tiles the dev work-state aid (<c>--dev-disc-states</c>) picked, so the capture scenario can frame them.</summary>
+    /// <summary>Tiles the dev work-state aid (<c>--dev-disc-states</c>) picked, so the capture scenario can frame them. Always declared (the scenarios compile in every build); only a Debug run sets them.</summary>
     internal static int DevPitTile = -1, DevWreckTile = -1, DevCaneTile = -1, DevFoundingTile = -1, DevRoadFarTile = -1;
-#endif
 
     /// <summary>The viewer's worked deep coal pits, two ints each: tile, state (1 flooded, 2 pumped).</summary>
     private static int[] DiscoveryPits(MatchFrame frame, WorldView world)

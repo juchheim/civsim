@@ -4,6 +4,8 @@
 >
 > Audit baseline: `main` at `6d6df44` (since then `43a1648` made the Iron chapter the game's default for new matches; the sim default in `ChapterRules` is unchanged, and Fief stays opt-in on top of it). Every claim marked *(verified)* was read from the catalog, registries or source on that commit. Claims marked *(assumed)* come from older design docs or from the E4 notes and must be re-checked after the E4 balance lands.
 
+> **Superseded 2026-11-28:** the base game now plays the Discovery chapter (E0 to E6, [38](38-discovery-age.md)), which contains this one; `--chapter=fief` still selects Faith & Fief alone.
+>
 > **Current implementation override — 2026-11-20.** The user directed that Faith & Fief be enabled in the base game regardless of the remaining acceptance gates. Standard launches now use `ChapterMode.Fief`; all 50 E5 catalog rows are `numeric`, so their current draft-fit values and effects are active. This enables normal gameplay without claiming the open balance, performance, cross-platform or comprehension gates have passed. The earlier default-off and pre-acceptance promotion decisions below are historical and superseded for launch/promotion only; the acceptance evidence remains open.
 
 > **A1 owner decision — 2026-11-26.** A1 is officially **PASS for E5 by explicit owner-approved exception**. The preserved measured result is 59/80 (73.75%); it remains below the nominal 64/80 (80%) threshold. Astra's fresh review found no evidence-backed low-risk change to justify another tuning cycle. The exception does not alter the written threshold or waive the other AI and technical gates. See the [A1 disposition](balance/m12-e5-11-a1-owner-accepted-near-miss-2026-11-26.md).

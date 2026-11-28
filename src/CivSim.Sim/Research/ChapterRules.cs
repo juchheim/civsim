@@ -15,7 +15,7 @@ public enum ChapterMode : byte
     /// </summary>
     Fief = 2,
     /// <summary>
-    /// The opt-in Discovery chapter (docs/MVP/38): E4, E5 and E6 all play, E6 opens after a civilization's own KEY-6, and KEY-7 ends the match.
+    /// The Discovery chapter (docs/MVP/38), the base game's default since 2026-11-28: E4, E5 and E6 all play, E6 opens after a civilization's own KEY-6, and KEY-7 ends the match.
     /// It contains the Faith &amp; Fief chapter (and so the Iron chapter), so every E4 and E5 system runs in it. Appended after Fief; never renumber.
     /// </summary>
     Discovery = 3,
