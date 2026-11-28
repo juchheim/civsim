@@ -163,6 +163,11 @@ public partial class Game : Node3D
                 }
             }
             if (_current is null) throw new InvalidOperationException("Simulation did not publish its initial MatchFrame.");
+            if (OS.IsDebugBuild() && HasArgument("--dev-sea"))
+            {
+                ApplyDevSea(_session, _current);
+                _terrainHeights = MakeHeights(_session.WorldView);   // the shore sits lower: heights follow the new water
+            }
             RebuildVisualRenderer(_current, _session);
             UpdateSettlementMapLabels(_current);
             _resourceNode = CreateMultiMeshNode(_look.CreateSphere(), "KnownResourceDeposits", _look.LitVertexMaterial());
@@ -2190,6 +2195,28 @@ public partial class Game : Node3D
         AddChild(_borderNode);
     }
 
+
+    /// <summary>
+    /// Dev aid (<c>--dev-sea</c>, Debug builds): the human's start is never beside the sea, so the harbor, quay, galleon and anchor cannot be photographed there. This turns the town's front tile and one more neighbouring
+    /// land tiles of the start into shallow coast water in the view's own copy of the map (the simulation never sees it), so <c>--dev-harbor</c> finds a coast. For captures only.
+    /// </summary>
+    private static void ApplyDevSea(SimulationSession session, MatchFrame frame)
+    {
+        WorldView view = session.WorldView;
+        foreach (WorldStart start in session.World.Starts)
+        {
+            if (start.Civilization != 0) continue;
+            int row = -1;
+            for (int i = 0; i < frame.SettlementCount; i++) if (frame.SettlementTile[i] == start.Tile) row = i;
+            // the town's front is the side the sim says it faces (the layout builds the quay there); with none given the renderer falls back to tile % 6
+            int front = row >= 0 && frame.SettlementCoreFront.Length > row && frame.SettlementCoreFront[row] < 6 ? frame.SettlementCoreFront[row] : start.Tile % 6;
+            for (int k = 0; k < 2; k++)
+            {
+                int tile = CivSim.Sim.World.HexGrid.Step(start.Tile, (front + k * 2) % 6, view.Width, view.Height);
+                if (tile >= 0) view.Biome[tile] = (byte)Biome.Coast;   // shallow water, as a real shore is: the quay and the ship sit at the right height
+            }
+        }
+    }
 
     private static float[] MakeHeights(WorldView world)
     {

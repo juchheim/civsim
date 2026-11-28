@@ -175,7 +175,7 @@ func sync(colonies: Array, foundings: Array, ground_y: float = NAN) -> void:
 		var civ := int(c.civ)
 		var y := _y(p)
 		if st == STATE_INDEPENDENT:
-			flags.append({"xf": Transform3D(Basis.from_scale(Vector3.ONE * 1.4), Vector3(p.x + 0.34, y, p.y - 0.18)), "civ": civ})
+			flags.append({"xf": Transform3D(Basis.from_scale(Vector3.ONE * 2.6), Vector3(p.x + 0.34, y, p.y - 0.18)), "civ": civ})
 			var pulse := MeshInstance3D.new()
 			pulse.name = "BreakawayPulse"
 			var torus := TorusMesh.new()

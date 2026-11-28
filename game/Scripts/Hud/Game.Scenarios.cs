@@ -448,6 +448,23 @@ public partial class Game
                 Step(() => FocusTileNow(DevFoundingTile, 2.6f), 2.0f);
                 Shot("disc-more-founding");
                 break;
+            case "disc-harbor":
+                // the quay, the galleon with its anchor and the free colony's flag (use the disc-more flags plus --dev-sea --dev-harbor --dev-colony=4; --dev-sea turns two tiles beside the start into sea, the start is never coastal)
+                Step(() => { _session?.SetPaused(true); FrameCapital(); ZoomTo(7.0f); }, 2.5f);
+                Shot("disc-harbor-a");
+                for (int i = 0; i < 6; i++)
+                {
+                    float yaw = Mathf.DegToRad(i * 60.0f);
+                    Step(() => { _yawTarget = yaw; ZoomTo(3.6f); }, 1.4f);
+                    Shot($"disc-harbor-yaw{i}");
+                }
+                Step(() => { _yawTarget = 0f; FocusTileNow(_current!.SettlementTile[0], 1.5f); }, 1.8f);
+                Shot("disc-harbor-flag");
+                Step(() => { _yawTarget = Mathf.DegToRad(150.0f); FocusTileNow(_current!.SettlementTile[0], 1.5f); }, 1.8f);
+                Shot("disc-harbor-flag2");
+                Step(() => { _yawTarget = 0f; FocusTileNow(_current!.SettlementTile[0], 0.8f); _target += new Vector3(0.34f, 0f, -0.18f); }, 1.8f);
+                Shot("disc-harbor-flag-close");
+                break;
             case "disc-night":
                 // the Discovery works and cues after dark (the disc-more flags plus --dev-disc-states for the dormant and blocked contrast): lit windows, furnace and boiler glow, the free colony's flag; a dev-only look, the game has no night
                 Step(() => { _visualRenderer!.Call("set_dev_night", true); FrameCapital(); ZoomTo(7.0f); }, 3.0f);

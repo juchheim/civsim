@@ -1232,9 +1232,9 @@ func set_dev_night(on: bool) -> void:
 	dev_night = on
 	if on:
 		sun.light_color = Color("#7f95d6")
-		sun.light_energy = 0.55
+		sun.light_energy = 0.7
 		environment.ambient_light_color = Color("#4a5f94")
-		environment.ambient_light_energy = 1.05
+		environment.ambient_light_energy = 1.3
 		environment.tonemap_exposure = 1.0
 		var sky_mat := environment.sky.sky_material as ProceduralSkyMaterial
 		sky_mat.sky_top_color = Color("#0b1330")
@@ -1244,8 +1244,8 @@ func set_dev_night(on: bool) -> void:
 		for fx in hearth_fx_by_tile.values():
 			var light := fx.get("light") as OmniLight3D
 			if is_instance_valid(light):
-				light.light_energy = 1.5
-				light.omni_range = 0.9
+				light.light_energy = 0.8
+				light.omni_range = 0.7
 	else:
 		last_season = -1   # the next season sync restores the day look
 		environment.ambient_light_color = Color("#8fb3dc")
