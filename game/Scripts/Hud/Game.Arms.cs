@@ -37,7 +37,7 @@ public partial class Game
     private Label? _armsStrength, _armsBase, _armsAdvice, _armsLocked;
     private GridContainer? _armsTiles;
     private Control? _armsKitTable, _armsSettlementTable, _armsKitsHeadCell;
-    private readonly ArmsKitRow[] _armsKitRows = new ArmsKitRow[5];
+    private readonly ArmsKitRow[] _armsKitRows = new ArmsKitRow[9];
     private ArmsTile? _tileReady, _tileWounded, _tileWarriors, _tileSoldiers, _tileChariots, _tileEngines;
     private VBoxContainer? _armsSettlementList;
     private readonly List<ArmsSettlementRow> _armsSettlementRows = new();
@@ -46,10 +46,14 @@ public partial class Game
     // Kit rows, strongest first (the order Fighters hands them out). Strength is the weapon multiplier of docs/MVP/22 §7.1 and 26 §4.
     private static readonly (string Good, string Strength, string Who)[] ArmsKitKinds =
     {
+        ("G-ARMS5", "×3.6", "Soldiers only"),
         ("G-ARMS4", "×3.0", "Soldiers only"),
+        ("G-MUSKET", "×2.8", "Levy; fires before the melee"),
         ("G-ARMS3", "×2.4", "Soldiers only"),
         ("G-ARMS2T", "×2.3", "Anyone, with a shield"),
         ("G-ARMS2A", "×2.1", "Anyone, with a shield"),
+        ("G-CROSSBOW", "×2.0", "Levy; fires before the melee"),
+        ("G-LONGBOW", "×2.0", "Levy; fires before the melee"),
         ("G-ARMS1", "×1.8", "Anyone"),
     };
 
@@ -221,9 +225,10 @@ public partial class Game
             + (ranged ? " Ranged fighters fire one free volley before the melee." : "") + " A metal kit replaces it for whoever carries one.";
 
         int armedTotal = 0, idle = 0;
-        int[] armed = { t.Steel, t.Iron, t.Tin, t.Arsenical, t.Copper };
-        int[] stored = { t.StockSteel, t.StockIron, t.StockTin, t.StockArsenical, t.StockCopper };
-        bool[] unlocked = { (arms.Research & ArmsFrame.HasSteel) != 0, ironArms, bronze, bronze, bronze };
+        // The rows follow ArmsKitKinds. Crucible steel, muskets and the crossbow and longbow have no research flag in the frame, so they show once a settlement holds one.
+        int[] armed = { t.Crucible, t.Steel, t.Musket, t.Iron, t.Tin, t.Arsenical, t.Crossbow, t.Longbow, t.Copper };
+        int[] stored = { t.StockCrucible, t.StockSteel, t.StockMusket, t.StockIron, t.StockTin, t.StockArsenical, t.StockCrossbow, t.StockLongbow, t.StockCopper };
+        bool[] unlocked = { false, (arms.Research & ArmsFrame.HasSteel) != 0, false, ironArms, bronze, bronze, false, false, bronze };
         int kitRows = 0;
         for (int i = 0; i < _armsKitRows.Length; i++)
         {
@@ -246,7 +251,7 @@ public partial class Game
         if (t.Fighters == 0) advice.Append("You have no fighters ready.");
         else
         {
-            int bare = Math.Max(0, t.Fighters - armedTotal);
+            int bare = t.BaseOnly; // the frame counts every kit kind, so a fighter with crucible steel or a musket is not reported as bare
             if (anyKitRow && armedTotal == 0) advice.Append("No metal kits are in anyone's hands yet; your fighters use the base weapon.");
             else if (anyKitRow && bare > 0) advice.Append($"{bare} of {t.Fighters} fighters still carry only the base weapon.");
             else if (anyKitRow) advice.Append("Every ready fighter is armed with a metal kit.");
@@ -264,13 +269,13 @@ public partial class Game
         for (int w = 0; w < arms.RowCount; w++)
         {
             SettlementArms a = arms.Rows[w];
-            if (a.Fighters == 0 && a.Wounded == 0 && a.StockCopper + a.StockArsenical + a.StockTin + a.StockIron + a.StockSteel + a.Engines + a.Chariots == 0) continue;
+            if (a.Fighters == 0 && a.Wounded == 0 && a.StockCopper + a.StockArsenical + a.StockTin + a.StockIron + a.StockSteel + a.StockCrucible + a.StockMusket + a.Engines + a.Chariots == 0) continue;
             if (shown >= _armsSettlementRows.Count) _armsSettlementRows.Add(NewArmsSettlementRow());
             ArmsSettlementRow row = _armsSettlementRows[shown];
             UiKit.SetVisible(row.Root, true);
             UiKit.SetVariation(row.Root, (shown & 1) == 0 ? "TableRowAlt" : "TableRow");
             shown++;
-            int kits = a.Steel + a.Iron + a.Tin + a.Arsenical + a.Copper;
+            int kits = a.Crucible + a.Steel + a.Iron + a.Tin + a.Arsenical + a.Copper + a.Musket + a.Crossbow + a.Longbow;
             UiKit.SetText(row.Name, SettlementLabel(frame.SettlementIndex[w]));
             var note = new StringBuilder();
             if (a.Wounded > 0) note.Append($"{a.Wounded} laid up");

@@ -27,6 +27,9 @@ internal static class DiscoveryMatchCommand
     /// <summary>Diagnostic: the civilization whose settlements, population and research are printed every eight seasons (-1 = off). Reads only.</summary>
     private static int _traceCiv = -1;
 
+    /// <summary>Diagnostic: civilization 0 is run by the hands-off Council (what a human gets when they only set research) instead of the stock AI. Off by default.</summary>
+    private static bool _councilCiv0;
+
     public static int Run(string[] args)
     {
         string? packPath = null;
@@ -35,6 +38,7 @@ internal static class DiscoveryMatchCommand
         bool grantE5 = false, grantE6 = false;
         int resumeAt = 0;
         _traceCiv = -1;
+        _councilCiv0 = false;
         ChapterRules rules = ChapterRules.Discovery;
         for (int i = 0; i < args.Length; i++)
         {
@@ -49,6 +53,7 @@ internal static class DiscoveryMatchCommand
                 case "--mode": rules = args[++i] == "fief" ? ChapterRules.Fief : ChapterRules.Discovery; break;
                 case "--resume-at": resumeAt = int.Parse(args[++i]); break;
                 case "--trace-civ": _traceCiv = int.Parse(args[++i]); break;
+                case "--council-civ0": _councilCiv0 = true; break;
                 default: Console.Error.WriteLine($"Unknown option '{args[i]}'."); return 2;
             }
         }
@@ -149,6 +154,7 @@ internal static class DiscoveryMatchCommand
         GeneratedWorld world = WorldGenerator.Generate(seed);
         var controls = new CivControl[Archetypes.Length];
         for (int c = 0; c < controls.Length; c++) controls[c] = CivControl.Ai(Difficulty.Warlord, Archetypes[c]);
+        if (_councilCiv0) controls[0] = CivControl.Council;
         MatchModel match = MatchModel.Create(seed, pack, world, Archetypes, controls, rules: rules);
         match.Research.DiagnosticDraftProjectGrantsEnabled = grantE5 || grantE6;
         var runner = new SimRunner(match);
@@ -300,6 +306,23 @@ internal static class DiscoveryMatchCommand
             goodTotals.Append($"{good}={total.ToDoubleForDisplay():F1} ");
         }
         Console.WriteLine("  goods: " + goodTotals.ToString().TrimEnd());
+        // Diagnostic (reads only): what each civilization's forges hold and what ore it can reach, so a stalled arms tier can be told from a missing ore.
+        for (int c = 0; c < civs; c++)
+        {
+            var kits = new int[6]; int towns = 0, forges = 0;
+            string[] kitGoods = { "G-ARMS1", "G-ARMS2A", "G-ARMS2T", "G-ARMS3", "G-ARMS4", "G-ARMS5" };
+            for (int s = 0; s < settlements; s++)
+            {
+                if (match.Economy.SettlementLite(s).Civilization != c) continue;
+                towns++;
+                forges += match.Economy.Metal(s).Forges;
+                for (int k = 0; k < kitGoods.Length; k++) kits[k] += match.Economy.GoodStock(s, kitGoods[k]).FloorToInt();
+            }
+            MetalStatistics ms = match.Economy.MetalStats(c);
+            Console.WriteLine($"  arms civ{c}: towns={towns} forges={forges} stock copper={kits[0]} arsenical={kits[1]} tin={kits[2]} iron={kits[3]} tempered={kits[4]} crucible={kits[5]} | " +
+                $"ore reach cu={match.Economy.CivHasOreSource(c, DepositKind.CopperOre)} as={match.Economy.CivHasOreSource(c, DepositKind.ArsenicalCopper)} tin={match.Economy.CivHasOreSource(c, DepositKind.Tin)} iron={match.Economy.CivHasOreSource(c, DepositKind.Iron)} coal={match.Economy.CivHasOreSource(c, DepositKind.Coal)} | " +
+                $"cast so far: kits8={ms.Kits8.ToDoubleForDisplay():F0} kits9={ms.Kits9.ToDoubleForDisplay():F0} kits10={ms.Kits10.ToDoubleForDisplay():F0} armsCast={ms.ArmsCast.ToDoubleForDisplay():F0} tinMade={ms.Tin.ToDoubleForDisplay():F0}");
+        }
         var musketsOf = new int[civs];
         for (int s = 0; s < settlements; s++)
         {
