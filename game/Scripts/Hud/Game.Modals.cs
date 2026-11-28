@@ -536,12 +536,18 @@ public partial class Game
         var order = new int[frame.CivCount];
         for (int i = 0; i < order.Length; i++) order[i] = i;
         Array.Sort(order, (a, b) => frame.CivLegacy[b].CompareTo(frame.CivLegacy[a]));
-        // The Iron chapter ends on KEY-5 (docs/MVP/25 §3), so its text is its own; the Bronze text is unchanged.
-        bool ironChapter = _session?.IsIron == true;
-        int endEra = ironChapter ? 5 : 4;
+        // Each chapter ends on its own keystone, so each has its own words: Bronze on KEY-4, Iron on KEY-5 (docs/MVP/25 §3), Faith & Fief on KEY-6 (27), Discovery on KEY-7 (38).
+        // Only Bronze and Iron have a rival countdown, so only they have a "has come" line.
+        (int endEra, string won, string rivalWon) = _session?.Mode switch
+        {
+            ChapterMode.Iron => (5, "The Feudal Order is raised", "The Feudal Order has come"),
+            ChapterMode.Fief => (6, "The Printing Revolution is won", "The Printing Revolution has come"),
+            ChapterMode.Discovery => (7, "The Industrial Revolution begins", "The Industrial Revolution has come"),
+            _ => (4, "The Iron Age dawns", "The Iron Age has come"),
+        };
         _endModal.Title.Text = _session?.EndReason == MatchEndReason.HumanKeystone || frame.CivEra[viewer] >= endEra
-            ? (ironChapter ? "The Feudal Order is raised" : "The Iron Age dawns")
-            : _session?.EndReason == MatchEndReason.RivalCountdown ? (ironChapter ? "The Feudal Order has come" : "The Iron Age has come")
+            ? won
+            : _session?.EndReason == MatchEndReason.RivalCountdown ? rivalWon
             : "The age has closed";
         int myRank = Array.IndexOf(order, viewer) + 1;
         string leader = order[0] == viewer ? "Your people lead" : $"The {UiText.CivName(order[0])} lead";
@@ -580,7 +586,7 @@ public partial class Game
         if (_session is not null)
             left.AddChild(UiKit.Text($"Rivals played at {DifficultyName(_session.Difficulty)}.", "CaptionTertiary", wrap: true));
 
-        AddBronzeSummary(left, frame, viewer);
+        AddRecordSummary(left, frame, viewer);
 
         left.AddChild(UiKit.Text("TURNING POINTS", "EyebrowTertiary"));
         int turning = 0;
@@ -617,6 +623,45 @@ public partial class Game
 
         OpenModal(_endModal);
         _session?.SetPaused(true);
+    }
+
+    /// <summary>
+    /// The end screen's record of the viewer's people. The Bronze chapter keeps its own (tin, walls, compacts, wars); every later chapter gets a record that does not
+    /// talk about tin, and Discovery adds its own line (colonies, engines, factories, the road to the Industrial Revolution).
+    /// </summary>
+    private void AddRecordSummary(VBoxContainer column, MatchFrame frame, int viewer)
+    {
+        if (_session?.Mode is ChapterMode.Iron or ChapterMode.Fief or ChapterMode.Discovery) AddLaterChapterSummary(column, frame, viewer);
+        else AddBronzeSummary(column, frame, viewer);
+    }
+
+    private void AddLaterChapterSummary(VBoxContainer column, MatchFrame frame, int viewer)
+    {
+        int wallKind = LivingEconomyModel.StructureIndex("stone_walls");
+        int towns = 0, people = 0, walls = 0, largest = 0, engines = 0, factories = 0;
+        DiscoveryFrame disc = frame.Discovery;
+        for (int i = 0; i < frame.SettlementCount; i++)
+        {
+            if (frame.SettlementCiv[i] != viewer || (frame.SettlementFlags[i] & (ushort)SettlementViewFlags.Remembered) != 0) continue;
+            towns++;
+            people += frame.SettlementPopulation[i];
+            largest = Math.Max(largest, frame.SettlementPopulation[i]);
+            if (wallKind >= 0 && wallKind < MatchFrame.StructureKinds)
+                walls += frame.SettlementStructures[i * MatchFrame.StructureKinds + wallKind];
+            if (disc.Active && i < disc.Engines.Length) engines += disc.Engines[i];
+            if (disc.Active && i < disc.Factory.Length && disc.Factory[i] != 0) factories++;
+        }
+        int wars = 0;
+        for (int civ = 0; civ < frame.CivCount; civ++)
+            if (civ != viewer && ((CivViewFlags)frame.CivFlags[civ] & CivViewFlags.AtWar) != 0) wars++;
+
+        column.AddChild(UiKit.Text("YOUR PEOPLE'S RECORD", "EyebrowTertiary"));
+        string largestLabel = largest >= 90 ? "largest city" : "largest settlement";
+        column.AddChild(UiKit.Text($"{towns} {(towns == 1 ? "settlement" : "settlements")} · {people:N0} people · {largestLabel} {largest:N0} · {walls} wall rings · {frame.RouteCount} active compacts · {wars} current wars",
+            "BodySecondary", wrap: true));
+        if (_session?.Mode == ChapterMode.Discovery && disc.Active)
+            column.AddChild(UiKit.Text($"{disc.Colonies} {(disc.Colonies == 1 ? "colony" : "colonies")} · {engines} {(engines == 1 ? "engine" : "engines")} · {factories} {(factories == 1 ? "factory" : "factories")} · {disc.Key7Permille / 10.0:0.#}% of the way to the Industrial Revolution",
+                "BodySecondary", wrap: true));
     }
 
     private void AddBronzeSummary(VBoxContainer column, MatchFrame frame, int viewer)
