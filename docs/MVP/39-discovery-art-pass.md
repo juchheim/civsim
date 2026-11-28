@@ -1,6 +1,6 @@
 # 39 — Discovery (E6): the art pass
 
-Status (2026-11-27): **built and mostly wired.** Every P0 and P1 mesh and most P2 meshes exist (`art_disc_*.gd`); the age's industry, forts, civic buildings, ships' lanes, colonies, the soot, the navigation canal with its barge, the harbor's lugger, bank and navigator, the staff and the small cues are placed from the frame (`DiscoveryFrame` and nine new `IronFrame` look bits), each only where the sim holds the thing. What is **not** wired is listed in §13 with the reason (mostly: the simulation holds no such state yet). Acceptance results are in §13. The original spec follows; where it says "not built" or "not wired", §13 is current.
+Status (2026-11-28): **built, wired and hand-played; the owner approved the playtest.** (Status of 2026-11-27, kept for the record: **built and mostly wired.**) Every P0 and P1 mesh and most P2 meshes exist (`art_disc_*.gd`); the age's industry, forts, civic buildings, ships' lanes, colonies, the soot, the navigation canal with its barge, the harbor's lugger, bank and navigator, the staff and the small cues are placed from the frame (`DiscoveryFrame` and nine new `IronFrame` look bits), each only where the sim holds the thing. What is **not** wired is listed in §13 with the reason (mostly: the simulation holds no such state yet). Acceptance results are in §13. The original spec follows; where it says "not built" or "not wired", §13 is current.
 
 Sources: [38](38-discovery-age.md) (design, §8 view layer, WP-E6-5 to -9 slice reports), the typed E6 rows in `content/registries` and `content/catalog` on `codex/e6-discovery` (worktree `civsim-e6`: 10 structures, 12 goods, 3 roles, 4 activities, 11 recipes), [32](32-e5-art-pass.md) (the E5 art pass this one copies), [31a](31a-staged-core-and-building-budget.md) (where buildings may stand), [08 §3 and §13](08-ui-and-world-display.md) (era look and generic kit), and the kit in `game/Renderer/LowPoly3D/Scripts/art_*.gd` on `main`.
 
@@ -382,6 +382,10 @@ Not carried even now: a galleon **on station away from home** (the sim blockades
 | Piece | Why |
 |---|---|
 | Galleon on station away from its harbor, escort | the sim has no ship-versus-ship or escort rule (doc 38 §5.2) |
+
+### Hand playtest (2026-11-28)
+
+The owner played the Discovery chapter by hand and approved the art and its readings. One panel gap came out of it: the Diplomacy War page's kit table listed only the Bronze and Iron kits, so a late game read as "arms stalled at arsenical". It now has nine rows (crucible steel, tempered, musket, iron, tin, arsenical, crossbow, longbow, copper), each shown once a town holds one, and its "base weapon only" count uses the frame's `BaseOnly`. That the world had no tin in reach (so forges made arsenical bronze) is geography, not a defect; see doc 38 WP-E6-13. A-5 (draw cost on a quiet machine), A-6 (figure budget) and A-10 (a lane photographed against a coastal route) are the only acceptance rows still open, and none blocks.
 
 ### Acceptance run (A-1 to A-17)
 
